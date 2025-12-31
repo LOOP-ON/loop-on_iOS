@@ -1,10 +1,17 @@
 import SwiftUI
 
 @main
-struct LoopOnApp: App {
+struct LOOPONApp: App {
+    @State private var isFinishedSplash = false
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if isFinishedSplash{
+                ContentView()
+            } else{
+                SplashView(isFinishedSplash: $isFinishedSplash)
+            }
+            
         }
     }
 }
