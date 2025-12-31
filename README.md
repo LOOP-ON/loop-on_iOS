@@ -1,4 +1,4 @@
-# 🚀 프로젝트 이름
+# 🚀 LOOP:ON
 
 <a href="https://ibb.co/cKpb0Vg4"><img src="https://i.ibb.co/nqV39tgx/Frame.png" width="100" height="100" alt="Frame" border="0"></a>
 
@@ -13,18 +13,20 @@
 <br>
 
 ## 👥 멤버
+
 | 팀원 1 | 팀원 2 | 팀원 3 |
-|:------:|:------:|:------:|
-| 사진1 | 사진2 | 사진3 |
+| :---: | :---: | :---: |
+| 키미 / 이경민 | 써니 / 김세은 | 핀 / 문인성 |
+| <a href="https://ibb.co/YTqjCxyr"><img src="https://i.ibb.co/gFBg2xPn/Kakao-Talk-20251129-215451888.jpg" width="200" height="400" alt="Kakao-Talk-20251129-215451888" border="0"></a> | ![사진2](이미지주소) | ![사진3](이미지주소) |
 | PL | FE | FE |
-| [GitHub](깃허브 링크) | [GitHub](깃허브 링크) | [GitHub](깃허브 링크) |
+| [GitHub](링크) | [GitHub](링크) | [GitHub](링크) |
 
 <br>
 
 
 ## 📱 소개
 
-> 프로젝트의 주요 목적과 사용자가 얻게 될 경험을 설명해주세요.
+> 프로젝트의 주요 목적과 사용자가 얻게 될 경험을 설명.
 
 <br>
 
@@ -38,9 +40,9 @@
 For building and running the application you need:
 
 iOS 26.0 <br>
-Xcode 26 <br>
-Swift 6.2
-
+Xcode 16.4 <br>
+Swift 6.2 <br>
+Tuist 4.72.0 <br>
 <br>
 
 ## ⚒️ 개발 환경
@@ -56,13 +58,13 @@ Swift 6.2
 <img src="https://img.shields.io/badge/git-%23F05033.svg?style=for-the-badge&logo=git&logoColor=white" />
 <img src="https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white" />
 <img src="https://img.shields.io/badge/SPM-FA7343?style=for-the-badge&logo=swift&logoColor=white" />
-<img src="https://img.shields.io/badge/Fastlane-n?style=for-the-badge&logo=fastlane&logoColor=black" />
+<!-- <img src="https://img.shields.io/badge/Fastlane-n?style=for-the-badge&logo=fastlane&logoColor=black" /> -->
 </div>
 
 ### Development
 <div align="left">
 <img src="https://img.shields.io/badge/Xcode-007ACC?style=for-the-badge&logo=Xcode&logoColor=white" />
-<img src="https://img.shields.io/badge/Firebase-DD2C00?style=for-the-badge&logo=Firebase&logoColor=white" />
+<!-- <img src="https://img.shields.io/badge/Firebase-DD2C00?style=for-the-badge&logo=Firebase&logoColor=white" /> -->
 <img src="https://img.shields.io/badge/SwiftUI-42A5F5?style=for-the-badge&logo=swift&logoColor=white" />
 <img src="https://img.shields.io/badge/Alamofire-FF5722?style=for-the-badge&logo=swift&logoColor=white" />
 <img src="https://img.shields.io/badge/Moya-8A4182?style=for-the-badge&logo=swift&logoColor=white" />
@@ -72,7 +74,7 @@ Swift 6.2
 
 ### Communication
 <div align="left">
-<img src="https://img.shields.io/badge/Miro-FFFC00.svg?style=for-the-badge&logo=Miro&logoColor=050038" />
+<!-- <img src="https://img.shields.io/badge/Miro-FFFC00.svg?style=for-the-badge&logo=Miro&logoColor=050038" /> -->
 <img src="https://img.shields.io/badge/Notion-white.svg?style=for-the-badge&logo=Notion&logoColor=000000" />
 <img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=Discord&logoColor=white" />
 <img src="https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white" />
@@ -84,10 +86,10 @@ Swift 6.2
 <table>
   <tr>
     <td>
-      사진 넣어주세요
+      사진 삽입
     </td>
     <td>
-      사진 넣어주세요
+      사진 삽입
     </td>
    
   </tr>
@@ -95,6 +97,7 @@ Swift 6.2
 
 ## 🔖 브랜치 컨벤션
 <!-- 팀원들끼리 협의하여 기록해주세요! -->
+- 기능별로 branch 이름을 정함 (feature/home)
 
 <br>
 
@@ -124,6 +127,11 @@ Swift 6.2
 <br>
 
 ## 📑 커밋 컨벤션
+> 🎉 [Chore] 프로젝트 초기 세팅 <br>
+> ✨ [Feat] 프로필 화면 UI 구현 <br>
+> 🐛 [Fix] iOS 17에서 버튼 클릭 오류 수정 <br>
+> 💄 [Design] 로그인 화면 레이아웃 조정 <br>
+> 📝 [Docs] README에 프로젝트 소개 추가 <br>
 
 ### 💬 깃모지 가이드
 
@@ -152,13 +160,6 @@ Swift 6.2
 
 ### 🏷️ 커밋 태그 가이드
 <!-- 팀원들끼리 협의하여 기록해주세요! -->
-
-### ✅ 커밋 예시 모음
-> 🎉 [Chore] 프로젝트 초기 세팅 <br>
-> ✨ [Feat] 프로필 화면 UI 구현 <br>
-> 🐛 [Fix] iOS 17에서 버튼 클릭 오류 수정 <br>
-> 💄 [Design] 로그인 화면 레이아웃 조정 <br>
-> 📝 [Docs] README에 프로젝트 소개 추가 <br>
 
 <br>
 
