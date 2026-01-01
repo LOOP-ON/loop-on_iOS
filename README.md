@@ -2,7 +2,7 @@
 
 <a href="https://ibb.co/cKpb0Vg4"><img src="https://i.ibb.co/nqV39tgx/Frame.png" width="100" height="100" alt="Frame" border="0"></a>
 
-> 간단한 한 줄 소개 – 프로젝트의 핵심 가치 또는 기능
+> 3일마다 다시 떠나는 나의 여정, LOOP:ON
 
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)]()
 [![Xcode](https://img.shields.io/badge/Xcode-16.0-blue.svg)]()
