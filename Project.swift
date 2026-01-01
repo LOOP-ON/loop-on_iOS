@@ -16,11 +16,21 @@ let project = Project(
                     ],
                 ]
             ),
-            buildableFolders: [
-                "Loop_On/Sources",
-                "Loop_On/Resources",
-            ],
-            dependencies: []
+	    sources: ["Loop_On/Sources/**"],
+            resources: ["Loop_On/Resources/**"],
+            
+	   // buildableFolders: [ "Loop_On/Sources", "Loop_On/Resources"],
+
+            dependencies: [
+	    	.external(name: "Alamofire"),
+                .external(name: "Kingfisher"),
+                .external(name: "Moya"),
+
+		// 카카오 SDK
+                .external(name: "KakaoSDKCommon"),
+                .external(name: "KakaoSDKAuth"),
+                .external(name: "KakaoSDKUser"),
+	    ]
         ),
         .target(
             name: "Loop_OnTests",
@@ -28,9 +38,8 @@ let project = Project(
             product: .unitTests,
             bundleId: "dev.tuist.Loop-OnTests",
             infoPlist: .default,
-            buildableFolders: [
-                "Loop_On/Tests"
-            ],
+	    sources: ["Loop_On/Tests/**"],
+            // buildableFolders: ["Loop_On/Tests"],
             dependencies: [.target(name: "Loop_On")]
         ),
     ]
