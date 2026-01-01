@@ -5,10 +5,9 @@
 //  Created by 이경민 on 1/1/26.
 //
 
-import SwiftUI
+import Foundation
 
 enum Route: Hashable {
-    case home
-    case detail(title: String)
-    case profile(userID: Int)
+    case auth(AuthRoute)
+    case app(AppRoute)
 }
