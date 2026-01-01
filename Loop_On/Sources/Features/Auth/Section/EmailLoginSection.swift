@@ -1,0 +1,161 @@
+//
+//  emailLoginSection.swift
+//  Loop_On
+//
+//  Created by 이경민 on 1/1/26.
+//
+
+import SwiftUI
+
+struct EmailLoginSection: View {
+    @Binding var email: String
+    @Binding var password: String
+    @Binding var isPasswordVisible: Bool
+    
+    let helperText: String
+    
+    let onLoginTapped: () -> Void
+    let onFindTapped: () -> Void
+    let onSignUpTapped: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text("이메일로 로그인")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.primary)
+            
+            VStack{
+                TextField(
+                    "",
+                    text: $email,
+                    prompt: Text("이메일을 입력해주세요")
+                        .foregroundStyle(Color("45-Text")) // placeholder 색
+                )
+                .textInputAutocapitalization(.never)
+                .keyboardType(.emailAddress)
+                .autocorrectionDisabled()
+                .submitLabel(.next)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 14)
+                .frame(height: 40)
+                .foregroundStyle(Color("45-Text"))       // 입력된 텍스트 색
+                .background(Color("background"))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                
+                passwordField
+                
+                Text(helperText)
+                    .font(.footnote)
+                    .foregroundStyle(Color("45-Text"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Button(action: onLoginTapped) {
+                    Text("로그인")
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .foregroundStyle(Color(.white))
+                        .background(Color("55"))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSubmit)
+                .opacity(canSubmit ? 1 : 0.8)
+            }
+            
+            HStack {
+                Button("이메일 | 비밀번호 찾기", action: onFindTapped)
+                    .font(.footnote)
+                    .foregroundStyle(Color("45-Text"))
+                
+                Spacer()
+                
+                Button("회원가입", action: onSignUpTapped)
+                    .font(.footnote)
+                    .foregroundStyle(Color("45-Text"))
+            }
+            .padding(.top, 6)
+        }
+        .padding(16)
+        .background(Color("100"))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+    
+    private var passwordField: some View {
+        HStack(spacing: 10) {
+            Group {
+                if isPasswordVisible {
+                    TextField(
+                        "",
+                        text: $password,
+                        prompt: Text("비밀번호를 입력해주세요")
+                            .foregroundStyle(Color("45-Text"))   // placeholder 색
+                    )
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .foregroundStyle(Color("25-Text"))           // 입력 텍스트 색
+                } else {
+                    SecureField(
+                        "",
+                        text: $password,
+                        prompt: Text("비밀번호를 입력해주세요")
+                            .foregroundStyle(Color("45-Text"))   // placeholder 색
+                    )
+                    .foregroundStyle(Color("25-Text"))           // 입력 텍스트 색
+                }
+            }
+            .submitLabel(.done)
+            .textFieldStyle(.plain)
+            
+            Button {
+                isPasswordVisible.toggle()
+            } label: {
+                Image(isPasswordVisible ? "visible" : "invisible")
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .accessibilityLabel(isPasswordVisible ? "비밀번호 숨기기" : "비밀번호 보기")
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 40)
+        .background(Color("background"))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+    
+    private var canSubmit: Bool {
+        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+
+
+#Preview("EmailLoginSectionView") {
+    EmailLoginSectionPreviewWrapper()
+        .padding()
+        .background(Color(.systemGroupedBackground))
+}
+
+private struct EmailLoginSectionPreviewWrapper: View {
+    @State private var email: String = ""
+    @State private var password: String = ""
+    @State private var isPasswordVisible: Bool = false
+    
+    var body: some View {
+        EmailLoginSection(
+            email: $email,
+            password: $password,
+            isPasswordVisible: $isPasswordVisible,
+            helperText: "Helper Text",
+            onLoginTapped: {
+                print("로그인 탭")
+            },
+            onFindTapped: {
+                print("찾기 탭")
+            },
+            onSignUpTapped: {
+                print("회원가입 탭")
+            }
+        )
+    }
+}
+
