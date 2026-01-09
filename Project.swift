@@ -14,10 +14,21 @@ let project = Project(
                         "UIColorName": "",
                         "UIImageName": "",
                     ],
+                    "UIAppFonts": [
+                        "Font/Pretendard-Light.otf",
+                        "Font/Pretendard-ExtraLight.otf",
+                        "Font/Pretendard-Thin.otf",
+                        "Font/Pretendard-Bold.otf",
+                        "Font/Pretendard-SemiBold.otf",
+                        "Font/Pretendard-Medium.otf",
+                        "Font/Pretendard-Black.otf",
+                        "Font/Pretendard-Regular.otf",
+                        "Font/Pretendard-ExtraBold.otf",
+                    ],
                 ]
             ),
 	    sources: ["Loop_On/Sources/**"],
-            resources: ["Loop_On/Resources/**"],
+        resources: ["Loop_On/Resources/**"],
             
 	   // buildableFolders: [ "Loop_On/Sources", "Loop_On/Resources"],
 
