@@ -74,6 +74,7 @@ DerivedData/
 
 ### Xcode Patch ###
 # Tuist 환경이므로 프로젝트 파일 전체를 무시합니다.
+# 수정 2026.01.09
 *.xcodeproj
 *.xcworkspace
 /*.gcno
