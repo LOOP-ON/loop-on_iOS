@@ -8,9 +8,9 @@
 import Foundation
 
 enum GoalType: String, CaseIterable {
-    case capability = "💪 역량 강화"
-    case routine = "🌿 생활 루틴"
-    case innerManagement = "💌 내면 관리"
+    case capability = "역량 강화"
+    case routine = "생활 루틴"
+    case innerManagement = "내면 관리"
     
     var emoji: String {
         switch self {
