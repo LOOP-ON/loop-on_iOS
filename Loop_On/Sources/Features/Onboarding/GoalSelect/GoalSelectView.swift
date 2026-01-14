@@ -19,10 +19,13 @@ struct GoalSelectView: View {
                 headerView
                     .padding(.top, 60)
                 
-                Spacer()
+                // 질문
+                questionTextView
+                    .padding(.top, 44)
                 
                 goalSelectionView
                     .padding(.horizontal, 20)
+                    .padding(.top, 40)
                 
                 Spacer()
                 
@@ -35,7 +38,7 @@ struct GoalSelectView: View {
     
     // MARK: - 1. 헤더/컨텍스트 영역
     private var headerView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             // 여행 가방 아이콘
             Image(systemName: "suitcase.fill")
                 .font(.system(size: 60, weight: .regular))
@@ -44,20 +47,23 @@ struct GoalSelectView: View {
             // 타이틀
             VStack(spacing: 4) {
                 Text("여정을 떠나기 전 CHECKLIST")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 16, weight: .regular))
                     .foregroundStyle(Color("25-Text"))
                 
                 Text("(1/2)")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 16, weight: .regular))
                     .foregroundStyle(Color("25-Text"))
             }
             
-            // 질문
-            Text("\(viewModel.nickname)님의 목표는 무엇인가요?")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(Color("5-Text"))
-                .padding(.top, 4)
         }
+    }
+    
+    private var questionTextView: some View {
+        (Text(viewModel.nickname)
+            .font(.system(size: 20, weight: .bold)) +
+         Text(" 님의 목표는 무엇인가요?")
+            .font(.system(size: 20, weight: .regular)))
+        .foregroundStyle(Color("5-Text"))
     }
     
     // MARK: - 2. 선택 영역 (목표 카드)
@@ -81,13 +87,18 @@ struct GoalSelectView: View {
             viewModel.proceedToNext()
         } label: {
             Text("다음으로")
-                .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Color("100"))
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
         }
         .background(viewModel.canProceed ? Color("PrimaryColor-Varient65") : Color("65"))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(
+            color: viewModel.canProceed ? .black.opacity(0.2) : .clear,
+            radius: viewModel.canProceed ? 4 : 0,
+            x: viewModel.canProceed ? 1 : 0,
+            y: viewModel.canProceed ? 2 : 0
+        )
         .disabled(!viewModel.canProceed)
         .opacity(viewModel.canProceed ? 1 : 0.6)
     }
@@ -109,13 +120,13 @@ private struct GoalCardView: View {
                 
                 // 텍스트
                 Text(goal.title)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(isSelected ? Color("PrimaryColor-Varient65") : Color("25-Text"))
                 
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 20)
+            .frame(height: 52)
             .background(Color("100"))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -125,6 +136,12 @@ private struct GoalCardView: View {
                     )
             }
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(
+                color: isSelected ? .black.opacity(0.2) : .clear,
+                radius: isSelected ? 4 : 0,
+                x: isSelected ? 1 : 0,
+                y: isSelected ? 2 : 0
+            )
         }
         .buttonStyle(.plain)
     }
