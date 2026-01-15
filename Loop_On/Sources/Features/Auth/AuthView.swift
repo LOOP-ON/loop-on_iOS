@@ -34,7 +34,7 @@ struct AuthView: View {
                             viewModel.login()
                         },
                         onFindTapped: {
-                            // TODO: 이메일/비밀번호 찾기
+                            router.push(.auth(.findPassword))
                         },
                         onSignUpTapped: {
                             router.push(.auth(.signUp))   // 회원가입 이동

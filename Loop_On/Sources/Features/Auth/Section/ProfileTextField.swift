@@ -1,24 +1,21 @@
 //
-//  AuthTextField.swift
+//  ProfileTextField.swift
 //  Loop_On
 //
-//  Created by 이경민 on 1/1/26.
+//  Created by Auto on 1/14/26.
 //
 
-import Foundation
 import SwiftUI
 
-struct AuthTextField: View {
+struct ProfileTextField: View {
     @Binding var text: String
     let placeholder: String
-
+    
     let textColorName: String
     let placeholderColorName: String
     let backgroundColorName: String
-    let height: CGFloat
     var keyboard: UIKeyboardType = .default
-    var isDisabled: Bool = false
-
+    
     var body: some View {
         TextField(
             "",
@@ -28,46 +25,43 @@ struct AuthTextField: View {
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .keyboardType(keyboard)
-        .foregroundStyle(Color(textColorName)) // 텍스트 색상 강제 유지
-        .tint(Color(textColorName)) // 커서 및 텍스트 색상 강제 유지
-        .disabled(isDisabled)
+        .foregroundStyle(Color(textColorName))
         .padding(.horizontal, 14)
-        .frame(height: height)
-        .background(Color(backgroundColorName))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-}
-
-
-#Preview("AuthTextField - Empty") {
-    AuthTextFieldPreviewWrapper(initial: "")
-        .padding()
-        .background(Color(.systemGroupedBackground))
-}
-
-#Preview("AuthTextField - Filled") {
-    AuthTextFieldPreviewWrapper(initial: "test@loopon.com")
-        .padding()
-        .background(Color(.systemGroupedBackground))
-}
-
-private struct AuthTextFieldPreviewWrapper: View {
-    @State private var text: String
-
-    init(initial: String) {
-        _text = State(initialValue: initial)
-    }
-
-    var body: some View {
-        AuthTextField(
-            text: $text,
-            placeholder: "이메일",
-            textColorName: "25-Text",
-            placeholderColorName: "45-Text",
-            backgroundColorName: "background",
-            height: 40,
-            keyboard: .emailAddress
+        .padding(.vertical, 12)
+        .frame(height: 48)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(backgroundColorName))
         )
     }
 }
 
+#Preview("ProfileTextField - Empty") {
+    ProfileTextFieldPreviewWrapper(initial: "")
+        .padding()
+        .background(Color(.systemGroupedBackground))
+}
+
+#Preview("ProfileTextField - Filled") {
+    ProfileTextFieldPreviewWrapper(initial: "홍길동")
+        .padding()
+        .background(Color(.systemGroupedBackground))
+}
+
+private struct ProfileTextFieldPreviewWrapper: View {
+    @State private var text: String
+    
+    init(initial: String) {
+        _text = State(initialValue: initial)
+    }
+    
+    var body: some View {
+        ProfileTextField(
+            text: $text,
+            placeholder: "이름",
+            textColorName: "25-Text",
+            placeholderColorName: "45-Text",
+            backgroundColorName: "background"
+        )
+    }
+}
