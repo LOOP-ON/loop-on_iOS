@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-struct ProfileView: View {
+struct MyPageView: View {
     var body: some View {
         Text("마이 화면")
             .font(.title)
