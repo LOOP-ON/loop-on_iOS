@@ -18,9 +18,8 @@ struct HomeBottomTabView: View {
                 tabButton(tab: .challenge, icon: "flag", title: "챌린지")
                 tabButton(tab: .profile, icon: "person", title: "개인")
             }
-            .frame(height: 60)
             .padding(.horizontal, 28)
-            .padding(.top, 10)
+            .padding(.top, 12)
                 
             // 기기 하단 홈 바 영역(여백)을 명시적으로 추가
             Color.clear
