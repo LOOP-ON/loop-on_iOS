@@ -9,44 +9,52 @@ import Foundation
 import SwiftUI
 
 struct HomeView: View {
+    // 팝업 제어를 위한 상태 변수 추가
+    @State private var isShowingDelayPopup = false  // 미루기 팝업 상태 변수
+    @State private var selectedRoutineTitle = ""    // 루틴 제목 저장 상태 변수
+    @State private var selectedRoutineIndex = 1     // 선택된 루틴의 번호를 저장
 
     var body: some View {
         ZStack {
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: 0) {
+                    HomeHeaderView()
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
 
-            VStack(spacing: 0) {
+                    journeyTitleView
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
 
-                HomeHeaderView()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
+                    JourneyProgressCardView(completed: 0, total: 3)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
 
-                journeyTitleView
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+                    // 루틴 섹션에서 팝업 호출 연결
+                    routineSectionView
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
 
-                JourneyProgressCardView(
-                    completed: 0,
-                    total: 3
+                    recordButton
+                        .padding(.horizontal, 20)
+                        .padding(.top, 18)
+                }
+                .safeAreaPadding(.top, 1)
+                .background(Color(.systemGroupedBackground))
+            }
+
+            // 팝업 조건부 표시
+            if isShowingDelayPopup {
+                DelayPopupView(
+                    index: selectedRoutineIndex,    // 선택된 루틴 카드 인덱스
+                    title: selectedRoutineTitle,    // 선택된 루틴 이름
+                    isPresented: $isShowingDelayPopup
                 )
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-
-                routineSectionView
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
-
-                recordButton
-                    .padding(.horizontal, 20)
-                    .padding(.top, 18)
-                    .padding(.bottom, 16)
-
-                Spacer()
+                .transition(.opacity.combined(with: .scale(scale: 1.1))) // 나타날 때 효과
+                .zIndex(1) // 다른 뷰보다 항상 위에 있도록 보장
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            HomeBottomTabView()
-        }
+        .animation(.easeInOut(duration: 0.2), value: isShowingDelayPopup) // 부드러운 등장
     }
 }
 
@@ -68,7 +76,7 @@ private extension HomeView {
     }
 
     var routineSectionView: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
 
             Text("목표 건강한 생활 만들기")
                 .font(.system(size: 16, weight: .bold))
@@ -79,21 +87,33 @@ private extension HomeView {
                     title: "아침에 일어나 물 한 컵 마시기",
                     time: "08:00 알림 예정",
                     onConfirm: {},
-                    onDelay: {}
+                    onDelay: {
+                        selectedRoutineIndex = 1
+                        selectedRoutineTitle = "아침에 일어나 물 한 컵 마시기"
+                        isShowingDelayPopup = true
+                    }
                 )
 
                 RoutineCardView(
                     title: "낮 시간에 몸 움직이기",
                     time: "13:00 알림 예정",
                     onConfirm: {},
-                    onDelay: {}
+                    onDelay: {
+                        selectedRoutineIndex = 2
+                        selectedRoutineTitle = "낮 시간에 몸 움직이기"
+                        isShowingDelayPopup = true
+                    }
                 )
 
                 RoutineCardView(
                     title: "정해진 시간에 침대에 눕기",
                     time: "23:00 알림 예정",
                     onConfirm: {},
-                    onDelay: {}
+                    onDelay: {
+                        selectedRoutineIndex = 3
+                        selectedRoutineTitle = "정해진 시간에 침대에 눕기"
+                        isShowingDelayPopup = true
+                    }
                 )
             }
         }
@@ -116,5 +136,5 @@ private extension HomeView {
 
 
 #Preview {
-    HomeView()
+    RootTabView()
 }

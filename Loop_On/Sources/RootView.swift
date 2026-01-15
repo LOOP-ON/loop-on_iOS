@@ -4,7 +4,6 @@
 //
 //  Created by 이경민 on 1/1/26.
 //
-
 import SwiftUI
 
 struct RootView: View {
@@ -18,9 +17,12 @@ struct RootView: View {
             // 시작 화면 분기 (Splash 다음에 여기로 들어옴)
             Group {
                 if session.hasLoggedInBefore {
-                    HomeView()
+//                    HomeView()
+                    RootTabView()
                 } else {
                     AuthView()
+                    
+//                    RootTabView()
                 }
             }
             .navigationDestination(for: Route.self) { route in
