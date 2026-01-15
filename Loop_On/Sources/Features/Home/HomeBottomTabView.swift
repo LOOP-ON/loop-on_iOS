@@ -9,45 +9,50 @@ import Foundation
 import SwiftUI
 
 struct HomeBottomTabView: View {
-
+    @Binding var selectedTab: TabItem
     var body: some View {
-        ZStack(alignment: .top) {
-            // 기기 하단까지 꽉차게
-            Color.white
-                .ignoresSafeArea(edges: .bottom)
-
-            // 실제 탭 콘텐츠 (위만 둥글게)
-            HStack {
-                tabItem(icon: "bookmark.fill", title: "오늘의 루틴", active: true)
-                tabItem(icon: "calendar", title: "히스토리")
-                tabItem(icon: "flag", title: "챌린지")
-                tabItem(icon: "person", title: "개인")
+        VStack(spacing: 0) {
+            HStack(alignment: .center) {
+                tabButton(tab: .home, icon: "bookmark.fill", title: "오늘의 루틴")
+                tabButton(tab: .history, icon: "calendar", title: "히스토리")
+                tabButton(tab: .challenge, icon: "flag", title: "챌린지")
+                tabButton(tab: .profile, icon: "person", title: "개인")
             }
+            .frame(height: 60)
             .padding(.horizontal, 28)
-            .padding(.top, 16)
-            .padding(.bottom, 20)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.white)
-            )
+            .padding(.top, 10)
+                
+            // 기기 하단 홈 바 영역(여백)을 명시적으로 추가
+            Color.clear
+                .frame(height: safeAreaBottomHeight)
         }
+        .background(Color.white)
+        .clipShape(RoundedCorner(radius: 20, corners: [.topLeft, .topRight]))
+        .shadow(color: .black.opacity(0.05), radius: 10, y: -5)
     }
 
-    private func tabItem(
-        icon: String,
-        title: String,
-        active: Bool = false
-    ) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-            Text(title)
-                .font(.system(size: 12))
+    // 현재 기기의 하단 안전 영역 높이를 가져오는 변수
+    private var safeAreaBottomHeight: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes
+        let windowScene = scenes.first as? UIWindowScene
+        let window = windowScene?.windows.first
+        return window?.safeAreaInsets.bottom ?? 0
+    }
+
+    private func tabButton(tab: TabItem, icon: String, title: String) -> some View {
+        Button {
+            selectedTab = tab
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                Text(title)
+                    .font(.system(size: 12))
+            }
+            .foregroundColor(selectedTab == tab ? Color(.primaryColor55) : Color.gray)
+            .frame(maxWidth: .infinity)
         }
-        .foregroundColor(
-            active ? Color(.primaryColor55) : Color("75")
-        )
-        .frame(maxWidth: .infinity)
+        .buttonStyle(.plain)
     }
 }
 
@@ -68,6 +73,14 @@ struct RoundedCorner: Shape {
 
 
 #Preview {
-    HomeBottomTabView()
-        .previewLayout(.sizeThatFits)
+    PreviewWrapper()
+}
+
+private struct PreviewWrapper: View {
+    @State private var selectedTab: TabItem = .home
+
+    var body: some View {
+        HomeBottomTabView(selectedTab: $selectedTab)
+            .previewLayout(.sizeThatFits)
+    }
 }

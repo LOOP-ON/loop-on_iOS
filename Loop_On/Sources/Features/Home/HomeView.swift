@@ -11,10 +11,7 @@ import SwiftUI
 struct HomeView: View {
 
     var body: some View {
-        ZStack {
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
-
+        ScrollView {
             VStack(spacing: 0) {
 
                 HomeHeaderView()
@@ -39,16 +36,15 @@ struct HomeView: View {
                 recordButton
                     .padding(.horizontal, 20)
                     .padding(.top, 18)
-                    .padding(.bottom, 16)
-
-                Spacer()
             }
-        }
-        .safeAreaInset(edge: .bottom) {
-            HomeBottomTabView()
+            // 하단 탭바 + SafeArea 침범 방지
+//            .padding(.bottom, 20)
+            .safeAreaPadding(.top, 1)
+            .background(Color(.systemGroupedBackground))
         }
     }
 }
+
 
 // MARK: - Subviews
 private extension HomeView {
@@ -116,5 +112,5 @@ private extension HomeView {
 
 
 #Preview {
-    HomeView()
+    RootTabView()
 }
