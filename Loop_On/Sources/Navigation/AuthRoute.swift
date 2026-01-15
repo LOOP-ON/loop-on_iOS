@@ -10,4 +10,5 @@ import SwiftUI
 enum AuthRoute: Hashable {
     case login
     case signUp
+    case findPassword
 }

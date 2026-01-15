@@ -32,6 +32,9 @@ struct RootView: View {
 
                 case .auth(.signUp):
                     SignUpView()
+                    
+                case .auth(.findPassword):
+                    FindPasswordView()
 
                 case .app(.home):
                     HomeView()
