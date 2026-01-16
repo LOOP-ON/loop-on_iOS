@@ -47,11 +47,11 @@ struct GoalSelectView: View {
             // 타이틀
             VStack(spacing: 4) {
                 Text("여정을 떠나기 전 CHECKLIST")
-                    .font(.system(size: 16, weight: .regular))
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
                     .foregroundStyle(Color("25-Text"))
                 
                 Text("(1/2)")
-                    .font(.system(size: 16, weight: .regular))
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
                     .foregroundStyle(Color("25-Text"))
             }
             
@@ -59,10 +59,12 @@ struct GoalSelectView: View {
     }
     
     private var questionTextView: some View {
-        (Text(viewModel.nickname)
-            .font(.system(size: 20, weight: .bold)) +
-         Text(" 님의 목표는 무엇인가요?")
-            .font(.system(size: 20, weight: .regular)))
+        (
+            Text(viewModel.nickname)
+                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 20)) +
+            Text(" 님의 목표는 무엇인가요?")
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 20))
+        )
         .foregroundStyle(Color("5-Text"))
     }
     
@@ -87,9 +89,10 @@ struct GoalSelectView: View {
             viewModel.proceedToNext()
         } label: {
             Text("다음으로")
+                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
                 .foregroundStyle(Color("100"))
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                .frame(height: 48)
         }
         .background(viewModel.canProceed ? Color("PrimaryColor-Varient65") : Color("65"))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -120,13 +123,13 @@ private struct GoalCardView: View {
                 
                 // 텍스트
                 Text(goal.title)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
                     .foregroundStyle(isSelected ? Color("PrimaryColor-Varient65") : Color("25-Text"))
                 
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .frame(height: 52)
+            .frame(height: 48)
             .background(Color("100"))
             .overlay {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)

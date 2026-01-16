@@ -56,7 +56,7 @@ struct IntroView: View {
             
             // 메인 메시지
             Text("여정을 떠나기 전 \n 몇 가지 질문이 있어요")
-                .font(.system(size: 18, weight: .regular))
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 20))
                 .foregroundStyle(Color("5-Text"))
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
@@ -69,9 +69,10 @@ struct IntroView: View {
             // TODO: 온보딩 목표 선택 화면으로 이동
         } label: {
             Text("여정 시작하기")
+                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
                 .foregroundStyle(Color("100"))
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                .frame(height: 48)
         }
         .background(Color("PrimaryColor-Varient65"))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
