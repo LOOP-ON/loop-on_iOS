@@ -29,6 +29,9 @@ struct RootView: View {
                 switch route {
                 case .auth(.login):
                     AuthView()
+                
+                case .auth(.setProfile):
+                    ProfileView()
 
                 case .auth(.signUp):
                     SignUpView()

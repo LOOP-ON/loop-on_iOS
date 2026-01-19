@@ -6,12 +6,18 @@
 //
 
 import Foundation
+import SwiftUI
+import UIKit
 
 @MainActor
 final class SignUpViewModel: ObservableObject {
 //    @Published var email: String = ""
     @Published var password: String = ""
     @Published var passwordConfirm: String = ""
+    @Published var name: String = ""
+    @Published var nickname: String = ""
+    @Published var profileImage: UIImage? = nil
+    
     private var lastCheckedEmail: String = ""
     @Published var email: String = "" {
         didSet {
@@ -24,6 +30,35 @@ final class SignUpViewModel: ObservableObject {
         }
     }
 
+    // 회원가입
+    private let networkManager = DefaultNetworkManager<AuthAPI>()
+
+    @Published var isSignUpSuccess: Bool = false
+    @Published var errorMessage: String?
+
+    func requestSignUp() {
+        // 필요한 데이터 생성
+        let requestData = SignUpRequest(
+            email: self.email,
+            password: self.password,
+            name: self.name, // 템플릿에 이름/닉네임 변수가 없다면 추가 선언 필요
+            nickname: self.nickname,
+            birthDate: "2026-01-19" // DateFormatter로 변환된 값
+        )
+        
+        // 네트워크 요청
+        networkManager.request(
+            target: .signUp(request: requestData, profileImage: self.profileImage),
+            decodingType: EmptyResponse.self // 혹은 유저 정보를 담은 모델
+        ) { [weak self] result in
+            switch result {
+            case .success:
+                self?.isSignUpSuccess = true
+            case .failure(let error):
+                self?.errorMessage = error.localizedDescription
+            }
+        }
+    }
 
 
     // 이메일 중복 체크

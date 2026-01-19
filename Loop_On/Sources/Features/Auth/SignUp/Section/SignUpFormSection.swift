@@ -11,6 +11,7 @@ struct SignUpFormSection: View {
     @ObservedObject var vm: SignUpViewModel
     @State private var isPwVisible = false
     @State private var isPwConfirmVisible = false
+    @Environment(NavigationRouter.self) private var router // 라우터 환경변수 가져오기
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -71,7 +72,7 @@ struct SignUpFormSection: View {
 
 
             Button {
-                // TODO: 다음 단계(프로필/추가정보)로 이동
+                router.push(.auth(.setProfile))
             } label: {
                 Text("다음으로")
                     .font(.system(size: 15, weight: .semibold))

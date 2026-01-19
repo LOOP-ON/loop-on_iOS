@@ -8,10 +8,10 @@
 import Foundation
 import SwiftUI
 
-import SwiftUI
-
 struct SignUpView: View {
     @StateObject private var vm = SignUpViewModel()
+    @Environment(NavigationRouter.self) private var router
+    @Environment(SessionStore.self) private var session
 
     var body: some View {
         ScrollView {
