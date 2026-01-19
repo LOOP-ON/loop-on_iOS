@@ -7,12 +7,17 @@
 
 import Foundation
 import SwiftUI
+import AVFoundation
 
 struct HomeView: View {
     // 팝업 제어를 위한 상태 변수 추가
     @State private var isShowingDelayPopup = false  // 미루기 팝업 상태 변수
     @State private var selectedRoutineTitle = ""    // 루틴 제목 저장 상태 변수
     @State private var selectedRoutineIndex = 1     // 선택된 루틴의 번호를 저장
+    
+    // 카메라 관련 상태 변수 추가
+    @State private var isShowingCamera = false
+    @State private var isShowingPermissionAlert = false
 
     var body: some View {
         ZStack {
@@ -55,11 +60,36 @@ struct HomeView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: isShowingDelayPopup) // 부드러운 등장
+        .fullScreenCover(isPresented: $isShowingCamera) {   // 카메라 기능
+            CameraView(
+                routineTitle: selectedRoutineTitle,
+                routineIndex: selectedRoutineIndex,
+                isPresented: $isShowingCamera
+            )
+        }
+        //권한 알림 연결
+        .alert("현재 카메라에 대한\n접근 권한이 없습니다.", isPresented: $isShowingPermissionAlert) {
+            Button("확인") { }
+        } message: {
+            Text("휴대폰 설정 > LOOP:ON > 카메라에서 권한을 허용 해주세요 :)")
+        }
     }
 }
 
 // MARK: - Subviews
 private extension HomeView {
+    // 카메라 권한 체크 로직
+    func requestCameraPermission() {
+        AVCaptureDevice.requestAccess(for: .video) { granted in
+            DispatchQueue.main.async {
+                if granted {
+                    isShowingCamera = true
+                } else {
+                    isShowingPermissionAlert = true
+                }
+            }
+        }
+    }
 
     var journeyTitleView: some View {
         HStack{
@@ -86,7 +116,11 @@ private extension HomeView {
                 RoutineCardView(
                     title: "아침에 일어나 물 한 컵 마시기",
                     time: "08:00 알림 예정",
-                    onConfirm: {},
+                    onConfirm: {
+                        selectedRoutineIndex = 1
+                        selectedRoutineTitle = "아침에 일어나 물 한 컵 마시기"
+                        requestCameraPermission()
+                    },
                     onDelay: {
                         selectedRoutineIndex = 1
                         selectedRoutineTitle = "아침에 일어나 물 한 컵 마시기"
@@ -97,7 +131,11 @@ private extension HomeView {
                 RoutineCardView(
                     title: "낮 시간에 몸 움직이기",
                     time: "13:00 알림 예정",
-                    onConfirm: {},
+                    onConfirm: {
+                        selectedRoutineIndex = 1
+                        selectedRoutineTitle = "낮 시간에 몸 움직이기"
+                        requestCameraPermission()
+                    },
                     onDelay: {
                         selectedRoutineIndex = 2
                         selectedRoutineTitle = "낮 시간에 몸 움직이기"
@@ -108,7 +146,11 @@ private extension HomeView {
                 RoutineCardView(
                     title: "정해진 시간에 침대에 눕기",
                     time: "23:00 알림 예정",
-                    onConfirm: {},
+                    onConfirm: {
+                        selectedRoutineIndex = 1
+                        selectedRoutineTitle = "정해진 시간에 침대에 눕기"
+                        requestCameraPermission()
+                    },
                     onDelay: {
                         selectedRoutineIndex = 3
                         selectedRoutineTitle = "정해진 시간에 침대에 눕기"

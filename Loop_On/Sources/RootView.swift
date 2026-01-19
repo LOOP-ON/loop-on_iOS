@@ -20,9 +20,9 @@ struct RootView: View {
 //                    HomeView()
                     RootTabView()
                 } else {
-                    AuthView()
+//                    AuthView()
                     
-//                    RootTabView()
+                    RootTabView()
                 }
             }
             .navigationDestination(for: Route.self) { route in
