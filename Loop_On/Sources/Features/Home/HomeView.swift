@@ -14,6 +14,8 @@ struct HomeView: View {
     @State private var isShowingDelayPopup = false  // 미루기 팝업 상태 변수
     @State private var selectedRoutineTitle = ""    // 루틴 제목 저장 상태 변수
     @State private var selectedRoutineIndex = 1     // 선택된 루틴의 번호를 저장
+    @State private var isShowingReflectionPopup = false // 여정 기록 팝업 상태 추가
+    @State private var isReflectionCompleted = false    // 여정 기록 완료 상태 추가
     
     // 카메라 관련 상태 변수 추가
     @State private var isShowingCamera = false
@@ -47,7 +49,7 @@ struct HomeView: View {
                 .safeAreaPadding(.top, 1)
                 .background(Color(.systemGroupedBackground))
             }
-
+            
             // 팝업 조건부 표시
             if isShowingDelayPopup {
                 DelayPopupView(
@@ -57,6 +59,14 @@ struct HomeView: View {
                 )
                 .transition(.opacity.combined(with: .scale(scale: 1.1))) // 나타날 때 효과
                 .zIndex(1) // 다른 뷰보다 항상 위에 있도록 보장
+            }
+            
+            // 신규 여정 기록 팝업 추가
+            if isShowingReflectionPopup {
+                ReflectionPopupView(
+                    isPresented: $isShowingReflectionPopup,
+                    isCompleted: $isReflectionCompleted
+                )
             }
         }
         .animation(.easeInOut(duration: 0.2), value: isShowingDelayPopup) // 부드러운 등장
@@ -162,9 +172,11 @@ private extension HomeView {
     }
 
     var recordButton: some View {
-        Button(action: {}) {
-            Text("여정 기록하기")
-                .font(.system(size: 18, weight: .bold))
+        Button(action: {
+            isShowingReflectionPopup = true     // 버튼 클릭시 여정 기록 팝업
+        }) {
+            Text(isReflectionCompleted ? "기록 수정하기" : "여정 기록하기")
+                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
                 .foregroundStyle(Color.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)

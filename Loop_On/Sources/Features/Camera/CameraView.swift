@@ -153,13 +153,3 @@ struct CameraView: View {
         isPresented: .constant(true)
     )
 }
-
-
-
-#Preview {
-    CameraView(
-        routineTitle: "아침에 일어나 물 한 컵 마시기",
-        routineIndex: 1,
-        isPresented: .constant(true)
-    )
-}
