@@ -25,6 +25,10 @@ let project = Project(
                         "Font/Pretendard-Regular.otf",
                         "Font/Pretendard-ExtraBold.otf",
                     ],
+		    // 카메라 및 사진첩 권한 설정 추가
+        	   "NSCameraUsageDescription": "루틴 인증 사진 촬영을 위해 카메라 권한이 필요합니다.", //
+        	   "NSPhotoLibraryUsageDescription": "사진 추가를 위해 갤러리 접근 권한이 필요합니다.", //
+        	   "NSPhotoLibraryAddUsageDescription": "사진 추가를 위해 갤러리 접근 권한이 필요합니다." //
                 ]
             ),
 	    sources: ["Loop_On/Sources/**"],
@@ -36,6 +40,7 @@ let project = Project(
 	    	.external(name: "Alamofire"),
                 .external(name: "Kingfisher"),
                 .external(name: "Moya"),
+		.external(name: "Lottie"),
 
 		// 카카오 SDK
                 .external(name: "KakaoSDKCommon"),

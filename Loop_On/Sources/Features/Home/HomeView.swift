@@ -10,16 +10,16 @@ import SwiftUI
 import AVFoundation
 
 struct HomeView: View {
+    @StateObject private var viewModel = HomeViewModel()
     // 팝업 제어를 위한 상태 변수 추가
     @State private var isShowingDelayPopup = false  // 미루기 팝업 상태 변수
     @State private var selectedRoutineTitle = ""    // 루틴 제목 저장 상태 변수
     @State private var selectedRoutineIndex = 1     // 선택된 루틴의 번호를 저장
-    @State private var isShowingReflectionPopup = false // 여정 기록 팝업 상태 추가
     @State private var isReflectionCompleted = false    // 여정 기록 완료 상태 추가
     
     // 카메라 관련 상태 변수 추가
-    @State private var isShowingCamera = false
     @State private var isShowingPermissionAlert = false
+    @State private var activeFullSheet: ActiveFullSheet?    // 활성화된 시트 관리 변수
 
     var body: some View {
         ZStack {
@@ -33,7 +33,10 @@ struct HomeView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
 
-                    JourneyProgressCardView(completed: 0, total: 3)
+                    JourneyProgressCardView(
+                        completed: viewModel.completedCount,
+                        total: viewModel.totalCount
+                    )
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
 
@@ -62,21 +65,62 @@ struct HomeView: View {
             }
             
             // 신규 여정 기록 팝업 추가
-            if isShowingReflectionPopup {
-                ReflectionPopupView(
-                    isPresented: $isShowingReflectionPopup,
-                    isCompleted: $isReflectionCompleted
-                )
+//            if isShowingReflectionPopup {
+//                ReflectionPopupView(
+//                    isPresented: $isShowingReflectionPopup,
+//                    isCompleted: $isReflectionCompleted
+//                )
+//            }
+        }
+        .fullScreenCover(item: $activeFullSheet) { sheet in
+            switch sheet {
+                case .camera:
+                    CameraView(
+                        routineTitle: selectedRoutineTitle,
+                        routineIndex: selectedRoutineIndex,
+                        isPresented: Binding(
+                            get: { activeFullSheet == .camera },
+                            set: { if !$0 { activeFullSheet = nil } }
+                        )
+                    )
+                
+                // 여정 완료 팝업
+                case .finishJourney:
+                    FinishJourneyPopupView(
+                        isPresented: Binding(
+                            get: { activeFullSheet == .finishJourney },
+                            set: { if !$0 { activeFullSheet = nil } }
+                        ),
+                        onNextLoop: {
+                            activeFullSheet = nil
+                            // 다음 루프 로직
+                        },
+                        onShowReport: {
+                            activeFullSheet = nil
+                            // 리포트 로직
+                        }
+                    )
+                    .presentationBackground(.clear) // 배경 투명하게 (탭바까지 가려짐)
+                
+                // 여정 기록 팝업
+                case .reflection:
+                    ReflectionPopupView(
+                        isPresented: Binding(
+                            get: { activeFullSheet == .reflection },
+                            set: { if !$0 { activeFullSheet = nil } }
+                        ),
+                        isCompleted: $isReflectionCompleted
+                    )
+                    .presentationBackground(.clear)
+            }
+        }
+        .onReceive(viewModel.$isShowingFinishPopup) { isShowing in
+            if isShowing {
+                activeFullSheet = .finishJourney
+                viewModel.isShowingFinishPopup = false // 중복 호출 방지를 위해 초기화
             }
         }
         .animation(.easeInOut(duration: 0.2), value: isShowingDelayPopup) // 부드러운 등장
-        .fullScreenCover(isPresented: $isShowingCamera) {   // 카메라 기능
-            CameraView(
-                routineTitle: selectedRoutineTitle,
-                routineIndex: selectedRoutineIndex,
-                isPresented: $isShowingCamera
-            )
-        }
         //권한 알림 연결
         .alert("현재 카메라에 대한\n접근 권한이 없습니다.", isPresented: $isShowingPermissionAlert) {
             Button("확인") { }
@@ -93,7 +137,7 @@ private extension HomeView {
         AVCaptureDevice.requestAccess(for: .video) { granted in
             DispatchQueue.main.async {
                 if granted {
-                    isShowingCamera = true
+                    activeFullSheet = .camera
                 } else {
                     isShowingPermissionAlert = true
                 }
@@ -123,57 +167,36 @@ private extension HomeView {
                 .foregroundStyle(Color(.primaryColorVarient65))
 
             VStack(spacing: 8) {
-                RoutineCardView(
-                    title: "아침에 일어나 물 한 컵 마시기",
-                    time: "08:00 알림 예정",
-                    onConfirm: {
-                        selectedRoutineIndex = 1
-                        selectedRoutineTitle = "아침에 일어나 물 한 컵 마시기"
-                        requestCameraPermission()
-                    },
-                    onDelay: {
-                        selectedRoutineIndex = 1
-                        selectedRoutineTitle = "아침에 일어나 물 한 컵 마시기"
-                        isShowingDelayPopup = true
-                    }
-                )
-
-                RoutineCardView(
-                    title: "낮 시간에 몸 움직이기",
-                    time: "13:00 알림 예정",
-                    onConfirm: {
-                        selectedRoutineIndex = 1
-                        selectedRoutineTitle = "낮 시간에 몸 움직이기"
-                        requestCameraPermission()
-                    },
-                    onDelay: {
-                        selectedRoutineIndex = 2
-                        selectedRoutineTitle = "낮 시간에 몸 움직이기"
-                        isShowingDelayPopup = true
-                    }
-                )
-
-                RoutineCardView(
-                    title: "정해진 시간에 침대에 눕기",
-                    time: "23:00 알림 예정",
-                    onConfirm: {
-                        selectedRoutineIndex = 1
-                        selectedRoutineTitle = "정해진 시간에 침대에 눕기"
-                        requestCameraPermission()
-                    },
-                    onDelay: {
-                        selectedRoutineIndex = 3
-                        selectedRoutineTitle = "정해진 시간에 침대에 눕기"
-                        isShowingDelayPopup = true
-                    }
-                )
+                ForEach(0..<viewModel.routines.count, id: \.self) { index in
+                    let routine = viewModel.routines[index]
+                    RoutineCardView(
+                        title: routine.title,
+                        time: routine.time,
+                        isCompleted: routine.isCompleted,
+                        onConfirm: {
+                            // 인증 버튼 클릭 시 카메라 권한 확인 후 동작
+                            selectedRoutineIndex = index + 1
+                            selectedRoutineTitle = routine.title
+                            
+                            // 실제로는 카메라 촬영 완료 후 아래 함수를 호출해야 함
+//                            requestCameraPermission() // 바로 완료하지 않고 권한 체크 및 카메라 호출
+                            // 여기서는 즉시 완료되는 예시로 작성
+                            viewModel.completeRoutine(at: index)
+                        },
+                        onDelay: {
+                            selectedRoutineIndex = index + 1
+                            selectedRoutineTitle = routine.title
+                            isShowingDelayPopup = true
+                        }
+                    )
+                }
             }
         }
     }
 
     var recordButton: some View {
         Button(action: {
-            isShowingReflectionPopup = true     // 버튼 클릭시 여정 기록 팝업
+            activeFullSheet = .reflection     // 버튼 클릭시 여정 기록 팝업
         }) {
             Text(isReflectionCompleted ? "기록 수정하기" : "여정 기록하기")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))

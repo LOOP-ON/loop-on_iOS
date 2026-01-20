@@ -9,9 +9,9 @@ import Foundation
 import SwiftUI
 
 struct RoutineCardView: View {
-
     let title: String
     let time: String
+    let isCompleted: Bool // 완료 여부
     let onConfirm: () -> Void
     let onDelay: () -> Void
 
@@ -28,12 +28,20 @@ struct RoutineCardView: View {
 
             Spacer()
 
-            VStack(spacing: 8) {
-                actionButton("인증", action: onConfirm)
-                actionButton("미루기", action: onDelay)
+            if isCompleted {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(Color(.primaryColorVarient65))
+                    .font(.system(size: 24))
+                    .frame(width: 56)
+            } else {
+                VStack(spacing: 8) {
+                    actionButton("인증", action: onConfirm)
+                    actionButton("미루기", action: onDelay)
+                }
             }
         }
         .padding(16)
+        .frame(minHeight: 100)
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color.white)
@@ -62,6 +70,7 @@ struct RoutineCardView: View {
         RoutineCardView(
             title: "아침에 일어나 물 한 컵 마시기",
             time: "08:00 알림 예정",
+            isCompleted: false,
             onConfirm: {},
             onDelay: {}
         )
@@ -69,6 +78,7 @@ struct RoutineCardView: View {
         RoutineCardView(
             title: "정해진 시간에 침대에 눕기",
             time: "23:00 알림 예정",
+            isCompleted: false,
             onConfirm: {},
             onDelay: {}
         )

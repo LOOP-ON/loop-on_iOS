@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import Photos
 
 struct ReflectionPopupView: View {
     @Binding var isPresented: Bool
@@ -15,6 +16,7 @@ struct ReflectionPopupView: View {
     @FocusState private var isTextFieldFocused: Bool
     @State private var selectedImage: UIImage? = nil // 선택된 이미지 저장용
     @State private var isShowingPicker = false // 앨범 표시 여부
+    @State private var isShowingPermissionAlert = false // 권한 거부 알림용
 
     var body: some View {
         ZStack {
@@ -90,7 +92,13 @@ struct ReflectionPopupView: View {
                         HStack {
                             Spacer()
                             Button(action: {
-                                isShowingPicker = true
+                                checkPhotoLibraryPermission { granted in
+                                    if granted {
+                                        isShowingPicker = true
+                                    } else {
+                                        isShowingPermissionAlert = true
+                                    }
+                                }
                             }) {
                                 Text("사진 추가")
                                     .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))
@@ -108,7 +116,7 @@ struct ReflectionPopupView: View {
 
                 Divider()
 
-                // 3. 하단 버튼 섹션 (닫기 / 저장)
+                // 하단 버튼 섹션 (닫기 / 저장)
                 HStack(spacing: 0) {
                     Button(action: { isPresented = false }) {
                         Text("닫기")
@@ -141,9 +149,33 @@ struct ReflectionPopupView: View {
         .sheet(isPresented: $isShowingPicker) {
             PhotoPicker(image: $selectedImage) // 앨범 시트 호출
         }
+        // 권한 거부 시 안내 알림
+        .alert("사진 라이브러리 접근 권한이 없습니다.", isPresented: $isShowingPermissionAlert) {
+            Button("확인") { }
+        } message: {
+            Text("설정에서 사진 접근 권한을 허용해주세요.")
+        }
         .animation(.spring(), value: isTextFieldFocused)
     }
+    
+    // 갤러리 접근 권한 요청
+    private func checkPhotoLibraryPermission(completion: @escaping (Bool) -> Void) {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        switch status {
+        case .authorized, .limited:
+            completion(true)
+        case .notDetermined:
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
+                DispatchQueue.main.async {
+                    completion(newStatus == .authorized || newStatus == .limited)
+                }
+            }
+        default:
+            completion(false)
+        }
+    }
 }
+
 
 // MARK: - Preview
 #Preview {
