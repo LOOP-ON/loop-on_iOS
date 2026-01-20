@@ -13,14 +13,6 @@ struct LoginResponse: Decodable {
     let userId: Int
 }
 
-struct SignUpRequest: Codable {
-    let email: String
-    let password: String
-    let name: String
-    let nickname: String
-    let birthDate: String
-}
-
 @MainActor
 final class AuthViewModel: ObservableObject {
     @Published var email: String = ""
