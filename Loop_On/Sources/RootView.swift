@@ -20,15 +20,18 @@ struct RootView: View {
 //                    HomeView()
                     RootTabView()
                 } else {
-                    AuthView()
+//                    AuthView()
                     
-//                    RootTabView()
+                    RootTabView()
                 }
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .auth(.login):
                     AuthView()
+                
+                case .auth(.setProfile):
+                    ProfileView()
 
                 case .auth(.signUp):
                     SignUpView()
