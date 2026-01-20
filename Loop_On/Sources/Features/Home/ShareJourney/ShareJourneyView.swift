@@ -50,7 +50,7 @@ struct ShareJourneyView: View {
                 
                 ToolbarItem(placement: .principal) {
                     Text("여정 공유하기")
-                        .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 22))
+                        .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
                         .foregroundStyle(Color.black)
                 }
             }
