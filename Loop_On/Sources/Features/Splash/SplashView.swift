@@ -10,7 +10,7 @@ struct SplashView: View {
     var body: some View {
         ZStack {
             // 배경색(임시)
-            Color(red: 232/255, green: 122/255, blue: 96/255)
+            Color(.primaryColorVarient65)
                 .ignoresSafeArea()
             
             VStack(spacing: 30) {
@@ -26,7 +26,7 @@ struct SplashView: View {
                     Text("3일마다 다시 떠나는 나의 여정,")
                     Text("LOOP:ON")
                 }
-                .font(.system(size: 18, weight: .medium))
+                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
                 .foregroundStyle(Color.black)
                 .multilineTextAlignment(.center)
                 

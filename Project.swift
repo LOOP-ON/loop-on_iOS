@@ -40,6 +40,7 @@ let project = Project(
 	    	.external(name: "Alamofire"),
                 .external(name: "Kingfisher"),
                 .external(name: "Moya"),
+		.external(name: "Lottie"),
 
 		// 카카오 SDK
                 .external(name: "KakaoSDKCommon"),
