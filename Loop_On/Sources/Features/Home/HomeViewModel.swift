@@ -11,12 +11,17 @@ import SwiftUI
 enum ActiveFullSheet: Identifiable {
     case camera
     case finishJourney
+    case continueJourney
     case reflection
+    case loading
+    
     var id: Int {
         switch self {
         case .camera: return 1
         case .finishJourney: return 2
-        case .reflection: return 3
+        case .continueJourney: return 3
+        case .reflection: return 4
+        case .loading: return 5
         }
     }
 }
@@ -37,6 +42,8 @@ class HomeViewModel: ObservableObject {
         Routine(title: "정해진 시간에 침대에 눕기", time: "23:00 알림 예정")
     ]
     @Published var isShowingFinishPopup = false // 팝업 제어 변수
+    @Published var isShowingContinuePopup = false
+    @Published var isJourneyCreated = false // 여정 생성 완료 상태
     
     // 완료된 루틴 개수
     var completedCount: Int {
@@ -60,6 +67,19 @@ class HomeViewModel: ObservableObject {
             }
         }
         // 여기에 나중에 API POST 요청 등을 추가
+    }
+    
+    // 새 여정 생성
+    func createNewJourney() {
+        // 여정 생성 시뮬레이션 (네트워크 통신 등)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { // 2초 뒤 완료
+            self.isJourneyCreated = true
+        }
+    }
+    
+    // 여정 초기화
+    func resetJourneyStatus() {
+        isJourneyCreated = false
     }
 }
 
