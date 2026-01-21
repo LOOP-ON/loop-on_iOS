@@ -9,7 +9,8 @@ import PackageDescription
         // Default is .staticFramework
         // productTypes: ["Alamofire": .framework,]
         productTypes: [
-		"Alamofire": .framework
+		"Alamofire": .framework,
+		"Lottie": .framework
 	]
     )
 #endif
@@ -17,6 +18,9 @@ import PackageDescription
 let package = Package(
     name: "Loop_On",
     dependencies: [
+	// Lottie 추가
+	.package(url: "https://github.com/airbnb/lottie-spm.git", from: "4.5.0"),
+
 	// 카카오 SDK
         .package(url: "https://github.com/kakao/kakao-ios-sdk", from: "2.22.5"),
         .package(url: "https://github.com/Moya/Moya.git", from: "15.0.0"),
