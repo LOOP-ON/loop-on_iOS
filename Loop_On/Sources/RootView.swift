@@ -41,6 +41,12 @@ struct RootView: View {
 
                 case .app(.home):
                     HomeView()
+                
+                case .app(.routineCoach):
+                    RoutineCoachView()
+                        .toolbar(.hidden, for: .tabBar)
+                        .navigationBarBackButtonHidden(true)
+                        .ignoresSafeArea(.all)
 
                 case let .app(.detail(title)):
                     // DetailView(title: title)   임시로 Text(title)로 대체

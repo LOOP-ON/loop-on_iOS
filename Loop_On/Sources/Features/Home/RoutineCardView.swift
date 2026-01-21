@@ -41,7 +41,7 @@ struct RoutineCardView: View {
             }
         }
         .padding(16)
-        .frame(minHeight: 100)
+        .frame(minHeight: 98)
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color.white)
