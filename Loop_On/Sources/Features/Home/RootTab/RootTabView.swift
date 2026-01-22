@@ -26,7 +26,7 @@ struct RootTabView: View {
                     HistoryView()
                         .tag(TabItem.history)
 
-                    Text("챌린지 화면")
+                    ChallengeView()
                         .tag(TabItem.challenge)
 
                     Text("프로필 화면")
