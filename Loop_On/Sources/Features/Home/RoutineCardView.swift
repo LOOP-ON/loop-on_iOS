@@ -19,10 +19,10 @@ struct RoutineCardView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
 
                 Text(time)
-                    .font(.system(size: 13))
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 13))
                     .foregroundStyle(Color("25-Text"))
             }
 
@@ -32,7 +32,7 @@ struct RoutineCardView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(Color(.primaryColorVarient65))
                     .font(.system(size: 24))
-                    .frame(width: 56)
+                    .frame(width: 56, height: 68)
             } else {
                 VStack(spacing: 8) {
                     actionButton("인증", action: onConfirm)
@@ -41,7 +41,7 @@ struct RoutineCardView: View {
             }
         }
         .padding(16)
-        .frame(minHeight: 98)
+        .frame(minHeight: 96)
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color.white)
