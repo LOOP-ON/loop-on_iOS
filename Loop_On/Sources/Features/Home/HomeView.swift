@@ -10,6 +10,7 @@ import SwiftUI
 import AVFoundation
 
 struct HomeView: View {
+    @Environment(NavigationRouter.self) var router
     @StateObject private var viewModel = HomeViewModel()
     // 팝업 제어를 위한 상태 변수 추가
     @State private var isShowingDelayPopup = false  // 미루기 팝업 상태 변수
@@ -22,58 +23,50 @@ struct HomeView: View {
     @State private var activeFullSheet: ActiveFullSheet?    // 활성화된 시트 관리 변수
 
     var body: some View {
-        ZStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    HomeHeaderView()
+            ZStack {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        HomeHeaderView()
+                            .padding(.horizontal, 20)
+                            .padding(.top, 12)
+                        
+                        journeyTitleView
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
+                        
+                        JourneyProgressCardView(
+                            completed: viewModel.completedCount,
+                            total: viewModel.totalCount
+                        )
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
-
-                    journeyTitleView
-                        .padding(.horizontal, 20)
-                        .padding(.top, 16)
-
-                    JourneyProgressCardView(
-                        completed: viewModel.completedCount,
-                        total: viewModel.totalCount
-                    )
-                        .padding(.horizontal, 20)
-                        .padding(.top, 12)
-
-                    // 루틴 섹션에서 팝업 호출 연결
-                    routineSectionView
-                        .padding(.horizontal, 20)
-                        .padding(.top, 16)
-
-                    recordButton
-                        .padding(.horizontal, 20)
-                        .padding(.top, 18)
+                        
+                        // 루틴 섹션에서 팝업 호출 연결
+                        routineSectionView
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
+                        
+                        recordButton
+                            .padding(.horizontal, 20)
+                            .padding(.top, 18)
+                    }
+                    .safeAreaPadding(.top, 1)
+                    .background(Color(.systemGroupedBackground))
                 }
-                .safeAreaPadding(.top, 1)
-                .background(Color(.systemGroupedBackground))
+                
+                // 팝업 조건부 표시
+                if isShowingDelayPopup {
+                    DelayPopupView(
+                        index: selectedRoutineIndex,    // 선택된 루틴 카드 인덱스
+                        title: selectedRoutineTitle,    // 선택된 루틴 이름
+                        isPresented: $isShowingDelayPopup
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 1.1))) // 나타날 때 효과
+                    .zIndex(1) // 다른 뷰보다 항상 위에 있도록 보장
+                }
             }
-            
-            // 팝업 조건부 표시
-            if isShowingDelayPopup {
-                DelayPopupView(
-                    index: selectedRoutineIndex,    // 선택된 루틴 카드 인덱스
-                    title: selectedRoutineTitle,    // 선택된 루틴 이름
-                    isPresented: $isShowingDelayPopup
-                )
-                .transition(.opacity.combined(with: .scale(scale: 1.1))) // 나타날 때 효과
-                .zIndex(1) // 다른 뷰보다 항상 위에 있도록 보장
-            }
-            
-            // 신규 여정 기록 팝업 추가
-//            if isShowingReflectionPopup {
-//                ReflectionPopupView(
-//                    isPresented: $isShowingReflectionPopup,
-//                    isCompleted: $isReflectionCompleted
-//                )
-//            }
-        }
-        .fullScreenCover(item: $activeFullSheet) { sheet in
-            switch sheet {
+            .fullScreenCover(item: $activeFullSheet) { sheet in
+                switch sheet {
                 case .camera:
                     CameraView(
                         routineTitle: selectedRoutineTitle,
@@ -83,25 +76,64 @@ struct HomeView: View {
                             set: { if !$0 { activeFullSheet = nil } }
                         )
                     )
-                
-                // 여정 완료 팝업
+                    
+                    // 여정 완료 팝업
                 case .finishJourney:
-                    FinishJourneyPopupView(
-                        isPresented: Binding(
-                            get: { activeFullSheet == .finishJourney },
-                            set: { if !$0 { activeFullSheet = nil } }
-                        ),
-                        onNextLoop: {
+                    CommonPopupView(
+                        title: "3일 여정이 끝났어요!",
+                        message: "이번 루프를 돌아보러 갈까요?",
+                        leftButtonText: "다음 루프 시작하기",
+                        rightButtonText: "리포트 보기",
+                        leftAction: {
                             activeFullSheet = nil
-                            // 다음 루프 로직
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                activeFullSheet = .continueJourney
+                            }
                         },
-                        onShowReport: {
+                        rightAction: {
                             activeFullSheet = nil
-                            // 리포트 로직
+                            // 리포트 이동 로직
                         }
                     )
-                    .presentationBackground(.clear) // 배경 투명하게 (탭바까지 가려짐)
-                
+                    .presentationBackground(.clear)
+                    
+                    // 여정 지속 여부 확인
+                case .continueJourney:
+                    CommonPopupView(
+                        title: "여정을 이어갈까요?",
+                        leftButtonText: "이어가기",
+                        rightButtonText: "새롭게 시작하기",
+                        leftAction: {
+                            activeFullSheet = .loading
+                            // 이어가기 로직
+                            viewModel.createNewJourney()
+                        },
+                        rightAction: {
+                            activeFullSheet = nil
+                            // 새롭게 시작 로직
+                        }
+                    )
+                    .presentationBackground(.clear)
+                    
+                // 새 여정 생성 로딩 화면 호출
+                case .loading:
+                    CommonLoadingView(
+                        message: "2번째 여정을 생성중입니다",
+                        lottieFileName: "Loading 51 _ Monoplane"
+                    )
+                    .onChange(of: viewModel.isJourneyCreated) { oldValue, newValue in
+                        if newValue {
+                            // 열려있는 풀 시트(로딩)를 닫음
+                            activeFullSheet = nil
+                            
+                            // 시트가 내려가는 애니메이션 시간(0.4초) 뒤에 실제 페이지 이동
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                router.push(.app(.routineCoach))
+                                viewModel.resetJourneyStatus()
+                            }
+                        }
+                    }
+                    
                 // 여정 기록 팝업
                 case .reflection:
                     ReflectionPopupView(
@@ -112,23 +144,23 @@ struct HomeView: View {
                         isCompleted: $isReflectionCompleted
                     )
                     .presentationBackground(.clear)
+                }
             }
-        }
-        .onReceive(viewModel.$isShowingFinishPopup) { isShowing in
-            if isShowing {
-                activeFullSheet = .finishJourney
-                viewModel.isShowingFinishPopup = false // 중복 호출 방지를 위해 초기화
+            .onReceive(viewModel.$isShowingFinishPopup) { isShowing in
+                if isShowing {
+                    activeFullSheet = .finishJourney
+                    viewModel.isShowingFinishPopup = false // 중복 호출 방지를 위해 초기화
+                }
             }
-        }
-        .animation(.easeInOut(duration: 0.2), value: isShowingDelayPopup) // 부드러운 등장
-        //권한 알림 연결
-        .alert("현재 카메라에 대한\n접근 권한이 없습니다.", isPresented: $isShowingPermissionAlert) {
-            Button("확인") { }
-        } message: {
-            Text("휴대폰 설정 > LOOP:ON > 카메라에서 권한을 허용 해주세요 :)")
+            .animation(.easeInOut(duration: 0.2), value: isShowingDelayPopup) // 부드러운 등장
+            //권한 알림 연결
+            .alert("현재 카메라에 대한\n접근 권한이 없습니다.", isPresented: $isShowingPermissionAlert) {
+                Button("확인") { }
+            } message: {
+                Text("휴대폰 설정 > LOOP:ON > 카메라에서 권한을 허용 해주세요 :)")
+            }
         }
     }
-}
 
 // MARK: - Subviews
 private extension HomeView {
@@ -213,5 +245,7 @@ private extension HomeView {
 
 
 #Preview {
-    RootTabView()
+    RootView()
+        .environment(NavigationRouter())
+        .environment(SessionStore())
 }
