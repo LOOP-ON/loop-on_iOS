@@ -20,6 +20,7 @@ class RoutineCoachViewModel: ObservableObject {
     @Published var isShowingTimePicker = false // 팝업 표시 여부
     @Published var selectedRoutineIndex: Int? // 현재 수정 중인 루틴의 인덱스
     @Published var tempSelectionDate = Date() // 피커에서 임시로 선택 중인 시간
+    @Published var isEditing: Bool = false // 편집 모드 상태
     
     init() {
         // 초기 더미 데이터 세팅 (이미지와 동일하게 3개)
@@ -36,8 +37,17 @@ class RoutineCoachViewModel: ObservableObject {
     }
     
     func editRoutinesDirectly() {
-        // 루틴 직접 수정 로직
-        print("루틴 직접 수정")
+        isEditing = true
+    }
+
+    func finishEditing() {
+        isEditing = false
+        // 여기서 변경된 내용을 서버에 저장하는 API를 호출.
+    }
+        
+    func deleteRoutine(at index: Int) {
+        routines.remove(at: index)
+        // 삭제 후 인덱스 재정렬 로직.
     }
     
     func startJourney() {
