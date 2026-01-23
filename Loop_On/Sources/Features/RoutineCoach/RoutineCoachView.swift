@@ -15,6 +15,13 @@ struct RoutineCoachView: View {
     let pointColor = Color(.primaryColorVarient65)
     let backgroundColor = Color(red: 0.98, green: 0.98, blue: 0.98)
     
+    // 루틴 리스트 영역 높이 (스크롤바 및 계산에 사용)
+    private let routineListHeight: CGFloat = 270
+    
+    // 스크롤 상태
+    @State private var scrollOffset: CGFloat = 0        // 현재 스크롤 위치(y, 아래로 갈수록 +)
+    @State private var contentHeight: CGFloat = 0       // 전체 콘텐츠 높이
+    
     var body: some View {
         ZStack {
             backgroundColor.ignoresSafeArea()
@@ -37,32 +44,52 @@ struct RoutineCoachView: View {
                         .padding(.top, 30)
                 }
                 .padding(.bottom, 20)
-                
-                // 루틴 리스트
-                ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(Array(viewModel.routines.enumerated()), id: \.element.id) { index, routine in
-                            RoutineRow(
-                                routine: routine,
-                                pointColor: pointColor,
-                                isEditing: viewModel.isEditing,
-                                onTimeTap: {
-                                    viewModel.openTimePicker(for: index)
-                                },
-                                onDelete: {
-                                    viewModel.deleteRoutine(at: index)
-                                },
-                                onEditName: {
-                                    print("\(index)번째 루틴 이름 수정 클릭")
-                                    // 필요 시 루틴 이름 수정 팝업 로직 연결
-                                }
-                            )
+                HStack(alignment: .top, spacing: -10) {
+                    // 루틴 리스트
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(Array(viewModel.routines.enumerated()), id: \.element.id) { index, routine in
+                                RoutineRow(
+                                    routine: routine,
+                                    pointColor: pointColor,
+                                    isEditing: viewModel.isEditing,
+                                    totalCount: viewModel.routines.count,
+                                    onTimeTap: {
+                                        viewModel.openTimePicker(for: index)
+                                    },
+                                    onDelete: {
+                                        viewModel.deleteRoutine(at: index)
+                                    },
+                                    onEditName: {
+                                        viewModel.prepareEditName(for: index)
+                                    }
+                                )
+                            }
                         }
+                        .padding(.horizontal, 20)
                     }
-                    .padding(.horizontal, 20)
+                    .scrollIndicators(.hidden)
+                    .frame(height: 290)
+                    // iOS 최신 SwiftUI API: 실제 UIScrollView의 contentOffset/contentSize를 그대로 받음
+                    .onScrollGeometryChange(for: CGFloat.self, of: { geo in
+                        geo.contentOffset.y
+                    }, action: { _, newValue in
+                        scrollOffset = newValue
+                    })
+                    .onScrollGeometryChange(for: CGFloat.self, of: { geo in
+                        geo.contentSize.height
+                    }, action: { _, newValue in
+                        contentHeight = newValue
+                    })
+                    
+                    if viewModel.routines.count >= 4 {
+                        // 스크롤 위치에 반응하는 커스텀 스크롤바
+                        scrollBarView()
+                            .padding(.trailing, 10)
+                            .padding(.top, 10)
+                    }
                 }
-                .frame(height: 286)
-                
+
                 // 하단 버튼 섹션
                 VStack(spacing: 16) {
                     HStack(spacing: 12) {
@@ -116,8 +143,18 @@ struct RoutineCoachView: View {
                     .disabled(viewModel.isEditing) // 수정 중엔 비활성화
                 }
                 .padding(.horizontal, 20)
+                .padding(.top, 10)
                 .padding(.bottom, 30)
             }
+        }
+        .alert("루틴 이름 수정", isPresented: $viewModel.isShowingNameEditor) {
+            TextField("새로운 루틴 이름을 입력하세요", text: $viewModel.newRoutineName)
+            Button("취소", role: .cancel) { }
+            Button("확인") {
+                viewModel.updateRoutineName()
+            }
+        } message: {
+            Text("변경할 루틴의 이름을 입력해 주세요.")
         }
         // 시간 선택 팝업
         .sheet(isPresented: $viewModel.isShowingTimePicker) {
@@ -137,7 +174,50 @@ struct RoutineCoachView: View {
     }
 }
 
+// MARK: - 커스텀 스크롤바 뷰 & 계산 메서드 수정
+extension RoutineCoachView {
+    // 조절하고 싶은 전체 트랙 길이
+    private var customTrackHeight: CGFloat { 280 }
+
+    @ViewBuilder
+    fileprivate func scrollBarView() -> some View {
+        if contentHeight > routineListHeight {
+            let thumbHeight: CGFloat = 90 // 가변이 아닌 고정 길이를 원하시면 여기서 직접 지정 가능
+            
+            ZStack(alignment: .top) {
+                // 스크롤바 트랙 (배경 선)
+                Capsule()
+                    .fill(Color("95"))
+                    .frame(width: 4, height: customTrackHeight)
+                
+                // 실제 움직이는 thumb (진한 회색 바)
+                Capsule()
+                    .fill(Color("85"))
+                    .frame(width: 4, height: thumbHeight)
+                    .offset(y: scrollBarThumbOffset(trackHeight: customTrackHeight, thumbHeight: thumbHeight))
+                    .animation(.easeInOut(duration: 0.15), value: scrollOffset)
+            }
+            .padding(.trailing, 8)
+            .padding(.top, (routineListHeight - customTrackHeight) / 2)
+        }
+    }
+    
+    /// 현재 스크롤 offset 에 따른 thumb 의 Y 위치 계산
+    fileprivate func scrollBarThumbOffset(trackHeight: CGFloat, thumbHeight: CGFloat) -> CGFloat {
+        let maxScrollable = max(contentHeight - routineListHeight, 0)
+        guard maxScrollable > 0 else { return 0 }
+        
+        let progress = min(max(scrollOffset / maxScrollable, 0), 1)
+        
+        // 조절된 트랙 높이(trackHeight) 내에서 thumb 가 이동할 거리를 계산
+        let availableTravel = max(trackHeight - thumbHeight, 0)
+        
+        return progress * availableTravel
+    }
+}
+
 // MARK: - Preview
 #Preview{
     RoutineCoachView()
 }
+

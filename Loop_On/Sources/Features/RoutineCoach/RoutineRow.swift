@@ -12,6 +12,7 @@ struct RoutineRow: View {
     let routine: RoutineCoach
     let pointColor: Color
     let isEditing: Bool // 편집 모드 상태 주입
+    let totalCount: Int // 추가: 전체 루틴 개수 파악용
     
     var onTimeTap: () -> Void
     var onDelete: () -> Void // 삭제 액션
@@ -47,20 +48,24 @@ struct RoutineRow: View {
                             // 이름 수정(연필) 버튼
                             Button(action: onEditName) {
                                 Image(systemName: "pencil")
-                                    .font(.system(size: 16)) // 아이콘 크기 최적화
+                                    .font(.system(size: 16))
                                     .foregroundStyle(.black)
                             }
                             
                             // 삭제(X) 버튼
-                            Button(action: onDelete) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(.black)
+                            if totalCount >= 4 {
+                                Button(action: onDelete) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(.black)
+                                    }
+                                .transition(.opacity.combined(with: .move(edge: .trailing)))
                             }
                         }
-                        .transition(.opacity.combined(with: .move(edge: .trailing))) // 부드러운 전환 효과
                     }
                 }
+                
+                Divider()
                 
                 // [두 번째 행] 알림 시간 설정 버튼
                 Button(action: {
@@ -118,6 +123,7 @@ struct RoutineRow_Previews: PreviewProvider {
             routine: RoutineCoach(index: 1, name: "루틴 이름", alarmTime: Date()),
             pointColor: Color(.primaryColorVarient65),
             isEditing: false,
+            totalCount: 4,
             onTimeTap: { print("시간 선택 클릭됨") },
             onDelete: { print("삭제 클릭됨") },
             onEditName: { print("이름 수정 클릭됨") }
