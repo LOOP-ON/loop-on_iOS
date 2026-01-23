@@ -17,6 +17,7 @@ struct HomeView: View {
     @State private var selectedRoutineTitle = ""    // 루틴 제목 저장 상태 변수
     @State private var selectedRoutineIndex = 1     // 선택된 루틴의 번호를 저장
     @State private var isReflectionCompleted = false    // 여정 기록 완료 상태 추가
+    @State private var showPopup = false    // 팝업 관련 상태 변수
     
     // 카메라 관련 상태 변수 추가
     @State private var isShowingPermissionAlert = false
@@ -39,7 +40,7 @@ struct HomeView: View {
                             total: viewModel.totalCount
                         )
                         .padding(.horizontal, 20)
-                        .padding(.top, 12)
+                        .padding(.top, 8)
                         
                         // 루틴 섹션에서 팝업 호출 연결
                         routineSectionView
@@ -77,9 +78,10 @@ struct HomeView: View {
                         )
                     )
                     
-                    // 여정 완료 팝업
+                // 여정 완료 팝업
                 case .finishJourney:
                     CommonPopupView(
+                        isPresented: $showPopup,
                         title: "3일 여정이 끝났어요!",
                         message: "이번 루프를 돌아보러 갈까요?",
                         leftButtonText: "다음 루프 시작하기",
@@ -93,6 +95,9 @@ struct HomeView: View {
                         rightAction: {
                             activeFullSheet = nil
                             // 리포트 이동 로직
+                        },
+                        onClose: {
+                            activeFullSheet = nil // 배경 터치 시 시트 닫기
                         }
                     )
                     .presentationBackground(.clear)
@@ -100,6 +105,7 @@ struct HomeView: View {
                     // 여정 지속 여부 확인
                 case .continueJourney:
                     CommonPopupView(
+                        isPresented: $showPopup,
                         title: "여정을 이어갈까요?",
                         leftButtonText: "이어가기",
                         rightButtonText: "새롭게 시작하기",
@@ -111,6 +117,9 @@ struct HomeView: View {
                         rightAction: {
                             activeFullSheet = nil
                             // 새롭게 시작 로직
+                        },
+                        onClose: {
+                            activeFullSheet = nil // 배경 터치 시 시트 닫기
                         }
                     )
                     .presentationBackground(.clear)
@@ -192,7 +201,7 @@ private extension HomeView {
     }
 
     var routineSectionView: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
 
             Text("목표 건강한 생활 만들기")
                 .font(.system(size: 16, weight: .bold))

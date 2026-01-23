@@ -14,7 +14,7 @@ struct ReflectionPopupView: View {
     @Binding var isCompleted: Bool
     @State private var reflectionText: String = ""
     @FocusState private var isTextFieldFocused: Bool
-    @State private var selectedImage: UIImage? = nil // 선택된 이미지 저장용
+    @State private var selectedImages: [UIImage] = [] // 선택된 이미지 저장용
     @State private var isShowingPicker = false // 앨범 표시 여부
     @State private var isShowingPermissionAlert = false // 권한 거부 알림용
 
@@ -48,67 +48,85 @@ struct ReflectionPopupView: View {
                         }
                     }
 
-                    // 2. 입력 필드 및 사진 추가 섹션
+                    // 입력 필드 및 사진 추가 섹션
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("3일차의 여정 기록하기")
                                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
                             Text("오늘의 루틴들을 수행하며 느낀 점, 어려웠던 점 등을 자유롭게 기록하세요.")
-                                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 13))
+                                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 12))
                                 .foregroundStyle(Color("45-Text"))
                         }
                         
                         // 텍스트 입력창
                         TextField("예시 : ~~~", text: $reflectionText, axis: .vertical)
                             .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))
-                            .lineLimit(selectedImage == nil ? 10 : 7, reservesSpace: true) // 이미지 있으면 높이 줄임
+                            .lineLimit(15, reservesSpace: true)
+                            .frame(minHeight: 180)
                             .padding()
                             .focused($isTextFieldFocused)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(Color(.systemGray6))
                             )
-                        
-                        if let image = selectedImage{
-                            ZStack(alignment: .topTrailing) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 60, height: 60)
-                                    .cornerRadius(10)
-                                    .clipped()
-                                
-                                // 사진 삭제 버튼
-                                Button(action: { selectedImage = nil }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(Color.gray)
-                                        .background(Color.white.clipShape(Circle()))
+
+                        // 이미지 + 사진 추가 버튼 영역
+                        HStack(alignment: .center, spacing: 12) {
+                            
+                            // 선택된 이미지들 (왼쪽부터)
+                            if !selectedImages.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 10) {
+                                        ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
+                                            ZStack(alignment: .topTrailing) {
+                                                Image(uiImage: image)
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 60, height: 60)
+                                                    .cornerRadius(10)
+                                                    .clipped()
+                                                
+                                                Button {
+                                                    selectedImages.remove(at: index)
+                                                } label: {
+                                                    Image(systemName: "xmark.circle.fill")
+                                                        .foregroundStyle(Color.gray)
+                                                        .background(Color.white.clipShape(Circle()))
+                                                }
+                                                .padding(4)
+                                            }
+                                        }
+                                    }
                                 }
-                                .padding(5)
+                                .frame(height: 60)
+                                .clipped()
                             }
-                        }
-                        
-                        // 사진 추가 버튼
-                        HStack {
+                            
                             Spacer()
+                            
+                            // 사진 추가 버튼 (우측)
                             Button(action: {
-                                checkPhotoLibraryPermission { granted in
-                                    if granted {
-                                        isShowingPicker = true
-                                    } else {
-                                        isShowingPermissionAlert = true
+                                if selectedImages.count < 3 {
+                                    checkPhotoLibraryPermission { granted in
+                                        if granted {
+                                            isShowingPicker = true
+                                        } else {
+                                            isShowingPermissionAlert = true
+                                        }
                                     }
                                 }
                             }) {
                                 Text("사진 추가")
                                     .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))
-                                    .foregroundStyle(Color.white)
+                                    .foregroundStyle(.white)
                                     .frame(width: 68, height: 30)
                                     .background(
                                         RoundedRectangle(cornerRadius: 8)
                                             .fill(Color(.primaryColorVarient65))
                                     )
                             }
+                            .disabled(selectedImages.count >= 3)
+                            .opacity(selectedImages.count >= 3 ? 0.5 : 1.0)
                         }
                     }
                 }
@@ -147,13 +165,19 @@ struct ReflectionPopupView: View {
             .offset(y: isTextFieldFocused ? -100 : 0) // 키보드 가림 방지
         }
         .sheet(isPresented: $isShowingPicker) {
-            PhotoPicker(image: $selectedImage) // 앨범 시트 호출
+            PhotoPicker(images: $selectedImages, selectionLimit: 3 - selectedImages.count)
         }
         // 권한 거부 시 안내 알림
         .alert("사진 라이브러리 접근 권한이 없습니다.", isPresented: $isShowingPermissionAlert) {
-            Button("확인") { }
+            Button("설정으로 이동") {
+                // 설정 앱의 내 앱 페이지로 바로 이동
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("취소", role: .cancel) { }
         } message: {
-            Text("설정에서 사진 접근 권한을 허용해주세요.")
+            Text("여정 기록에 사진을 추가하려면 설정에서 사진 접근 권한을 '모든 사진' 또는 '선택한 사진'으로 허용해주세요.")
         }
         .animation(.spring(), value: isTextFieldFocused)
     }

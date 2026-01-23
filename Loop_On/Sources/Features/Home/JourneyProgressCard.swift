@@ -21,7 +21,7 @@ struct JourneyProgressCardView: View {
         VStack(alignment: .leading, spacing: 12) {
 
             Text("오늘의 여정 완주율")
-                .font(.system(size: 14, weight: .medium))
+                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
                 .foregroundStyle(Color.white)
 
             Text("\(completed)/\(total)")
@@ -44,7 +44,6 @@ struct JourneyProgressCardView: View {
 }
 
 struct JourneyProgressBarView: View {
-
     let progress: Double
 
     var body: some View {
