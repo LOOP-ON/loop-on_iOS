@@ -146,7 +146,22 @@ struct RoutineCoachView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 30)
             }
+            // MARK: - 공통 로딩 뷰 배치
+            // viewModel의 isLoading 상태에 따라 화면에 나타남.
+            if viewModel.isLoading {
+                    CommonLoadingView(
+                        message: "2박 3일 여정으로 떠나고 있습니다",
+                        lottieFileName: "Loading 51 _ Monoplane"
+                    )
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
         }
+        // 여정 시작 성공 시 HomeView로 이동
+        .fullScreenCover(isPresented: $viewModel.isJourneyStarted) {
+            HomeView() // 이동할 메인 화면
+        }
+        
         .alert("루틴 이름 수정", isPresented: $viewModel.isShowingNameEditor) {
             TextField("새로운 루틴 이름을 입력하세요", text: $viewModel.newRoutineName)
             Button("취소", role: .cancel) { }

@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 struct RoutineCoach: Identifiable {
     let id = UUID()
@@ -16,11 +17,19 @@ struct RoutineCoach: Identifiable {
 }
 
 class RoutineCoachViewModel: ObservableObject {
+    @Published var isLoading = false // 로딩 상태 추가
+    @Published var isJourneyStarted = false // HomeView로 이동하기 위한 트리거
     @Published var routines: [RoutineCoach] = []
     @Published var isShowingTimePicker = false // 팝업 표시 여부
     @Published var selectedRoutineIndex: Int? // 현재 수정 중인 루틴의 인덱스
     @Published var tempSelectionDate = Date() // 피커에서 임시로 선택 중인 시간
     @Published var isEditing: Bool = false // 편집 모드 상태
+    
+    
+    // 이 값들은 이전 단계에서 받아왔거나 설정된 값이라고 가정
+    var loop_id: Int = 2 // 예: "두 번째 여정" -> 2
+    var goal_text: String = "건강한 생활 습관 만들기"
+    var selected_insights: [String] = ["수면 개선", "식단 관리"]
     
     // 루틴 이름 수정 관련 변수
     @Published var isShowingNameEditor = false
@@ -63,14 +72,14 @@ class RoutineCoachViewModel: ObservableObject {
 //            let backupRoutines = routines // 실패 시 복구를 위한 스냅샷 저장
 //            
 //            withAnimation(.spring()) {
-//                // 1. 해당 루틴 삭제
+//                // 해당 루틴 삭제
 //                self.routines.remove(at: index)
 //                
-//                // 2. 루틴 번호 재정렬 (루틴 1, 루틴 2, 루틴 3...)
+//                // 루틴 번호 재정렬
 //                self.reorderRoutines()
 //            }
 //            
-//            // 3. 서버 반영 (비동기)
+//            // 서버 반영 (비동기)
 //            Task {
 //                do {
 //                    try await requestDeleteRoutineToServer(routineID: targetID)
@@ -94,12 +103,97 @@ class RoutineCoachViewModel: ObservableObject {
         }
     }
     
+//    func startJourney() {
+//        // 여정 떠나기 로직
+//        isLoading = true
+//                
+//        // 서버 통신을 시뮬레이션. (API 없이 로직 구현)
+//        Task {
+//            // 실제 서버에 다녀오는 것처럼 1.5초간 대기
+//            try? await Task.sleep(nanoseconds: 3_000_000_000)
+//            
+//            // 작업이 끝난 후 메인 스레드에서 로딩을 해제합니다.
+//            await MainActor.run {
+//                withAnimation {
+//                    self.isLoading = false
+//                }
+//                print("여정 시작 데이터 처리 완료!")
+//                // 여기서 다음 화면으로 넘어가는 로직을 실행
+//            }
+//        }
+        
+        // 로딩 시작
+//        isLoading = true
+//                
+//        // 서버 통신 및 데이터 처리 (비동기)
+//        Task {
+//            do {
+//                // 가상의 서버 통신 시간 (예: 2초)
+//                try await Task.sleep(nanoseconds: 2_000_000_000)
+//                
+//                // 성공 시 로딩 종료 및 다음 화면 이동 로직
+//                await MainActor.run {
+//                    isLoading = false
+//                    print("여정 시작 성공")
+//                    // 네비게이션 로직 등을 여기에 추가
+//                }
+//            } catch {
+//                await MainActor.run {
+//                    isLoading = false
+//                    print("여정 시작 실패")
+//                }
+//            }
+//        }
+//    }
+    
     func startJourney() {
-        // 여정 떠나기 로직
-//        CommonLoadingView(
-//            message: "2박 3일 여정으로 떠나고 있습니다.",
-//            lottieFileName: "Loading 51 _ Monoplane"
-//        )
+            isLoading = true
+            
+            Task {
+                do {
+                    // 서버에 저장할 데이터 패키징
+                    let journeyData: [String: Any] = [
+                        "loop_id": loop_id,
+                        "goal_text": goal_text,
+                        "selected_insights": selected_insights,
+                        "routines": routines.map { [
+                            "index": $0.index,
+                            "name": $0.name,
+                            "alarm_time": formatDateForServer($0.alarmTime)
+                        ]}
+                    ]
+                    
+                    print("서버로 전송할 데이터: \(journeyData)")
+                    
+                    // 가상 API 통신 (실제 API 명세서 나오면 이 부분을 교체)
+                    try await saveJourneyToServer(data: journeyData)
+                    
+                    // 성공 시 메인 스레드에서 화면 전환 트리거
+                    await MainActor.run {
+                        withAnimation {
+                            self.isLoading = false
+                            self.isJourneyStarted = true // HomeView 이동 신호
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.isLoading = false
+                        // 에러 처리 로직 (Alert 등)
+                    }
+                }
+            }
+        }
+    
+    // API 통신 시뮬레이션
+    private func saveJourneyToServer(data: [String: Any]) async throws {
+        try await Task.sleep(nanoseconds: 2_000_000_000) // 2초 대기
+        // 실제 통신 시에는 여기서 URLSession 등을 사용
+    }
+        
+    private func formatDateForServer(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
     
     func openTimePicker(for index: Int) {
