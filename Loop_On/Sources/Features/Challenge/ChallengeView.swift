@@ -10,10 +10,11 @@ import SwiftUI
 import UIKit
 
 struct ChallengeView: View {
+    @Environment(NavigationRouter.self) private var router
     @SceneStorage("challenge.selectedTopTab") private var selectedTopTabRawValue: Int = ChallengeTopTab.plaza.rawValue
     @State private var selectedTopTab: ChallengeTopTab = .plaza
     @State private var hasLoadedStoredTab = false
-    @State private var isShowingShareJourney = false
+    @StateObject private var friendsViewModel = ChallengeFriendsViewModel()
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -33,7 +34,7 @@ struct ChallengeView: View {
                     ChallengePlazaView()
                         .tag(ChallengeTopTab.plaza)
 
-                    ChallengeFriendsView()
+                    ChallengeFriendsView(viewModel: friendsViewModel)
                         .tag(ChallengeTopTab.friend)
 
                     ChallengeExpeditionView()
@@ -42,24 +43,51 @@ struct ChallengeView: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
 
-            Button {
-                isShowingShareJourney = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Color.white)
-                    .frame(width: 56, height: 56)
-                    .background(
-                        Circle()
-                            .fill(Color(.primaryColorVarient65))
-                    )
-                    .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
+            if selectedTopTab == .plaza {
+                Button {
+                    // TODO: 여정 공유 화면으로 이동
+                    // router.push(.app(.shareJourney))
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(Color.white)
+                        .frame(width: 56, height: 56)
+                        .background(
+                            Circle()
+                                .fill(Color(.primaryColorVarient65))
+                        )
+                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, safeAreaBottomHeight)
             }
-            .padding(.trailing, 20)
-            .padding(.bottom, safeAreaBottomHeight)
+
         }
-        .fullScreenCover(isPresented: $isShowingShareJourney) {
-            ShareJourneyView()
+        .fullScreenCover(isPresented: $friendsViewModel.isShowingRequestSheet) {
+            ZStack {
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        friendsViewModel.closeRequestSheet()
+                    }
+
+                ChallengeFriendRequestSheet(
+                    requests: friendsViewModel.friendRequests,
+                    onAccept: friendsViewModel.acceptRequest,
+                    onReject: friendsViewModel.rejectRequest,
+                    onAcceptAll: friendsViewModel.acceptAllRequests,
+                    onRejectAll: friendsViewModel.rejectAllRequests,
+                    onClose: friendsViewModel.closeRequestSheet
+                )
+                .frame(maxWidth: 320, maxHeight: 540)
+                .padding(.horizontal, 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.white)
+                )
+                .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 6)
+            }
+            .presentationBackground(.clear)
         }
         .onAppear {
             if !hasLoadedStoredTab {
@@ -141,4 +169,5 @@ private enum ChallengeTopTab: Int, CaseIterable, Hashable {
 
 #Preview {
     ChallengeView()
+        .environment(NavigationRouter())
 }
