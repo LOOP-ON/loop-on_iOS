@@ -141,7 +141,9 @@ private extension HomeView {
                 leftAction: {
                     viewModel.activeFullSheet = .continueJourney
                 },
-                rightAction: { viewModel.activeFullSheet = nil },
+                rightAction: {
+                    viewModel.activeFullSheet = .journeyReport
+                },
                 onClose: { viewModel.activeFullSheet = nil }
             )
             .presentationBackground(.clear)
@@ -193,6 +195,32 @@ private extension HomeView {
                 )
             )
             .presentationBackground(.clear)
+//        case .journeyReport:
+//            JourneyReportView(
+//                isPresented: Binding(
+//                    get: { viewModel.activeFullSheet == .journeyReport },
+//                    set: { if !$0 { viewModel.activeFullSheet = nil } }
+//                ),
+//                loopId: viewModel.journeyInfo?.loopId ?? 1
+//            )
+//            .presentationBackground(.clear)
+        case .journeyReport:
+            JourneyReportView(
+                isPresented: Binding(
+                    get: { viewModel.activeFullSheet == .journeyReport },
+                    set: { if !$0 { viewModel.activeFullSheet = nil } }
+                ),
+                loopId: viewModel.journeyInfo?.loopId ?? 1,
+                onShare: {
+                    // 리포트 팝업이 닫히는 애니메이션과 겹치지 않도록 약간의 지연 후 공유 화면을 띄움
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        viewModel.activeFullSheet = .shareJourney
+                    }
+                }
+            )
+            .presentationBackground(.clear)
+        case .shareJourney:
+            ShareJourneyView()
         }
     }
 }

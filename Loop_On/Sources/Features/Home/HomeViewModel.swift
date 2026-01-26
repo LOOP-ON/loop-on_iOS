@@ -16,6 +16,8 @@ enum ActiveFullSheet: Identifiable {
     case reflection
     case loading
     case delay
+    case journeyReport
+    case shareJourney
     
     var id: Int {
         switch self {
@@ -25,6 +27,8 @@ enum ActiveFullSheet: Identifiable {
         case .reflection: return 4
         case .loading: return 5
         case .delay: return 6
+        case .journeyReport: return 7
+        case .shareJourney: return 8
         }
     }
 }
