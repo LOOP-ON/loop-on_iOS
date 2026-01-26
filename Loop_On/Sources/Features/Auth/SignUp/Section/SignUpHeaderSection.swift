@@ -15,11 +15,12 @@ struct SignUpHeaderSection: View {
                 .scaledToFit()
                 .frame(height: 54)
 
-            Image(systemName: "airplane")
-                .font(.system(size: 22, weight: .semibold))
+            Image("airplane")
+                .resizable()
+                .frame(width:32, height:27)
 
             Text("회원가입을 하고\n나만의 여정을 떠나볼까요?")
-                .font(.system(size: 17, weight: .semibold))
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 18))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)

@@ -89,6 +89,13 @@ private struct AuthPreviewContainer: View {
             AuthView()
                 .environment(router)
                 .environment(session)
+                .navigationDestination(for: Route.self) { route in
+                    if case .auth(.signUp) = route {
+                        SignUpView()
+                            .environment(router)
+                            .environment(session)
+                    }
+                }
         }
     }
 }

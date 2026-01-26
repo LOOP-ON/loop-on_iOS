@@ -9,6 +9,11 @@ import Foundation
 import SwiftUI
 import UIKit
 
+enum SignUpSheet: Identifiable {
+    case agreement
+    var id: Int { hashValue }
+}
+
 @MainActor
 final class SignUpViewModel: ObservableObject {
 //    @Published var email: String = ""
@@ -17,6 +22,9 @@ final class SignUpViewModel: ObservableObject {
     @Published var name: String = ""
     @Published var nickname: String = ""
     @Published var profileImage: UIImage? = nil
+    
+    // 현재 활성화된 시트 관리 변수
+    @Published var activeSheet: SignUpSheet? = nil
     
     private var lastCheckedEmail: String = ""
     @Published var email: String = "" {
@@ -31,6 +39,7 @@ final class SignUpViewModel: ObservableObject {
     }
 
     // 회원가입
+    @Published var isShowingAgreementPopup: Bool = false
     private let networkManager = DefaultNetworkManager<AuthAPI>()
 
     @Published var isSignUpSuccess: Bool = false
@@ -93,7 +102,7 @@ final class SignUpViewModel: ObservableObject {
     var isAllRequiredAgreed: Bool {
         agreements.filter { $0.isRequired }.allSatisfy { $0.isOn }
     }
-
+    
     var isPasswordValid: Bool {
         // (영문, 숫자 포함 8~16자) - 간단 예시
         let lenOK = (8...16).contains(password.count)
@@ -112,7 +121,7 @@ final class SignUpViewModel: ObservableObject {
         password != passwordConfirm
     }
 
-    /// Helper 영역에 표시할 메시지 (없으면 nil)
+    // Helper 영역에 표시할 메시지 (없으면 nil)
     var helperMessage: String? {
         switch emailCheckState {
         case .invalidFormat:
@@ -151,7 +160,7 @@ final class SignUpViewModel: ObservableObject {
 
 
     var canGoNext: Bool {
-        emailCheckState == .available && isPasswordValid && isPasswordMatch && isAllRequiredAgreed
+        emailCheckState == .available && isPasswordValid && isPasswordMatch
     }
 
     func checkEmailDuplicate() async {

@@ -72,16 +72,23 @@ struct SignUpFormSection: View {
 
 
             Button {
-                router.push(.auth(.setProfile))
+                // 필수 약관에 동의했는지 확인
+                if vm.isAllRequiredAgreed {
+                    router.push(.auth(.setProfile))
+                } else {
+                    // 동의하지 않았다면 팝업 표시
+                    vm.activeSheet = .agreement
+                }
             } label: {
                 Text("다음으로")
                     .font(.system(size: 15, weight: .semibold))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 44)
+                    .frame(height: 40)
+                    
             }
             .buttonStyle(.borderedProminent)
-            .tint(Color("85"))
-            .foregroundStyle(Color("100"))
+            .tint(vm.canGoNext ? Color(.primaryColorVarient65) : Color.gray.opacity(0.3))
+            .foregroundStyle(.white)
             .disabled(!vm.canGoNext)
             .opacity(vm.canGoNext ? 1 : 0.7)
         }
@@ -95,18 +102,21 @@ struct SignUpFormSection: View {
     SignUpFormSectionPreviewWrapper(preset: .empty)
         .padding()
         .background(Color(.systemGroupedBackground))
+        .environment(NavigationRouter()) // 라우터 주입 추가
 }
 
 #Preview("SignUpFormSection - Available") {
     SignUpFormSectionPreviewWrapper(preset: .available)
         .padding()
         .background(Color(.systemGroupedBackground))
+        .environment(NavigationRouter()) // 라우터 주입 추가
 }
 
 #Preview("SignUpFormSection - Duplicated") {
     SignUpFormSectionPreviewWrapper(preset: .duplicated)
         .padding()
         .background(Color(.systemGroupedBackground))
+        .environment(NavigationRouter()) // 라우터 주입 추가
 }
 
 private struct SignUpFormSectionPreviewWrapper: View {

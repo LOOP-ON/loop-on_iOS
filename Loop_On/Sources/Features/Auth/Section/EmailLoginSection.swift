@@ -39,7 +39,7 @@ struct EmailLoginSection: View {
                 .padding(.horizontal, 14)
                 .frame(height: 40)
                 .foregroundStyle(Color("45-Text"))       // 입력된 텍스트 색
-                .background(Color("background"))
+                .background(Color("95"))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 
                 passwordField
@@ -55,7 +55,7 @@ struct EmailLoginSection: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .foregroundStyle(Color(.white))
-                        .background(Color("55"))
+                        .background(Color("85"))
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -77,7 +77,6 @@ struct EmailLoginSection: View {
             .padding(.top, 6)
         }
         .padding(16)
-        .background(Color("100"))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
     
@@ -117,7 +116,7 @@ struct EmailLoginSection: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 40)
-        .background(Color("background"))
+        .background(Color("95"))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
     
