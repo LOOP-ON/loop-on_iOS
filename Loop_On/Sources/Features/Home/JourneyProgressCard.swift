@@ -9,27 +9,26 @@ import Foundation
 import SwiftUI
 
 struct JourneyProgressCardView: View {
+    // ViewModel에서 계산된 값을 직접 전달받음
     let completed: Int
     let total: Int
 
     var progress: Double {
         guard total > 0 else { return 0 }
-        return Double(completed) / Double(total)
+        return Double(completed) / Double(total) // 전체 대비 완료 비율 계산
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-
             Text("오늘의 여정 완주율")
                 .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
                 .foregroundStyle(Color.white)
 
-            Text("\(completed)/\(total)")
+            Text("\(completed)/\(total)") // 0/3, 1/3 등 실시간 상태 표시
                 .font(.system(size: 28, weight: .bold))
                 .foregroundStyle(Color.white)
 
             JourneyProgressBarView(progress: progress)
-
 
             Text(completed == 0 ? "아직 완료된 루틴이 없어요" : "잘 진행 중이에요!")
                 .font(.system(size: 12))

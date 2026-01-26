@@ -11,6 +11,7 @@ import SwiftUI
 // 슬라이드 방식으로 부드럽게 넘어가는 스타일
 struct RootTabView: View {
     @State private var selectedTab: TabItem = .home
+    @EnvironmentObject var homeViewModel: HomeViewModel
 
     var body: some View {
         ZStack {
@@ -32,14 +33,25 @@ struct RootTabView: View {
                     Text("프로필 화면")
                         .tag(TabItem.profile)
                 }
-                /* .page 스타일을 적용하면 스와이프 제스처가 가능해지고,
-                   탭 클릭 시에도 부드러운 슬라이드 애니메이션이 기본 적용됩니다.
-                */
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 // 하단 탭바 영역
                 HomeBottomTabView(selectedTab: $selectedTab)
+            }
+            // 최상위 ZStack에서 팝업을 띄워 노치와 탭바를 모두 덮어준다
+            if homeViewModel.activeFullSheet == .reflection {
+                if let info = homeViewModel.journeyInfo {
+                    ReflectionPopupView(
+                        viewModel: ReflectionViewModel(loopId: info.loopId, currentDay: info.currentDay),
+                        isPresented: Binding(
+                            get: { homeViewModel.activeFullSheet == .reflection },
+                            set: { if !$0 { homeViewModel.activeFullSheet = nil } }
+                        )
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    .zIndex(999)
+                }
             }
         }
         // 하단 탭바의 흰색 배경만 기기 바닥까지 늘어지게 설정
