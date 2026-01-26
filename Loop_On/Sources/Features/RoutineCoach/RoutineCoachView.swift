@@ -10,6 +10,7 @@ import SwiftUI
 
 struct RoutineCoachView: View {
     @StateObject private var viewModel = RoutineCoachViewModel()
+    @EnvironmentObject var homeViewModel: HomeViewModel
     
     // 브랜드 컬러 정의
     let pointColor = Color(.primaryColorVarient65)

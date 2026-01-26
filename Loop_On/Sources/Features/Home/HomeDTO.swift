@@ -40,3 +40,11 @@ struct JourneyInfo {
     let totalCount: Int
     let completedCount: Int
 }
+
+// MARK: - Reflection Request DTO
+struct ReflectionRequestDTO: Codable {
+    let loopId: Int
+    let day: Int
+    let content: String
+    let imageCount: Int
+}

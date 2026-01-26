@@ -48,17 +48,6 @@ struct HomeView: View {
                 .safeAreaPadding(.top, 1)
                 .background(Color(.systemGroupedBackground))
             }
-            
-            // 미루기 팝업
-            if viewModel.isShowingDelayPopup {
-                DelayPopupView(
-                    index: viewModel.selectedRoutineIndex,
-                    title: viewModel.selectedRoutine?.title ?? "",
-                    isPresented: $viewModel.isShowingDelayPopup
-                )
-                .transition(.opacity.combined(with: .scale(scale: 1.1)))
-                .zIndex(1)
-            }
         }
         // 풀스크린 커버 제어를 ViewModel에서 위임받음
         .fullScreenCover(item: $viewModel.activeFullSheet) { sheet in
@@ -108,7 +97,7 @@ private extension HomeView {
                         },
                         onDelay: {
                             viewModel.selectRoutine(at: index)
-                            viewModel.isShowingDelayPopup = true
+                            viewModel.activeFullSheet = .delay
                         }
                     )
                 }
@@ -182,8 +171,28 @@ private extension HomeView {
                     }
                 }
         case .reflection:
-            // ReflectionPopupView 내부의 바인딩 로직 구현
-            EmptyView()
+            if let info = viewModel.journeyInfo {
+                ReflectionPopupView(
+                    viewModel: ReflectionViewModel(loopId: info.loopId, currentDay: info.currentDay),
+                    isPresented: Binding(
+                        get: { viewModel.activeFullSheet == .reflection },
+                        set: { if !$0 { viewModel.activeFullSheet = nil } }
+                    )
+                )
+                .presentationBackground(.clear)
+            } else {
+                EmptyView()
+            }
+        case .delay: 
+            DelayPopupView(
+                index: viewModel.selectedRoutineIndex,
+                title: viewModel.selectedRoutine?.title ?? "",
+                isPresented: Binding(
+                    get: { viewModel.activeFullSheet == .delay },
+                    set: { if !$0 { viewModel.activeFullSheet = nil } }
+                )
+            )
+            .presentationBackground(.clear)
         }
     }
 }
