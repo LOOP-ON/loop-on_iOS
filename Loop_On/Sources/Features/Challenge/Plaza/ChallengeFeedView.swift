@@ -11,6 +11,8 @@ struct ChallengeFeedView: View {
     @Binding var cards: [ChallengeCard]
     let emptyMessage: String
     var onLikeTap: ((UUID, Bool) -> Void)?
+    var onEdit: ((UUID) -> Void)?
+    var onDelete: ((UUID) -> Void)?
 
     var body: some View {
         ScrollView {
@@ -28,7 +30,12 @@ struct ChallengeFeedView: View {
             } else {
                 VStack(spacing: 16) {
                     ForEach($cards) { $card in
-                        ChallengeCardView(card: $card, onLikeTap: onLikeTap)
+                        ChallengeCardView(
+                            card: $card,
+                            onLikeTap: onLikeTap,
+                            onEdit: onEdit,
+                            onDelete: onDelete
+                        )
                     }
                 }
                 .padding(.horizontal, 20)
