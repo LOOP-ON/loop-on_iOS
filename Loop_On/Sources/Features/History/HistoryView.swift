@@ -8,52 +8,62 @@
 import SwiftUI
 
 struct HistoryView: View {
+    @Environment(NavigationRouter.self) private var router
     @StateObject private var viewModel = HistoryViewModel()
     @State private var selectedDate: Date = Date()
     @State private var currentMonth: Date = Date()
     
     private let calendar = Calendar.current
-    
+
     var body: some View {
-        VStack(spacing: 0) {
-            // 헤더
-            HistoryHeaderView()
+        ZStack {
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // 헤더
+                HistoryHeaderView(onSettingsTapped: {
+                    router.push(.app(.settings))
+                })
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+
+                // 달력 섹션
+                CustomCalendarView(
+                    selectedDate: $selectedDate,
+                    currentMonth: $currentMonth,
+                    viewModel: viewModel
+                )
                 .padding(.horizontal, 20)
-                .padding(.top, 12)
-            
-            // 달력 섹션
-            CustomCalendarView(
-                selectedDate: $selectedDate,
-                currentMonth: $currentMonth,
-                viewModel: viewModel
-            )
-            .padding(.horizontal, 20)
-            .padding(.top, 24)
-            
-            // 빈 상태 메시지
-            Spacer()
-            
-            VStack(spacing: 8) {
-                Text("아직 루틴을 수행한 기록이 없어요.")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color("25-Text"))
-                
-                Text("루틴을 수행하면 통계를 확인할 수 있어요 :)")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color("45-Text"))
+                .padding(.top, 24)
+
+                // 빈 상태 메시지
+                Spacer()
+
+                VStack(spacing: 8) {
+                    Text("아직 루틴을 수행한 기록이 없어요.")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Color("25-Text"))
+
+                    Text("루틴을 수행하면 통계를 확인할 수 있어요 :)")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color("45-Text"))
+                }
+                .padding(.bottom, 100) // 하단 네비게이션 공간 확보
+
+                Spacer()
             }
-            .padding(.bottom, 100) // 하단 네비게이션 공간 확보
-            
-            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color("background"))
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .safeAreaPadding(.top, 1)
     }
 }
 
 // MARK: - History Header View
 struct HistoryHeaderView: View {
+    var onSettingsTapped: (() -> Void)?
+    
     var body: some View {
         HStack {
             // 로고
@@ -80,7 +90,7 @@ struct HistoryHeaderView: View {
                 }
                 
                 Button(action: {
-                    // 설정 아이콘 액션
+                    onSettingsTapped?()
                 }) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 20))

@@ -12,4 +12,8 @@ enum AppRoute: Hashable {
     case detail(title: String)
     case profile(userID: Int)
     case routineCoach
+    case settings
+    case account
+    case notifications
+    case system
 }
