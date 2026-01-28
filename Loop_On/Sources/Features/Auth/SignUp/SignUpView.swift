@@ -38,6 +38,11 @@ struct SignUpView: View {
         .fullScreenCover(item: $vm.activeSheet) { sheet in
             fullSheetContent(for: sheet)
         }
+        // 회원가입 API가 성공하면 프로필 설정 화면으로 이동
+        .onChange(of: vm.isSignUpSuccess) { _, success in
+            guard success else { return }
+            router.push(.auth(.setProfile))
+        }
     }
     @ViewBuilder
         func fullSheetContent(for sheet: SignUpSheet) -> some View {

@@ -73,12 +73,14 @@ struct SignUpFormSection: View {
 
             Button {
                 // 필수 약관에 동의했는지 확인
-                if vm.isAllRequiredAgreed {
-                    router.push(.auth(.setProfile))
-                } else {
+                guard vm.isAllRequiredAgreed else {
                     // 동의하지 않았다면 팝업 표시
                     vm.activeSheet = .agreement
+                    return
                 }
+                
+                // 이메일/비밀번호/비밀번호 확인 검증이 통과된 상태에서만 서버에 회원가입 요청
+                vm.requestSignUp()
             } label: {
                 Text("다음으로")
                     .font(.system(size: 15, weight: .semibold))
