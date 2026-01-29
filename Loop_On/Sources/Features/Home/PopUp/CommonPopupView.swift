@@ -9,18 +9,25 @@ import Foundation
 import SwiftUI
 
 struct CommonPopupView: View {
+    @Binding var isPresented: Bool
     let title: String
     var message: String? = nil
     let leftButtonText: String
     let rightButtonText: String
     let leftAction: () -> Void
     let rightAction: () -> Void
+    var onClose: (() -> Void)? = nil
 
     var body: some View {
         ZStack {
             // 배경 흐리게
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    isPresented = false
+                    onClose?()
+                }
 
             VStack(spacing: 0) {
                 VStack(spacing: 8) {
@@ -63,6 +70,8 @@ struct CommonPopupView: View {
                     .fill(Color.white)
             )
             .padding(.horizontal, 62)
+            .contentShape(Rectangle())
+            .onTapGesture { }
         }
     }
 }
@@ -75,6 +84,7 @@ struct CommonPopupView: View {
             
             // 여정 완료 팝업 (FinishJourney)
             CommonPopupView(
+                isPresented: .constant(true),
                 title: "3일 여정이 끝났어요!",
                 message: "이번 루프를 돌아보러 갈까요?",
                 leftButtonText: "다음 루프 시작하기",
@@ -85,6 +95,7 @@ struct CommonPopupView: View {
             
             // 여정 지속 확인 팝업 (ContinueJourney)
             CommonPopupView(
+                isPresented: .constant(true),
                 title: "여정을 이어갈까요?",
                 leftButtonText: "이어가기",
                 rightButtonText: "새롭게 시작하기",

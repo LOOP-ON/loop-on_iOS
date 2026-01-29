@@ -35,7 +35,7 @@ struct FindPasswordView: View {
                 FindPasswordNewPasswordSection(vm: vm)
                     .padding(.bottom, 12) // 헬퍼 텍스트와 버튼 사이 간격 (Figma: 12px)
                 
-                // 비밀번호 찾기 버튼
+                // 비밀번호 재설정 버튼
                 Button(action: {
                     vm.resetPassword()
                 }) {
@@ -44,18 +44,20 @@ struct FindPasswordView: View {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: Color("100")))
                         } else {
-                            Text("비밀번호 찾기")
+                            Text("비밀번호 재설정")
                                 .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(Color("100"))
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                 }
                 .buttonStyle(.plain)
+                // 인증요청/확인 버튼과 동일하게 항상 그레이스케일 100 텍스트 유지
+                .foregroundStyle(Color("100"))
                 .background(vm.canSubmitPasswordReset ? Color("PrimaryColor55") : Color("85"))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .disabled(!vm.canSubmitPasswordReset)
+                // 시스템 disabled 스타일 대신 hitTest로만 비활성화 처리하여 색상 변화 방지
+                .allowsHitTesting(vm.canSubmitPasswordReset)
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
@@ -63,9 +65,10 @@ struct FindPasswordView: View {
         }
         .scrollIndicators(.hidden)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text("비밀번호 찾기")
+                Text("비밀번호 재설정")
                     .font(.system(size: 20, weight: .bold))
             }
             ToolbarItem(placement: .navigationBarLeading) {

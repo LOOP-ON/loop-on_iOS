@@ -13,42 +13,17 @@ struct SystemView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                // 권한 관리
-                systemSectionTitle("권한 관리")
-                    .padding(.top, 24)
-                    .padding(.bottom, 12)
-
-                VStack(spacing: 0) {
-                    systemToggleRow("알림 권한", isOn: $viewModel.isNotificationPermissionOn)
-                    systemToggleRow("카메라 접근 권한", isOn: $viewModel.isCameraPermissionOn)
-                    systemToggleRow("사진 접근 권한", isOn: $viewModel.isPhotoPermissionOn)
-                }
-
-                // 데이터 & 기타
-                systemSectionTitle("데이터 & 기타")
-                    .padding(.top, 32)
-                    .padding(.bottom, 12)
-
-                VStack(spacing: 0) {
-                    SystemActionRow(title: "캐시 정리") {
-                        viewModel.clearCache()
-                    }
-                    SystemLinkRow(title: "이용 약관") {
-                        // TODO: 이용 약관 화면
-                    }
-                    SystemLinkRow(title: "개인정보 처리 방침") {
-                        // TODO: 개인정보 처리방침 화면
-                    }
-                    SystemInfoRow(title: "앱 버전 정보", value: viewModel.appVersion)
-                }
+            VStack(alignment: .leading, spacing: 24) {
+                permissionSection
+                dataAndEtcSection
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
+            .padding(.top, 24)
             .padding(.bottom, 32)
         }
         .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color("background"))
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("시스템")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -66,8 +41,8 @@ struct SystemView: View {
 
     private func systemSectionTitle(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 16, weight: .bold))
-            .foregroundStyle(Color("25-Text"))
+            .font(.system(size: 13, weight: .regular))
+            .foregroundStyle(Color("45-Text"))
     }
 
     private func systemToggleRow(_ title: String, isOn: Binding<Bool>) -> some View {
@@ -81,6 +56,65 @@ struct SystemView: View {
                 .tint(Color("PrimaryColor55"))
         }
         .padding(.vertical, 14)
+        .padding(.horizontal, 20)
+    }
+
+    // MARK: - Section Containers (iOS 설정 앱 스타일 카드)
+
+    private var permissionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            systemSectionTitle("권한 관리")
+
+            VStack(spacing: 0) {
+                systemToggleRow("알림 권한", isOn: $viewModel.isNotificationPermissionOn)
+
+                Divider()
+
+                systemToggleRow("카메라 접근 권한", isOn: $viewModel.isCameraPermissionOn)
+
+                Divider()
+
+                systemToggleRow("사진 접근 권한", isOn: $viewModel.isPhotoPermissionOn)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color.white)
+                    .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+            )
+        }
+    }
+
+    private var dataAndEtcSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            systemSectionTitle("데이터 & 기타")
+
+            VStack(spacing: 0) {
+                SystemActionRow(title: "캐시 정리") {
+                    viewModel.clearCache()
+                }
+
+                Divider()
+
+                SystemLinkRow(title: "이용 약관") {
+                    // TODO: 이용 약관 화면
+                }
+
+                Divider()
+
+                SystemLinkRow(title: "개인정보 처리 방침") {
+                    // TODO: 개인정보 처리방침 화면
+                }
+
+                Divider()
+
+                SystemInfoRow(title: "앱 버전 정보", value: viewModel.appVersion)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color.white)
+                    .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+            )
+        }
     }
 }
 
@@ -98,6 +132,7 @@ private struct SystemActionRow: View {
                 Spacer()
             }
             .padding(.vertical, 14)
+            .padding(.horizontal, 20)
         }
         .buttonStyle(.plain)
     }
@@ -120,6 +155,7 @@ private struct SystemLinkRow: View {
                     .foregroundStyle(Color("25-Text"))
             }
             .padding(.vertical, 14)
+            .padding(.horizontal, 20)
         }
         .buttonStyle(.plain)
     }
@@ -141,6 +177,7 @@ private struct SystemInfoRow: View {
                 .foregroundStyle(Color("45-Text"))
         }
         .padding(.vertical, 14)
+        .padding(.horizontal, 20)
     }
 }
 

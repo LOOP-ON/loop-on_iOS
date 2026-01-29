@@ -10,10 +10,18 @@ import SwiftUI
 
 struct RoutineCoachView: View {
     @StateObject private var viewModel = RoutineCoachViewModel()
+    @EnvironmentObject var homeViewModel: HomeViewModel
     
     // 브랜드 컬러 정의
     let pointColor = Color(.primaryColorVarient65)
     let backgroundColor = Color(red: 0.98, green: 0.98, blue: 0.98)
+    
+    // 루틴 리스트 영역 높이 (스크롤바 및 계산에 사용)
+    private let routineListHeight: CGFloat = 270
+    
+    // 스크롤 상태
+    @State private var scrollOffset: CGFloat = 0        // 현재 스크롤 위치(y, 아래로 갈수록 +)
+    @State private var contentHeight: CGFloat = 0       // 전체 콘텐츠 높이
     
     var body: some View {
         ZStack {
@@ -37,24 +45,52 @@ struct RoutineCoachView: View {
                         .padding(.top, 30)
                 }
                 .padding(.bottom, 20)
-                
-                // 루틴 리스트
-                ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(Array(viewModel.routines.enumerated()), id: \.element.id) { index, routine in
-                            RoutineRow(
-                                routine: routine,
-                                pointColor: pointColor,
-                                onTimeTap: {
-                                    viewModel.openTimePicker(for: index)
-                                }
-                            )
+                HStack(alignment: .top, spacing: -10) {
+                    // 루틴 리스트
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(Array(viewModel.routines.enumerated()), id: \.element.id) { index, routine in
+                                RoutineRow(
+                                    routine: routine,
+                                    pointColor: pointColor,
+                                    isEditing: viewModel.isEditing,
+                                    totalCount: viewModel.routines.count,
+                                    onTimeTap: {
+                                        viewModel.openTimePicker(for: index)
+                                    },
+                                    onDelete: {
+                                        viewModel.deleteRoutine(at: index)
+                                    },
+                                    onEditName: {
+                                        viewModel.prepareEditName(for: index)
+                                    }
+                                )
+                            }
                         }
+                        .padding(.horizontal, 20)
                     }
-                    .padding(.horizontal, 20)
+                    .scrollIndicators(.hidden)
+                    .frame(height: 290)
+                    // iOS 최신 SwiftUI API: 실제 UIScrollView의 contentOffset/contentSize를 그대로 받음
+                    .onScrollGeometryChange(for: CGFloat.self, of: { geo in
+                        geo.contentOffset.y
+                    }, action: { _, newValue in
+                        scrollOffset = newValue
+                    })
+                    .onScrollGeometryChange(for: CGFloat.self, of: { geo in
+                        geo.contentSize.height
+                    }, action: { _, newValue in
+                        contentHeight = newValue
+                    })
+                    
+                    if viewModel.routines.count >= 4 {
+                        // 스크롤 위치에 반응하는 커스텀 스크롤바
+                        scrollBarView()
+                            .padding(.trailing, 10)
+                            .padding(.top, 10)
+                    }
                 }
-                .frame(height: 286)
-                
+
                 // 하단 버튼 섹션
                 VStack(spacing: 16) {
                     HStack(spacing: 12) {
@@ -65,25 +101,29 @@ struct RoutineCoachView: View {
                                 .padding(.vertical, 3)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(pointColor)
+                                        .fill(viewModel.isEditing ? Color("85") : pointColor)
                                 )
                                 .foregroundStyle(.white)
-                                
                         }
+                        .disabled(viewModel.isEditing) // 수정 중엔 비활성화
                         
                         Spacer()
                         
-                        Button(action: viewModel.editRoutinesDirectly) {
-                            Text("루틴 직접 수정")
+                        Button(action: {
+                            if viewModel.isEditing {
+                                viewModel.finishEditing()
+                            } else {
+                                viewModel.editRoutinesDirectly()
+                            }
+                        }) {
+                            Text(viewModel.isEditing ? "완료" : "루틴 직접 수정")
                                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))
                                 .frame(width: 106, height: 33)
-                                .padding(.vertical, 3)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(pointColor)
                                 )
                                 .foregroundStyle(.white)
-                                
                         }
                     }
                     
@@ -96,15 +136,41 @@ struct RoutineCoachView: View {
                             .padding(.vertical, 18)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(pointColor)
+                                    .fill(viewModel.isEditing ? Color("85") : pointColor)
                             )
                             .foregroundStyle(.white)
                             .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 5)
                     }
+                    .disabled(viewModel.isEditing) // 수정 중엔 비활성화
                 }
                 .padding(.horizontal, 20)
+                .padding(.top, 10)
                 .padding(.bottom, 30)
             }
+            // MARK: - 공통 로딩 뷰 배치
+            // viewModel의 isLoading 상태에 따라 화면에 나타남.
+            if viewModel.isLoading {
+                    CommonLoadingView(
+                        message: "2박 3일 여정으로 떠나고 있습니다",
+                        lottieFileName: "Loading 51 _ Monoplane"
+                    )
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+        }
+        // 여정 시작 성공 시 HomeView로 이동
+        .fullScreenCover(isPresented: $viewModel.isJourneyStarted) {
+            HomeView() // 이동할 메인 화면
+        }
+        
+        .alert("루틴 이름 수정", isPresented: $viewModel.isShowingNameEditor) {
+            TextField("새로운 루틴 이름을 입력하세요", text: $viewModel.newRoutineName)
+            Button("취소", role: .cancel) { }
+            Button("확인") {
+                viewModel.updateRoutineName()
+            }
+        } message: {
+            Text("변경할 루틴의 이름을 입력해 주세요.")
         }
         // 시간 선택 팝업
         .sheet(isPresented: $viewModel.isShowingTimePicker) {
@@ -124,96 +190,50 @@ struct RoutineCoachView: View {
     }
 }
 
-// 각 루틴 카드 컴포넌트
-struct RoutineRow: View {
-    let routine: RoutineCoach
-    let pointColor: Color
-    // 시간 선택 영역을 눌렀을 때 실행할 액션
-    var onTimeTap: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 15) {
-            // 좌측 루틴 인덱스 뱃지
-            Text("루틴 \(routine.index)")
-                .font(.system(size: 12, weight: .bold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(Color(.primaryColorVarient95))
-                )
-                .foregroundStyle(pointColor)
-                
+// MARK: - 커스텀 스크롤바 뷰 & 계산 메서드 수정
+extension RoutineCoachView {
+    // 조절하고 싶은 전체 트랙 길이
+    private var customTrackHeight: CGFloat { 280 }
+
+    @ViewBuilder
+    fileprivate func scrollBarView() -> some View {
+        if contentHeight > routineListHeight {
+            let thumbHeight: CGFloat = 90 // 가변이 아닌 고정 길이를 원하시면 여기서 직접 지정 가능
             
-            VStack(alignment: .leading, spacing: 8) {
-                // 루틴 이름
-                Text(routine.name)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.black)
+            ZStack(alignment: .top) {
+                // 스크롤바 트랙 (배경 선)
+                Capsule()
+                    .fill(Color("95"))
+                    .frame(width: 4, height: customTrackHeight)
                 
-                // 시간 선택 버튼 영역
-                Button(action: {
-                    let generator = UIImpactFeedbackGenerator(style: .light)
-                    generator.impactOccurred()
-                    
-                    onTimeTap() // ViewModel의 팝업 열기 함수 호출
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "bell")
-                            .font(.system(size: 14))
-                        
-                        Text("알림 시간")
-                            .font(.system(size: 14))
-                        
-                        Text(formatDate(routine.alarmTime))
-                            .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 12))
-                            .foregroundStyle(Color("25-Text"))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.white)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                            )
-                    }
-                    .foregroundStyle(.gray) // "알림 시간" 텍스트와 아이콘 색상
-                }
+                // 실제 움직이는 thumb (진한 회색 바)
+                Capsule()
+                    .fill(Color("85"))
+                    .frame(width: 4, height: thumbHeight)
+                    .offset(y: scrollBarThumbOffset(trackHeight: customTrackHeight, thumbHeight: thumbHeight))
+                    .animation(.easeInOut(duration: 0.15), value: scrollOffset)
             }
-            Spacer()
+            .padding(.trailing, 8)
+            .padding(.top, (routineListHeight - customTrackHeight) / 2)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-        )
-        // 카드 그림자 효과
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
     
-    // 데이트 포맷터 함수
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ko_KR")
-        // 오전/오후 hh:mm 형식
-        formatter.dateFormat = "a hh:mm"
-        return formatter.string(from: date)
+    /// 현재 스크롤 offset 에 따른 thumb 의 Y 위치 계산
+    fileprivate func scrollBarThumbOffset(trackHeight: CGFloat, thumbHeight: CGFloat) -> CGFloat {
+        let maxScrollable = max(contentHeight - routineListHeight, 0)
+        guard maxScrollable > 0 else { return 0 }
+        
+        let progress = min(max(scrollOffset / maxScrollable, 0), 1)
+        
+        // 조절된 트랙 높이(trackHeight) 내에서 thumb 가 이동할 거리를 계산
+        let availableTravel = max(trackHeight - thumbHeight, 0)
+        
+        return progress * availableTravel
     }
 }
 
 // MARK: - Preview
-struct RoutineRow_Previews: PreviewProvider {
-    static var previews: some View {
-        RoutineRow(
-            routine: RoutineCoach(index: 1, name: "루틴 이름", alarmTime: Date()),
-            pointColor: Color(.primaryColorVarient65),
-            onTimeTap: { print("시간 선택 클릭됨") }
-        )
-        .padding()
-        .previewLayout(.sizeThatFits)
-        .background(Color.gray.opacity(0.1))
-    }
-}
-
 #Preview{
     RoutineCoachView()
 }
+

@@ -10,6 +10,7 @@ struct RootView: View {
     @Environment(NavigationRouter.self) private var router
     @Environment(SessionStore.self) private var session
 
+    @StateObject private var homeViewModel = HomeViewModel()
     var body: some View {
         @Bindable var router = router
 
@@ -69,11 +70,12 @@ struct RootView: View {
                     Text(title)
 
                 case let .app(.profile(userID)):
-                    // ProfileView(userID: userID) 임시로 Text("\(userID)")로 대체
-                    Text("\(userID)")
+                    PersonalProfileView()
+                        .navigationBarBackButtonHidden(true)
                 }
             }
         }
+        .environmentObject(homeViewModel)
     }
 }
 
