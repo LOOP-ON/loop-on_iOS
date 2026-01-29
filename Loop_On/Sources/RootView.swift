@@ -49,13 +49,29 @@ struct RootView: View {
                         .navigationBarBackButtonHidden(true)
                         .ignoresSafeArea(.all)
 
+                case .app(.settings):
+                    SettingsView()
+                        .navigationBarBackButtonHidden(true)
+
+                case .app(.account):
+                    AccountView()
+                        .navigationBarBackButtonHidden(true)
+
+                case .app(.notifications):
+                    NotificationsView()
+                        .navigationBarBackButtonHidden(true)
+
+                case .app(.system):
+                    SystemView()
+                        .navigationBarBackButtonHidden(true)
+
                 case let .app(.detail(title)):
                     // DetailView(title: title)   임시로 Text(title)로 대체
                     Text(title)
 
                 case let .app(.profile(userID)):
-                    // ProfileView(userID: userID) 임시로 Text("\(userID)")로 대체
-                    Text("\(userID)")
+                    PersonalProfileView()
+                        .navigationBarBackButtonHidden(true)
                 }
             }
         }

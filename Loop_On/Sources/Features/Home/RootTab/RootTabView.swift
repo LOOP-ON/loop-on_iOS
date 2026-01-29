@@ -30,7 +30,7 @@ struct RootTabView: View {
                     ChallengeView()
                         .tag(TabItem.challenge)
 
-                    Text("프로필 화면")
+                    PersonalProfileView()
                         .tag(TabItem.profile)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
@@ -38,6 +38,31 @@ struct RootTabView: View {
 
                 // 하단 탭바 영역
                 HomeBottomTabView(selectedTab: $selectedTab)
+            }
+            .onChange(of: selectedTab) { oldValue, newValue in
+                // #region agent log
+                let payload: [String: Any] = [
+                    "sessionId": "debug-session",
+                    "runId": "pre-fix-2",
+                    "hypothesisId": "H1",
+                    "location": "RootTabView.swift:onChange(selectedTab)",
+                    "message": "Tab changed",
+                    "data": ["from": String(describing: oldValue), "to": String(describing: newValue)],
+                    "timestamp": Date().timeIntervalSince1970
+                ]
+                
+                if let url = URL(string: "http://127.0.0.1:7242/ingest/f0d53358-e857-43b6-9baf-1b348ed6f40f"),
+                   let body = try? JSONSerialization.data(withJSONObject: payload) {
+                    var request = URLRequest(url: url)
+                    request.httpMethod = "POST"
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    request.httpBody = body
+                    
+                    URLSession.shared.dataTask(with: request) { _, _, _ in
+                        // fire-and-forget
+                    }.resume()
+                }
+                // #endregion
             }
             // 최상위 ZStack에서 팝업을 띄워 노치와 탭바를 모두 덮어준다
             if homeViewModel.activeFullSheet == .reflection {

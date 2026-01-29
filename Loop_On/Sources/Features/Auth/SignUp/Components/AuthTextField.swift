@@ -23,7 +23,9 @@ struct AuthTextField: View {
         TextField(
             "",
             text: $text,
-            prompt: Text(placeholder).foregroundStyle(Color(placeholderColorName))
+            prompt: Text(placeholder)
+                .font(.system(size: 14))
+                .foregroundStyle(Color(placeholderColorName))
         )
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()

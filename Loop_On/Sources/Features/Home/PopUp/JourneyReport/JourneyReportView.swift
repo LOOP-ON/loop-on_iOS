@@ -29,7 +29,7 @@ struct JourneyReportView: View {
         .onAppear { viewModel.fetchReport(loopId: loopId) }
     }
 
-    private func reportMainContainer(_ report: JourneyReport) -> some View {
+    private func reportMainContainer(_ report: PopupJourneyReport) -> some View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {

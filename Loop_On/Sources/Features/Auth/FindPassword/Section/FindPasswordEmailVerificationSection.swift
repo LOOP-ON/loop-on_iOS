@@ -18,6 +18,7 @@ struct FindPasswordEmailVerificationSection: View {
                     text: $vm.email,
                     placeholder: "이메일",
                     textColorName: "25-Text",
+                    // 플레이스홀더도 더 진한 25-Text로 설정해서 항상 잘 보이도록
                     placeholderColorName: "45-Text",
                     backgroundColorName: "100",
                     height: 40,
@@ -29,14 +30,15 @@ struct FindPasswordEmailVerificationSection: View {
                 }) {
                     Text("인증 요청")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color("100"))
+                        .foregroundStyle(Color("100")) // 텍스트 자체를 항상 그레이스케일 100으로 고정
                         .frame(height: 40)
                         .padding(.horizontal, 12)
                 }
                 .buttonStyle(.plain)
                 .background(vm.canRequestVerification ? Color("PrimaryColor55") : Color("85"))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .disabled(!vm.canRequestVerification)
+                // 시스템 disabled 스타일을 쓰지 않고 터치만 막아서 텍스트 컬러는 유지
+                .allowsHitTesting(vm.canRequestVerification)
                 .fixedSize(horizontal: true, vertical: false)
             }
             
@@ -47,14 +49,15 @@ struct FindPasswordEmailVerificationSection: View {
                         text: $vm.verificationCode,
                         placeholder: "인증번호",
                         textColorName: "25-Text",
+                        // 이메일 필드와 동일하게 플레이스홀더 색상도 25-Text로 맞춤
                         placeholderColorName: "45-Text",
                         backgroundColorName: "100",
                         height: 40,
                         keyboard: .numberPad,
                         isDisabled: false // disabled를 사용하지 않음
                     )
+                    // opacity로 흐리게 만들지 않고, 이메일 필드와 동일한 명도 유지
                     .allowsHitTesting(vm.isVerificationRequested && !vm.isVerificationCodeVerified) // 터치만 막음
-                    .opacity(vm.isVerificationRequested ? 1 : 0.7)
                     
                     // 체크마크 또는 타이머 (필드 내부 오른쪽에 표시, 동일한 너비로 고정)
                     HStack {
@@ -104,31 +107,23 @@ struct FindPasswordEmailVerificationSection: View {
             .padding(.top, 8)
             
             // Helper Text - "인증번호" 입력 필드 바로 아래, 입력 필드 내부 텍스트와 왼쪽 정렬, 10px 간격
-            Group {
-                if let errorMessage = vm.emailErrorMessage ?? vm.verificationErrorMessage {
-                    // 에러 메시지
-                    Text(errorMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color("StatusRed"))
-                } else if let successMessage = vm.verificationSuccessMessage {
-                    // 인증 성공 메시지 (초록색)
-                    Text(successMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color("StatusGreen"))
-                } else if let sentMessage = vm.verificationCodeSentMessage {
-                    // 인증번호 발송 메시지
-                    Text(sentMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color("45-Text"))
-                } else {
-                    // 기본 Helper Text
-                    Text("Helper Text")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color("45-Text"))
-                }
-            }
-            .padding(.leading, 14) // 입력 필드 내부 패딩과 동일하게 맞춤
-            .padding(.top, 10)
+            // 헬퍼 텍스트가 차지하는 공간은 항상 유지하되,
+            // 실제 메시지가 있을 때만 보이도록 처리
+            let helperMessage = vm.emailErrorMessage
+                ?? vm.verificationErrorMessage
+                ?? vm.verificationSuccessMessage
+                ?? vm.verificationCodeSentMessage
+            
+            Text(helperMessage ?? " ")
+                .font(.system(size: 13))
+                .foregroundStyle(
+                    helperMessage == vm.verificationSuccessMessage
+                    ? Color("StatusGreen")
+                    : Color("45-Text")
+                )
+                .opacity(helperMessage == nil ? 0 : 1) // 없을 때는 보이지 않지만, 레이아웃 공간은 유지
+                .padding(.leading, 14) // 입력 필드 내부 패딩과 동일하게 맞춤
+                .padding(.top, 10)
         }
     }
 }

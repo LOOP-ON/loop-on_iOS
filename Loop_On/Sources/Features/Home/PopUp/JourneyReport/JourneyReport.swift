@@ -7,7 +7,8 @@
 
 import Foundation
 
-struct JourneyReport: Codable {
+// 홈 팝업 전용 리포트 모델 (History와 구분)
+struct PopupJourneyReport: Codable {
     let title: String
     let goal: String
     let routines: [String]

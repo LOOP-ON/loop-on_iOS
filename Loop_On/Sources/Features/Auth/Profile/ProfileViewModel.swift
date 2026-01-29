@@ -79,9 +79,8 @@ final class ProfileViewModel: ObservableObject {
     
     // 모든 필드가 유효한지 확인
     var canSaveProfile: Bool {
-        isNameValid && 
-        isNicknameValid && 
-        isBirthdayValid &&
+        // 디자인 변경: 닉네임만 필수 입력/검증 대상으로 사용
+        isNicknameValid &&
         nicknameCheckState == .available
     }
     
@@ -159,9 +158,8 @@ final class ProfileViewModel: ObservableObject {
     
     // 모든 필드 검증
     private func validateAllFields() {
-        nameValidation = isNameValid ? .valid : .invalid("이름을 입력해주세요.")
+        // 현재는 닉네임만 실질적인 검증 대상으로 사용
         nicknameValidation = isNicknameValid ? .valid : .invalid(nicknameHelperText ?? "닉네임을 입력해주세요.")
-        birthdayValidation = isBirthdayValid ? .valid : .invalid(birthdayHelperText ?? "생년월일을 입력해주세요.")
     }
     
     // 이름 실시간 검증

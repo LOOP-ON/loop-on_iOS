@@ -20,7 +20,9 @@ struct HomeView: View {
         ZStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    HomeHeaderView()
+                    HomeHeaderView(onSettingsTapped: {
+                        router.push(.app(.settings))
+                    })
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
                     

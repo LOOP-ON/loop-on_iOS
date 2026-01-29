@@ -20,7 +20,9 @@ struct ProfileTextField: View {
         TextField(
             "",
             text: $text,
-            prompt: Text(placeholder).foregroundStyle(Color(placeholderColorName))
+            prompt: Text(placeholder)
+                .font(.system(size: 14))
+                .foregroundStyle(Color(placeholderColorName))
         )
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
@@ -61,7 +63,7 @@ private struct ProfileTextFieldPreviewWrapper: View {
             placeholder: "이름",
             textColorName: "25-Text",
             placeholderColorName: "45-Text",
-            backgroundColorName: "background"
+            backgroundColorName: "100"
         )
     }
 }

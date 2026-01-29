@@ -22,9 +22,11 @@ struct ChallengeView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                HomeHeaderView()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
+                HomeHeaderView(onSettingsTapped: {
+                    router.push(.app(.settings))
+                })
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
 
                 topTabBar
                     .padding(.horizontal, 20)
