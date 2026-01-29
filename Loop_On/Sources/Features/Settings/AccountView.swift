@@ -18,59 +18,47 @@ struct AccountView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 // 로그인 정보 섹션
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
                     accountSectionTitle("로그인 정보")
-                    
-                    VStack(spacing: 0) {
-                        AccountCardRow(title: "이메일 변경", trailing: email, isDestructive: false, showsChevron: true) {
+                        .padding(.top, 20)
+                        .padding(.bottom, 10)
+                    AccountCardRow(title: "이메일 변경", trailing: email, isDestructive: false, showsChevron: true) {
                             // TODO: 이메일 변경 화면
                         }
-                        
-                        Divider()
-                            .padding(.leading, 20)
-                        
                         AccountCardRow(title: "소셜로그인 연결", trailing: socialLoginStatus, isDestructive: false, showsChevron: true) {
                             // TODO: 소셜 로그인 연결 화면
                         }
-                        
-                        Divider()
-                            .padding(.leading, 20)
-                        
                         AccountCardRow(title: "비밀번호 재설정", trailing: nil, isDestructive: false, showsChevron: true) {
                             router.push(.auth(.findPassword))
                         }
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(Color.white)
-                            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
-                    )
                 }
+                .padding(.horizontal, 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color.white)
+                        .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+                )
                 .padding(.horizontal, 16)
                 .padding(.top, 24)
-                
+
                 // 계정 관리 섹션
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
                     accountSectionTitle("계정 관리")
-                    
-                    VStack(spacing: 0) {
-                        AccountCardRow(title: "로그아웃", trailing: nil, isDestructive: false, showsChevron: false) {
+                        .padding(.top, 20)
+                        .padding(.bottom, 10)
+                    AccountCardRow(title: "로그아웃", trailing: nil, isDestructive: false, showsChevron: false) {
                             // TODO: 로그아웃
                         }
-                        
-                        Divider()
-                            .padding(.leading, 20)
-                        
-                        AccountCardRow(title: "계정 탈퇴", trailing: nil, isDestructive: true, showsChevron: false) {
-                            // TODO: 계정 탈퇴
-                        }
+                    AccountCardRow(title: "계정 탈퇴", trailing: nil, isDestructive: true, showsChevron: false) {
+                        // TODO: 계정 탈퇴
                     }
-                    .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(Color.white)
-                            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
-                    )
                 }
+                .padding(.horizontal, 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color.white)
+                        .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+                )
                 .padding(.horizontal, 16)
                 
                 Spacer(minLength: 0)
@@ -97,8 +85,8 @@ struct AccountView: View {
 
     private func accountSectionTitle(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 13, weight: .regular))
-            .foregroundStyle(Color("45-Text"))
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(Color("25-Text"))
     }
 }
 
@@ -130,7 +118,6 @@ private struct AccountCardRow: View {
                 }
             }
             .padding(.vertical, 14)
-            .padding(.horizontal, 20)
         }
         .buttonStyle(.plain)
     }

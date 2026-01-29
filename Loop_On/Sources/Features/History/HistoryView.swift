@@ -260,7 +260,7 @@ struct HistoryHeaderView: View {
                 .buttonStyle(.plain)
             }
             .font(.system(size: 20))
-            .foregroundColor(.black)
+            .foregroundStyle(.black)
         }
     }
 }

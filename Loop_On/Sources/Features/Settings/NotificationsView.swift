@@ -44,8 +44,8 @@ struct NotificationsView: View {
 
     private func notificationSectionTitle(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 13, weight: .regular))
-            .foregroundStyle(Color("45-Text"))
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(Color("5-Text"))
     }
 
     private func notificationToggleRow(_ title: String, isOn: Binding<Bool>) -> some View {
@@ -158,97 +158,73 @@ struct NotificationsView: View {
     // MARK: - Section Containers (iOS 설정 앱 스타일 카드)
 
     private var allNotificationsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 0) {
             notificationSectionTitle("전체 알림")
-
-            VStack(spacing: 0) {
-                notificationToggleRow("전체 알림", isOn: $viewModel.isAllNotificationsOn)
-            }
-            .padding(.horizontal, 20)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.white)
-                    .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
-            )
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            notificationToggleRow("전체 알림", isOn: $viewModel.isAllNotificationsOn)
         }
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+        )
     }
 
     private var routineNotificationsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 0) {
             notificationSectionTitle("루틴 알림")
-
-            VStack(spacing: 0) {
-                routineVerificationRow
-
-                Divider()
-                    // 텍스트와 동일한 시작 위치를 위해, 카드 내부 공통 padding(20)만 사용
-
-                notificationToggleRow("미완료 리마인드 알림", isOn: $viewModel.isUnfinishedReminderOn)
-            }
-            .padding(.horizontal, 20)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.white)
-                    .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
-            )
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            routineVerificationRow
+            notificationToggleRow("미완료 리마인드 알림", isOn: $viewModel.isUnfinishedReminderOn)
         }
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+        )
     }
 
     private var journeyNotificationsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 0) {
             notificationSectionTitle("여정 관련 알림")
-
-            VStack(spacing: 0) {
-                notificationToggleRow("오늘 여정 기록 알림", isOn: $viewModel.isTodayJourneyLogOn)
-
-                Divider()
-                    // 텍스트 시작 위치와 맞추기 위해 추가 leading padding 제거
-
-                endOfDayNotificationRow
-
-                Divider()
-                    // 텍스트 시작 위치와 맞추기 위해 추가 leading padding 제거
-
-                notificationToggleRow("여정 완료 알림", isOn: $viewModel.isJourneyCompleteOn)
-            }
-            .padding(.horizontal, 20)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.white)
-                    .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
-            )
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            notificationToggleRow("오늘 여정 기록 알림", isOn: $viewModel.isTodayJourneyLogOn)
+            endOfDayNotificationRow
+            notificationToggleRow("여정 완료 알림", isOn: $viewModel.isJourneyCompleteOn)
         }
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+        )
     }
 
     private var systemNotificationsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 0) {
             notificationSectionTitle("시스템 알림")
-
-            VStack(spacing: 0) {
-                notificationToggleRow("친구 신청 알림", isOn: $viewModel.isFriendRequestOn)
-
-                Divider()
-                    // 텍스트 시작 위치와 맞추기 위해 추가 leading padding 제거
-
-                notificationToggleRow("좋아요 알림", isOn: $viewModel.isLikeOn)
-
-                Divider()
-                    // 텍스트 시작 위치와 맞추기 위해 추가 leading padding 제거
-
-                notificationToggleRow("댓글 알림", isOn: $viewModel.isCommentOn)
-
-                Divider()
-                    // 텍스트 시작 위치와 맞추기 위해 추가 leading padding 제거
-
-                notificationToggleRow("공지/업데이트 알림", isOn: $viewModel.isAnnouncementOn)
-            }
-            .padding(.horizontal, 20)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.white)
-                    .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
-            )
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            notificationToggleRow("친구 신청 알림", isOn: $viewModel.isFriendRequestOn)
+            notificationToggleRow("좋아요 알림", isOn: $viewModel.isLikeOn)
+            notificationToggleRow("댓글 알림", isOn: $viewModel.isCommentOn)
+            notificationToggleRow("공지/업데이트 알림", isOn: $viewModel.isAnnouncementOn)
         }
+        .padding(.horizontal, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+        )
     }
 }
 

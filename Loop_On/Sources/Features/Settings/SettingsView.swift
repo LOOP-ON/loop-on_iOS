@@ -17,15 +17,9 @@ struct SettingsView: View {
                     SettingsInlineRow(title: "계정") {
                         router.push(.app(.account))
                     }
-                    
-                    Divider()
-                    
                     SettingsInlineRow(title: "알림") {
                         router.push(.app(.notifications))
                     }
-                    
-                    Divider()
-                    
                     SettingsInlineRow(title: "시스템") {
                         router.push(.app(.system))
                     }
