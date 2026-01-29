@@ -2,10 +2,6 @@ import ProjectDescription
 
 let project = Project(
     name: "Loop_On",
-    additionalFiles: [
-        "Sources/Secret.xcconfig",
-	"Sources/Loading/Loading 51 _ Monoplane.json"
-    ],
     targets: [
         .target(
             name: "Loop_On",
@@ -14,6 +10,7 @@ let project = Project(
             bundleId: "dev.tuist.Loop-On",
             infoPlist: .extendingDefault(
                 with: [
+	  	    "BASE_URL": "$(BASE_URL)",
                     "UILaunchScreen": [
                         "UIColorName": "",
                         "UIImageName": "",
@@ -36,8 +33,13 @@ let project = Project(
                 ]
             ),
 	    sources: ["Loop_On/Sources/**"],
-        resources: ["Loop_On/Resources/**"],
-            
+            resources: ["Loop_On/Resources/**"],
+            settings: .settings(
+        	configurations: [
+            	    .debug(name: "Debug", xcconfig: "Loop_On/Sources/Secret.xcconfig"),
+            	    .release(name: "Release", xcconfig: "Loop_On/Sources/Secret.xcconfig")
+        	]
+    	   ),
 	   // buildableFolders: [ "Loop_On/Sources", "Loop_On/Resources"],
 
             dependencies: [
@@ -62,5 +64,9 @@ let project = Project(
             // buildableFolders: ["Loop_On/Tests"],
             dependencies: [.target(name: "Loop_On")]
         ),
+    ],
+    additionalFiles: [
+        "Loop_On/Sources/Secret.xcconfig",
+	"Loop_On/Sources/Loading/Loading 51 _ Monoplane.json"
     ]
 )
