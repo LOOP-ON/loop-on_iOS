@@ -29,7 +29,7 @@ struct AuthView: View {
                         email: $viewModel.email,
                         password: $viewModel.password,
                         isPasswordVisible: $isPasswordVisible,
-                        helperText: viewModel.errorMessage ?? "Helper Text",
+                        helperText: viewModel.errorMessage,
                         onLoginTapped: {
                             viewModel.login()
                         },

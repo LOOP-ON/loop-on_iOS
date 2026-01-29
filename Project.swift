@@ -2,6 +2,10 @@ import ProjectDescription
 
 let project = Project(
     name: "Loop_On",
+    additionalFiles: [
+        "Sources/Secret.xcconfig",
+	"Sources/Loading/Loading 51 _ Monoplane.json"
+    ],
     targets: [
         .target(
             name: "Loop_On",
