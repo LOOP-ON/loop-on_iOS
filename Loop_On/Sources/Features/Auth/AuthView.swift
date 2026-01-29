@@ -29,7 +29,7 @@ struct AuthView: View {
                         email: $viewModel.email,
                         password: $viewModel.password,
                         isPasswordVisible: $isPasswordVisible,
-                        helperText: viewModel.errorMessage ?? "Helper Text",
+                        helperText: viewModel.errorMessage,
                         onLoginTapped: {
                             viewModel.login()
                         },
@@ -89,6 +89,13 @@ private struct AuthPreviewContainer: View {
             AuthView()
                 .environment(router)
                 .environment(session)
+                .navigationDestination(for: Route.self) { route in
+                    if case .auth(.signUp) = route {
+                        SignUpView()
+                            .environment(router)
+                            .environment(session)
+                    }
+                }
         }
     }
 }

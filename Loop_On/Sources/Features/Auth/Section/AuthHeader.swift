@@ -20,11 +20,13 @@ struct AuthHeader: View {
                 .accessibilityLabel("앱 로고")
             
             VStack(spacing: 10) {
-                Image(systemName: "airplane")
-                    .font(.system(size: 22, weight: .semibold))
+                Image("airplane")
+                    .resizable()
+                    .frame(width:32, height:27)
+                    .foregroundStyle(Color(.primaryColorVarient65))
                 
                 Text(tagline)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Color.primary)
             }
@@ -33,6 +35,9 @@ struct AuthHeader: View {
     }
 }
 
-#Preview{
-    AuthView()
+#Preview {
+    AuthHeader(
+        logoImageName: "Logo",
+        tagline: "2박 3일 여정을 시작해볼까요?\nLOOP 모드를 켜주세요"
+    )
 }

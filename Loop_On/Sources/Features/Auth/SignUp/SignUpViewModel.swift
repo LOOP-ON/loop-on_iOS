@@ -9,14 +9,20 @@ import Foundation
 import SwiftUI
 import UIKit
 
+enum SignUpSheet: Identifiable {
+    case agreement
+    var id: Int { hashValue }
+}
+
 @MainActor
 final class SignUpViewModel: ObservableObject {
-//    @Published var email: String = ""
+    /// 비밀번호 - 회원가입 1단계에서만 사용
     @Published var password: String = ""
     @Published var passwordConfirm: String = ""
-    @Published var name: String = ""
-    @Published var nickname: String = ""
-    @Published var profileImage: UIImage? = nil
+    /// 이름/닉네임/프로필 이미지는 ProfileView에서 관리
+    
+    // 현재 활성화된 시트 관리 변수
+    @Published var activeSheet: SignUpSheet? = nil
     
     private var lastCheckedEmail: String = ""
     @Published var email: String = "" {
@@ -31,24 +37,42 @@ final class SignUpViewModel: ObservableObject {
     }
 
     // 회원가입
+    @Published var isShowingAgreementPopup: Bool = false
     private let networkManager = DefaultNetworkManager<AuthAPI>()
 
     @Published var isSignUpSuccess: Bool = false
     @Published var errorMessage: String?
 
     func requestSignUp() {
+        // 화면에서 막더라도 혹시 모를 오동작을 대비해 1차 방어 로직 추가
+        guard canGoNext else {
+            errorMessage = "회원가입 정보를 다시 확인해주세요."
+            return
+        }
+        
+        // Xcode 프리뷰 또는 로컬 UI 테스트용 더미 처리. 서버 열리면 여기 지우기
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil {
+            // 네트워크 없이 바로 성공 처리
+            self.isSignUpSuccess = true
+            return
+        }
+        #endif
+
         // 필요한 데이터 생성
         let requestData = SignUpRequest(
             email: self.email,
             password: self.password,
-            name: self.name, // 템플릿에 이름/닉네임 변수가 없다면 추가 선언 필요
-            nickname: self.nickname,
-            birthDate: "2026-01-19" // DateFormatter로 변환된 값
+            confirmPassword: self.passwordConfirm,
+            // 이름/닉네임/생년월일은 이후 프로필 단계에서 입력하므로 현재는 nil로 전송
+            name: nil,
+            nickname: nil,
+            birthDate: nil
         )
         
         // 네트워크 요청
         networkManager.request(
-            target: .signUp(request: requestData, profileImage: self.profileImage),
+            target: .signUp(request: requestData),
             decodingType: EmptyResponse.self // 혹은 유저 정보를 담은 모델
         ) { [weak self] result in
             switch result {
@@ -93,7 +117,7 @@ final class SignUpViewModel: ObservableObject {
     var isAllRequiredAgreed: Bool {
         agreements.filter { $0.isRequired }.allSatisfy { $0.isOn }
     }
-
+    
     var isPasswordValid: Bool {
         // (영문, 숫자 포함 8~16자) - 간단 예시
         let lenOK = (8...16).contains(password.count)
@@ -112,7 +136,7 @@ final class SignUpViewModel: ObservableObject {
         password != passwordConfirm
     }
 
-    /// Helper 영역에 표시할 메시지 (없으면 nil)
+    // Helper 영역에 표시할 메시지 (없으면 nil)
     var helperMessage: String? {
         switch emailCheckState {
         case .invalidFormat:
@@ -151,7 +175,7 @@ final class SignUpViewModel: ObservableObject {
 
 
     var canGoNext: Bool {
-        emailCheckState == .available && isPasswordValid && isPasswordMatch && isAllRequiredAgreed
+        emailCheckState == .available && isPasswordValid && isPasswordMatch
     }
 
     func checkEmailDuplicate() async {
