@@ -202,7 +202,7 @@ struct DelayPopupView: View {
                 VStack {
                     RoutineCardView(
                         routine: mockRoutine,
-                        onConfirm: {},
+                        isConfirmDisabled: false, onConfirm: {},
                         onDelay: { isPresented = true },
                         onViewDelay: {}
                     )

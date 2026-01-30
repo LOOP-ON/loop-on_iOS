@@ -32,11 +32,11 @@ struct CommonPopupView: View {
             VStack(spacing: 0) {
                 VStack(spacing: 8) {
                     Text(title)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 18))
                     
                     if let message = message {
                         Text(message)
-                            .font(.system(size: 16))
+                            .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
                             .multilineTextAlignment(.center)
                     }
                 }

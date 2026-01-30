@@ -19,6 +19,7 @@ enum ActiveFullSheet: Identifiable {
     case journeyReport
     case shareJourney
     case viewDelay
+    case uncompletedRoutineAlert
     
     var id: Int {
         switch self {
@@ -31,6 +32,7 @@ enum ActiveFullSheet: Identifiable {
         case .journeyReport: return 7
         case .shareJourney: return 8
         case .viewDelay: return 9
+        case .uncompletedRoutineAlert: return 10
         }
     }
 }
@@ -39,6 +41,7 @@ class HomeViewModel: ObservableObject {
     // UI 상태 관리
     @Published var journeyInfo: JourneyInfo?    // loop_id 및 진척도 정보 포함
     @Published var routines: [RoutineModel] = []
+    @Published var todayRoutineCount: Int = 0 // 오늘 완료한 루틴 개수 추적
     @Published var isLoading: Bool = false
     
     // 팝업 및 시트 제어
@@ -49,6 +52,8 @@ class HomeViewModel: ObservableObject {
     
     // 목표 저장 변수
     @Published var goalTitle: String = ""
+    
+    @Published var hasUncompletedRoutines: Bool = false // 전날 미완료 루틴이 있는지 여부를 따지는 상태 변수
     
     // 선택된 루틴 정보
     var selectedRoutine: RoutineModel?
@@ -70,8 +75,11 @@ class HomeViewModel: ObservableObject {
                 loopId: 1,
                 title: "건강한 생활 만들기",
                 currentDay: 3, // 현재 1일차
-                totalRoutines: 3,
-                completedRoutines: 2,
+                totalJourney: 3,
+                completedJourney: 2,
+                todayRoutine: 3,       // 목표 개수
+                todayRoutineCount: 0,  // 오늘 시작 시점은 0
+                yesterdayRoutineCount: 3, // 어제 3개 중 2개만 완료한 상황 가정
                 routines: [
                     RoutineDTO(id: 101, title: "아침에 일어나 물 한 컵 마시기", alarmTime: "08:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
                     RoutineDTO(id: 102, title: "낮 시간에 몸 움직이기", alarmTime: "13:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
@@ -83,15 +91,31 @@ class HomeViewModel: ObservableObject {
             self.journeyInfo = JourneyInfo(
                 loopId: mockDTO.loopId,
                 currentDay: mockDTO.currentDay,
-                totalCount: 3, // 프로그래스 바의 총 칸 수
-                completedCount: 2  // 시작 시 완료된 일수
+                totalJourney: 3, // 프로그래스 바의 총 칸 수
+                completedJourney: 2,  // 시작 시 완료된 일수
+                todayRoutine: 3,
+                todayRoutineCount: 0,
+                yesterdayRoutineCount: 3
             )
                 
             self.routines = mockDTO.routines.map {
                 RoutineModel(id: $0.id, title: $0.title, time: "\($0.alarmTime) 알림 예정", isCompleted: $0.isCompleted, isDelayed: $0.isDelayed, delayReason: $0.delayReason)
             }
-            self.isLoading = false
             
+            // 미완료 루틴 플래그 판단 로직
+            // 완료된 루틴 개수가 총 루틴 개수보다 적으면 미처리된 것이 있다고 판단
+            let hasUnsettledRoutine = self.routines.contains { !$0.isCompleted && !$0.isDelayed }
+            
+            if hasUnsettledRoutine {
+            // 미처리된 루틴이 있을 때만 미완료 모드 활성화 및 팝업 노출
+                self.hasUncompletedRoutines = true
+                self.activeFullSheet = .uncompletedRoutineAlert
+            } else {
+                // 모든 루틴이 '완료' 혹은 '미루기'로 처리되었다면 팝업을 띄우지 않음
+                self.hasUncompletedRoutines = false
+            }
+            
+            self.isLoading = false
             self.goalTitle = mockDTO.title
         }
     }
@@ -99,28 +123,21 @@ class HomeViewModel: ObservableObject {
     // MARK: - 루틴 완료 처리 (인증 버튼 클릭 시 호출)
     func completeRoutine(at index: Int) {
         guard index < routines.count else { return }
-                
-        // 해당 루틴 상태 업데이트
         routines[index].isCompleted = true
+            
+        if var info = journeyInfo {
+            // 완료 버튼 클릭 시 카운트 1 증가
+            info.todayRoutineCount += 1
                 
-        if let currentInfo = journeyInfo {
-            // 오늘 루틴이 모두 완료되었는지 확인
-            let isAllTodayCompleted = routines.allSatisfy { $0.isCompleted }
+            // 오늘 목표를 달성했으면 완주 일수(completedJourney) 1 증가
+            if info.todayRoutineCount == info.todayRoutine {
+                info.completedJourney += 1
+            }
                 
-            // 완주율(프로그래스 바) 업데이트 로직
-            // 모든 루틴 완료 시 현재 일차(currentDay)를 완료된 일수로 설정
-            let updatedCompletedCount = isAllTodayCompleted ? currentInfo.currentDay : (currentInfo.currentDay - 1)
+            self.journeyInfo = info // 변경된 정보 반영
                 
-            self.journeyInfo = JourneyInfo(
-                loopId: currentInfo.loopId,
-                currentDay: currentInfo.currentDay,
-                totalCount: currentInfo.totalCount,
-                completedCount: updatedCompletedCount
-            )
-                
-            // 종료 팝업 호출 조건 변경
-            // 오늘 루틴을 다 끝냈고, 동시에 '전체 여정의 마지막 날'일 때만 종료 팝업을 띄움
-            if isAllTodayCompleted && updatedCompletedCount == currentInfo.totalCount {
+            // 전체 여정의 마지막 날까지 다 채웠을 때 종료 팝업 (기존 로직)
+            if info.completedJourney == info.totalJourney {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.activeFullSheet = .finishJourney
                 }
@@ -129,14 +146,56 @@ class HomeViewModel: ObservableObject {
     }
     
     // 루틴 미루기 완료 처리
-    func delayRoutine(at index: Int, reason: String) { 
+    func delayRoutine(at index: Int, reason: String) {
         let realIndex = index - 1
         guard realIndex >= 0 && realIndex < routines.count else { return }
         
         routines[realIndex].isDelayed = true
         routines[realIndex].delayReason = reason // 선택한 사유 저장
         routines[realIndex].time = "00:00 알림 완료"
+        
+        // 모든 루틴이 '완료' 혹은 '미루기' 상태인지 확인
+        checkAllRoutinesSettled()
     }
+    
+    private func checkAllRoutinesSettled() {
+        let allSettled = routines.allSatisfy { $0.isCompleted || $0.isDelayed }
+        if allSettled && hasUncompletedRoutines {
+            // 모든 어제 루틴 처리가 끝났으므로 모드 해제 및 데이터 갱신
+            self.hasUncompletedRoutines = false
+            fetchTodayRoutines() // 오늘 루틴 불러오기 호출
+        }
+    }
+    
+    // 오늘 날짜의 새로운 루틴으로 리스트를 갱신하는 로직
+    private func fetchTodayRoutines() {
+        self.isLoading = true
+            
+        // 실제 API 통신 시점 시뮬레이션
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            // 서버에서 새로 받아온 오늘의 루틴 리스트
+            let todayRoutines = [
+                RoutineDTO(id: 201, title: "물 한 컵 마시기 (오늘)", alarmTime: "08:00", isCompleted: false, isDelayed: false, delayReason: ""),
+                RoutineDTO(id: 202, title: "점심 산책하기 (오늘)", alarmTime: "13:00", isCompleted: false, isDelayed: false, delayReason: ""),
+                RoutineDTO(id: 203, title: "독서 30분 하기 (오늘)", alarmTime: "22:00", isCompleted: false, isDelayed: false, delayReason: "")
+            ]
+                
+            // 리스트 업데이트
+            self.routines = todayRoutines.map {
+                RoutineModel(id: $0.id, title: $0.title, time: "\($0.alarmTime) 알림 예정", isCompleted: $0.isCompleted, isDelayed: $0.isDelayed, delayReason: $0.delayReason)
+            }
+                
+            // 오늘 진행도 초기화
+            if var info = self.journeyInfo {
+                info.todayRoutineCount = 0
+                self.journeyInfo = info
+            }
+                
+            self.isLoading = false
+            print("오늘 날짜의 새로운 루틴으로 갱신 완료!")
+        }
+    }
+    
 
     // MARK: - 비즈니스 로직
 

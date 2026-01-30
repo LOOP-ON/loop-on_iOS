@@ -11,6 +11,7 @@ import SwiftUI
 struct RoutineCardView: View {
     // 개별 속성 대신 도메인 모델을 주입받음
     let routine: RoutineModel
+    let isConfirmDisabled: Bool // 전날 미완료 루틴 처리 모드일 때 true
     let onConfirm: () -> Void
     let onDelay: () -> Void
     let onViewDelay: () -> Void
@@ -48,7 +49,7 @@ struct RoutineCardView: View {
                     .frame(width: 56, height: 68)
             } else {
                 VStack(spacing: 8) {
-                    actionButton("인증", action: onConfirm)
+                    actionButton("인증", isEnabled: !isConfirmDisabled, action: onConfirm)
                     actionButton("미루기", action: onDelay)
                 }
             }
@@ -65,6 +66,7 @@ struct RoutineCardView: View {
     private func actionButton(_ title: String,
                                   width: CGFloat = 56,
                                   height: CGFloat = 30,
+                                  isEnabled: Bool = true,
                                   action: @escaping () -> Void) -> some View {
             Button(action: action) {
                 Text(title)
@@ -74,7 +76,7 @@ struct RoutineCardView: View {
                     .frame(width: width, height: height)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(.primaryColorVarient65))
+                            .fill(isEnabled ? Color(.primaryColorVarient65) : Color.gray.opacity(0.4))
                     )
             }
         }
@@ -83,15 +85,28 @@ struct RoutineCardView: View {
 
 #Preview {
     VStack(spacing: 12) {
+        // 상황 1: 일반적인 활성화 상태
         RoutineCardView(
-            routine: RoutineModel(id: 1, title: "물 한 컵 마시기", time: "08:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
+            routine: RoutineModel(id: 1, title: "물 한 컵 마시기", time: "08:00", isCompleted: false, isDelayed: false, delayReason: ""),
+            isConfirmDisabled: false, //
             onConfirm: {},
             onDelay: {},
             onViewDelay: {}
         )
 
+        // 상황 2: 전날 미완료 루틴이 있어 '인증'이 비활성화된 상태
         RoutineCardView(
-            routine: RoutineModel(id: 2, title: "침대에 눕기", time: "23:00", isCompleted: true, isDelayed: true, delayReason: "컨디션이 좋지 않아요"),
+            routine: RoutineModel(id: 2, title: "침대에 눕기", time: "23:00", isCompleted: false, isDelayed: false, delayReason: ""),
+            isConfirmDisabled: true, //
+            onConfirm: {},
+            onDelay: {},
+            onViewDelay: {}
+        )
+        
+        // 상황 3: 이미 미루기를 완료한 상태
+        RoutineCardView(
+            routine: RoutineModel(id: 3, title: "미룬 루틴 보기", time: "00:00 알림 완료", isCompleted: false, isDelayed: true, delayReason: "컨디션이 좋지 않아요"),
+            isConfirmDisabled: false,
             onConfirm: {},
             onDelay: {},
             onViewDelay: {}
