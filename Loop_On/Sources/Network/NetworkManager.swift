@@ -36,16 +36,17 @@ protocol NetworkManager {
 
 /// NetworkManager 프로토콜을 실제로 구현한 기본 네트워크 매니저.
 /// ViewModel에서 `DefaultNetworkManager<SomeAPI>()` 형태로 사용.
+/// 기본적으로 AuthPlugin이 적용되어 키체인 accessToken이 Authorization 헤더에 붙습니다.
 final class DefaultNetworkManager<API: TargetType>: NetworkManager {
     typealias Endpoint = API
     let provider: MoyaProvider<API>
 
-    /// 테스트(stub) 여부에 따라 실제 네트워크 or 즉시 응답 선택 가능
-    init(stub: Bool = false) {
+    /// 테스트(stub) 여부와 플러그인을 지정. 기본값으로 AuthPlugin이 적용되어 인증 API에 Bearer 토큰이 붙습니다.
+    init(stub: Bool = false, plugins: [PluginType] = [AuthPlugin()]) {
         if stub {
-            provider = MoyaProvider<API>(stubClosure: MoyaProvider.immediatelyStub)
+            provider = MoyaProvider<API>(stubClosure: MoyaProvider.immediatelyStub, plugins: plugins)
         } else {
-            provider = MoyaProvider<API>()
+            provider = MoyaProvider<API>(plugins: plugins)
         }
     }
 

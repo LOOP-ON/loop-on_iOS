@@ -22,6 +22,7 @@ final class SessionStore {
     }
 
     func logout() {
+        KeychainService.shared.deleteToken()
         hasLoggedInBefore = false
     }
 }
