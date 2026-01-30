@@ -39,6 +39,15 @@ class DelayPopupViewModel: ObservableObject {
         
         isSubmitting = true
         
+        // 프리뷰 환경인지 확인 (충돌 방지의 핵심)
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            self.isSubmitting = false
+            completion(true)
+            return
+        }
+        #endif
+        
         // TODO: 실제 API 연동 시 URLSession이나 Moya 등을 여기서 호출
         print("API 요청 전송 중... [루틴: \(routineIndex), 사유: \(finalReason)]")
         
@@ -47,6 +56,19 @@ class DelayPopupViewModel: ObservableObject {
             self.isSubmitting = false
             print("API 요청 성공")
             completion(true)
+        }
+    }
+    
+    func setupInitialReason(_ reasonText: String) {
+        // 기본 리스트에서 일치하는 텍스트가 있는지 확인
+        if let matchedReason = reasons.first(where: { $0.text == reasonText }) {
+            self.selectedReason = matchedReason
+            self.customReason = ""
+        }
+        // 일치하는 게 없다면 "직접 입력"으로 간주
+        else {
+            self.selectedReason = reasons.first(where: { $0.isCustomInput })
+            self.customReason = reasonText
         }
     }
 }

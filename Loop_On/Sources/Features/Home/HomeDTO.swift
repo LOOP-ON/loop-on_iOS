@@ -21,8 +21,10 @@ struct HomeDataResponseDTO: Codable {
 struct RoutineDTO: Codable {
     let id: Int
     let title: String
-    let alarmTime: String
+    var alarmTime: String
     let isCompleted: Bool
+    var isDelayed: Bool
+    var delayReason: String
 }
 
 // MARK: - Domain Model
@@ -30,8 +32,10 @@ struct RoutineDTO: Codable {
 struct RoutineModel: Identifiable {
     let id: Int
     let title: String
-    let time: String
+    var time: String
     var isCompleted: Bool
+    var isDelayed: Bool
+    var delayReason: String
 }
 
 struct JourneyInfo {

@@ -11,10 +11,18 @@ struct DelayPopupView: View {
     let index: Int
     let title: String
     @Binding var isPresented: Bool
+    var onDelaySuccess: ((String) -> Void)?
+    
+    // 모드 제어를 위한 프로퍼티 추가
+    var isReadOnly: Bool = false // 사유 확인 모드 여부
+    @State private var isEditMode: Bool = false // 수정 모드 전환 상태
     
     // ViewModel 주입
     @StateObject private var viewModel = DelayPopupViewModel()
     @FocusState private var isTextFieldFocused: Bool
+    
+    // 초기 사유가 있으면 확인
+    var initialReason: String? = nil
     
     var body: some View {
         ZStack {
@@ -38,6 +46,17 @@ struct DelayPopupView: View {
             .offset(y: isTextFieldFocused ? -40 : 0)
             .animation(.spring(), value: isTextFieldFocused)
         }
+        .onAppear {
+            if isReadOnly, let reason = initialReason, !reason.isEmpty {
+                // 미루기 보기(읽기 전용) 모드일 때만 기존 사유 세팅
+                viewModel.setupInitialReason(reason)
+            } else {
+                // 처음 미루기를 누른 경우 모든 상태 초기화
+                viewModel.selectedReason = nil
+                viewModel.customReason = ""
+                isEditMode = false // 수정 모드도 해제
+            }
+        }
     }
     
     // MARK: - UI Components
@@ -45,7 +64,8 @@ struct DelayPopupView: View {
     private var contentSection: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("루틴 미루기")
+                // 모드에 따라 타이틀 변경
+                Text(isEditMode ? "미룬 루틴 수정하기" : (isReadOnly ? "미룬 루틴" : "루틴 미루기"))
                     .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
                 
                 HStack(spacing: 4) {
@@ -64,6 +84,7 @@ struct DelayPopupView: View {
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
 
             reasonList
+                .disabled(isReadOnly && !isEditMode)
         }
         .padding(24)
     }
@@ -107,66 +128,105 @@ struct DelayPopupView: View {
 
     private var buttonSection: some View {
         HStack(spacing: 0) {
-            Button(action: { isPresented = false }) {
-                Text("닫기")
+            
+            Button(action: {
+                isTextFieldFocused = false
+                isPresented = false // API 요청 없이 창만 닫음
+            }) {
+                Text(isEditMode || isReadOnly ? "취소" : "닫기")
                     .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(isEditMode || isReadOnly ? Color(.primaryColorVarient65) : .red)
                     .frame(maxWidth: .infinity, minHeight: 56)
             }
 
             Divider().frame(width: 1, height: 56)
 
+//            Button(action: {
+//                viewModel.submitDelay(routineIndex: index) { success in
+//                    if success {
+//                        onDelaySuccess?()
+//                        isPresented = false
+//                    }
+//                }
+//            }) {
+//                if viewModel.isSubmitting {
+//                    ProgressView()
+//                        .frame(maxWidth: .infinity, minHeight: 56)
+//                } else {
+//                    Text("미루기")
+//                        .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
+//                        .foregroundStyle(viewModel.canSubmit ? Color(.primaryColorVarient65) : Color.gray.opacity(0.4))
+//                        .frame(maxWidth: .infinity, minHeight: 56)
+//                }
+//            }
+//            .disabled(!viewModel.canSubmit || viewModel.isSubmitting)
             Button(action: {
-                viewModel.submitDelay(routineIndex: index) { success in
-                    if success { isPresented = false }
+                if isReadOnly && !isEditMode {
+                    isEditMode = true // 수정 모드로 진입
+                } else {
+                    viewModel.submitDelay(routineIndex: index) { success in
+                        if success {
+                            DispatchQueue.main.async {
+                                // 팝업에서 선택/입력된 최종 사유를 부모 뷰로 전달
+                                onDelaySuccess?(viewModel.finalReason)
+                                isPresented = false
+                            }
+                        }
+                    }
                 }
             }) {
-                if viewModel.isSubmitting {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                } else {
-                    Text("미루기")
-                        .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
-                        .foregroundStyle(viewModel.canSubmit ? Color(.primaryColorVarient65) : Color.gray.opacity(0.4))
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                }
+                Text(isEditMode ? "저장" : (isReadOnly ? "수정하기" : "미루기"))
+                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
+                    .foregroundStyle(viewModel.canSubmit ? Color(.primaryColorVarient65) : Color.gray.opacity(0.4))
+                    .frame(maxWidth: .infinity, minHeight: 56)
             }
-            .disabled(!viewModel.canSubmit || viewModel.isSubmitting)
+            .disabled(!viewModel.canSubmit && isEditMode)
         }
     }
 }
 
 #Preview {
-    // 프리뷰 내에서 Binding 상태를 제어하기 위한 Wrapper 뷰
     struct DelayPopupPreviewContainer: View {
         @State private var isPresented = true
+        @State private var mockRoutine = RoutineModel(
+            id: 1, title: "매일 아침 스트레칭 하기",
+            time: "08:00 알림 예정",
+            isCompleted: false,
+            isDelayed: false,
+            delayReason: "컨디션이 좋지 않아요"
+        )
         
         var body: some View {
-            ZStack {
-                // 실제 배경이 되는 뷰
+            // 프리뷰에서 실제 HomeView와 유사한 환경 제공
+            NavigationStack {
                 VStack {
-                    Text("LOOP_ON 메인 화면")
-                        .font(.largeTitle)
-                        .padding()
-                    
-                    Button("팝업 다시 열기") {
-                        isPresented = true
+                    RoutineCardView(
+                        routine: mockRoutine,
+                        onConfirm: {},
+                        onDelay: { isPresented = true },
+                        onViewDelay: {}
+                    )
+                    Spacer()
+                }
+                .padding()
+                .navigationTitle("프리뷰 테스트")
+                // 팝업 시뮬레이션
+                .overlay {
+                    if isPresented {
+                        DelayPopupView(
+                            index: 1,
+                            title: mockRoutine.title,
+                            isPresented: $isPresented,
+                            onDelaySuccess: { reason in
+                                mockRoutine.isDelayed = true
+                                mockRoutine.delayReason = reason // 받은 사유를 모델에 저장
+                                mockRoutine.time = "00:00 알림 완료"
+                            }
+                        )
                     }
                 }
-                .blur(radius: isPresented ? 3 : 0) // 팝업 시 배경 블러 처리 예시
-                
-                // 팝업 뷰
-                if isPresented {
-                    DelayPopupView(
-                        index: 1,
-                        title: "매일 아침 스트레칭 하기",
-                        isPresented: $isPresented
-                    )
-                }
             }
-            .animation(.easeInOut, value: isPresented)
         }
     }
-    
     return DelayPopupPreviewContainer()
 }

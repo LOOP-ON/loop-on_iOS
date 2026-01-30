@@ -13,25 +13,38 @@ struct RoutineCardView: View {
     let routine: RoutineModel
     let onConfirm: () -> Void
     let onDelay: () -> Void
+    let onViewDelay: () -> Void
 
     var body: some View {
         HStack {
+            if routine.isDelayed {
+                Image("next_plan")
+                    .font(.system(size: 24))
+            } else if routine.isCompleted {
+                Image("check_circle")
+                    .font(.system(size: 24))
+            }
+            
             VStack(alignment: .leading, spacing: 4) {
                 Text(routine.title) // 모델의 title 사용
                     .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
+                    .foregroundStyle(routine.isCompleted ? Color.gray : Color.black)
 
                 Text(routine.time) // 모델의 time 사용
                     .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 13))
                     .foregroundStyle(Color("25-Text"))
             }
+            .padding(.leading, 6)
 
             Spacer()
 
             // 서버에서 받아온 완료 상태(isCompleted)에 따라 UI 분기
-            if routine.isCompleted {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(Color(.primaryColorVarient65))
-                    .font(.system(size: 24))
+            if routine.isDelayed {
+                actionButton("미루기 보기", width: 78,height: 30, action: onViewDelay)
+            } else if routine.isCompleted {
+                Text("완료")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color(.primaryColorVarient65))
                     .frame(width: 56, height: 68)
             } else {
                 VStack(spacing: 8) {
@@ -49,33 +62,39 @@ struct RoutineCardView: View {
         .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
     }
 
-    private func actionButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(Color.white)
-                .frame(width: 56, height: 30)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(.primaryColorVarient65))
-                )
+    private func actionButton(_ title: String,
+                                  width: CGFloat = 56,
+                                  height: CGFloat = 30,
+                                  action: @escaping () -> Void) -> some View {
+            Button(action: action) {
+                Text(title)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    // 지정된 너비와 높이 적용
+                    .frame(width: width, height: height)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(.primaryColorVarient65))
+                    )
+            }
         }
-    }
 }
 
 
 #Preview {
     VStack(spacing: 12) {
         RoutineCardView(
-            routine: RoutineModel(id: 1, title: "물 한 컵 마시기", time: "08:00", isCompleted: false),
+            routine: RoutineModel(id: 1, title: "물 한 컵 마시기", time: "08:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
             onConfirm: {},
-            onDelay: {}
+            onDelay: {},
+            onViewDelay: {}
         )
 
         RoutineCardView(
-            routine: RoutineModel(id: 2, title: "침대에 눕기", time: "23:00", isCompleted: true),
+            routine: RoutineModel(id: 2, title: "침대에 눕기", time: "23:00", isCompleted: true, isDelayed: true, delayReason: "컨디션이 좋지 않아요"),
             onConfirm: {},
-            onDelay: {}
+            onDelay: {},
+            onViewDelay: {}
         )
     }
     .padding()

@@ -18,6 +18,7 @@ enum ActiveFullSheet: Identifiable {
     case delay
     case journeyReport
     case shareJourney
+    case viewDelay
     
     var id: Int {
         switch self {
@@ -29,6 +30,7 @@ enum ActiveFullSheet: Identifiable {
         case .delay: return 6
         case .journeyReport: return 7
         case .shareJourney: return 8
+        case .viewDelay: return 9
         }
     }
 }
@@ -44,6 +46,9 @@ class HomeViewModel: ObservableObject {
     @Published var isShowingDelayPopup: Bool = false    // 미루기 팝업 상태 변수
     @Published var isShowingFinishPopup: Bool = false
     @Published var isJourneyCreated: Bool = false
+    
+    // 목표 저장 변수
+    @Published var goalTitle: String = ""
     
     // 선택된 루틴 정보
     var selectedRoutine: RoutineModel?
@@ -63,14 +68,14 @@ class HomeViewModel: ObservableObject {
             // 더미 데이터 설정
             let mockDTO = HomeDataResponseDTO(
                 loopId: 1,
-                title: "목표 건강한 생활 만들기",
+                title: "건강한 생활 만들기",
                 currentDay: 3, // 현재 1일차
                 totalRoutines: 3,
                 completedRoutines: 2,
                 routines: [
-                    RoutineDTO(id: 101, title: "아침에 일어나 물 한 컵 마시기", alarmTime: "08:00", isCompleted: false),
-                    RoutineDTO(id: 102, title: "낮 시간에 몸 움직이기", alarmTime: "13:00", isCompleted: false),
-                    RoutineDTO(id: 103, title: "정해진 시간에 침대에 눕기", alarmTime: "23:00", isCompleted: false)
+                    RoutineDTO(id: 101, title: "아침에 일어나 물 한 컵 마시기", alarmTime: "08:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
+                    RoutineDTO(id: 102, title: "낮 시간에 몸 움직이기", alarmTime: "13:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
+                    RoutineDTO(id: 103, title: "정해진 시간에 침대에 눕기", alarmTime: "23:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요")
                 ]
             )
                 
@@ -83,9 +88,11 @@ class HomeViewModel: ObservableObject {
             )
                 
             self.routines = mockDTO.routines.map {
-                RoutineModel(id: $0.id, title: $0.title, time: "\($0.alarmTime) 알림 예정", isCompleted: $0.isCompleted)
+                RoutineModel(id: $0.id, title: $0.title, time: "\($0.alarmTime) 알림 예정", isCompleted: $0.isCompleted, isDelayed: $0.isDelayed, delayReason: $0.delayReason)
             }
             self.isLoading = false
+            
+            self.goalTitle = mockDTO.title
         }
     }
     
@@ -119,6 +126,16 @@ class HomeViewModel: ObservableObject {
                 }
             }
         }
+    }
+    
+    // 루틴 미루기 완료 처리
+    func delayRoutine(at index: Int, reason: String) { 
+        let realIndex = index - 1
+        guard realIndex >= 0 && realIndex < routines.count else { return }
+        
+        routines[realIndex].isDelayed = true
+        routines[realIndex].delayReason = reason // 선택한 사유 저장
+        routines[realIndex].time = "00:00 알림 완료"
     }
 
     // MARK: - 비즈니스 로직

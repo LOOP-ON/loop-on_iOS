@@ -84,9 +84,25 @@ private extension HomeView {
 
     var routineSectionView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("목표 건강한 생활 만들기")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(Color(.primaryColorVarient65))
+//            Text("목표 건강한 생활 만들기")
+//                .font(.system(size: 16, weight: .bold))
+//                .foregroundStyle(Color(.primaryColorVarient65))
+            HStack(spacing: 8) {
+                Text("목표")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color("PrimaryColor55"))
+                
+                Text(viewModel.goalTitle.isEmpty ? "목표를 불러오는 중..." : viewModel.goalTitle)
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
+                    .foregroundStyle(Color.black)
+            }
+            .padding(.horizontal, 2)
+            .background(
+                Rectangle()
+                    .fill(Color(red: 0xEE/255, green: 0x4B/255, blue: 0x2B/255, opacity: 0x33/255))
+                    .frame(height: 8),
+                alignment: .bottomLeading
+            )
 
             VStack(spacing: 8) {
                 ForEach(0..<viewModel.routines.count, id: \.self) { index in
@@ -100,6 +116,10 @@ private extension HomeView {
                         onDelay: {
                             viewModel.selectRoutine(at: index)
                             viewModel.activeFullSheet = .delay
+                        },
+                        onViewDelay: {
+                            viewModel.selectRoutine(at: index)
+                            viewModel.activeFullSheet = .viewDelay
                         }
                     )
                 }
@@ -194,7 +214,12 @@ private extension HomeView {
                 isPresented: Binding(
                     get: { viewModel.activeFullSheet == .delay },
                     set: { if !$0 { viewModel.activeFullSheet = nil } }
-                )
+                ),
+                onDelaySuccess: { reason in
+                    viewModel.delayRoutine(at: viewModel.selectedRoutineIndex, reason: reason)
+                },
+                isReadOnly: viewModel.selectedRoutine?.isDelayed ?? false,
+                initialReason: viewModel.selectedRoutine?.delayReason
             )
             .presentationBackground(.clear)
 //        case .journeyReport:
@@ -223,6 +248,22 @@ private extension HomeView {
             .presentationBackground(.clear)
         case .shareJourney:
             ShareJourneyView()
+            
+        case .viewDelay: // 새로운 enum 상태 가정
+            DelayPopupView(
+                index: viewModel.selectedRoutineIndex,
+                title: viewModel.selectedRoutine?.title ?? "",
+                isPresented: Binding(
+                    get: { viewModel.activeFullSheet == .viewDelay },
+                    set: { if !$0 { viewModel.activeFullSheet = nil } }
+                ),
+                onDelaySuccess: { reason in
+                    viewModel.delayRoutine(at: viewModel.selectedRoutineIndex, reason: reason)
+                },
+                isReadOnly: true, // 확인 모드로 실행
+                initialReason: viewModel.selectedRoutine?.delayReason // 저장된 사유 전달
+            )
+            .presentationBackground(.clear)
         }
     }
 }
