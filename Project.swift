@@ -34,12 +34,6 @@ let project = Project(
             ),
 	    sources: ["Loop_On/Sources/**"],
             resources: ["Loop_On/Resources/**"],
-            settings: .settings(
-        	configurations: [
-            	    .debug(name: "Debug", xcconfig: "Loop_On/Sources/Secret.xcconfig"),
-            	    .release(name: "Release", xcconfig: "Loop_On/Sources/Secret.xcconfig")
-        	]
-    	   ),
 	   // buildableFolders: [ "Loop_On/Sources", "Loop_On/Resources"],
 
             dependencies: [
@@ -52,7 +46,13 @@ let project = Project(
                 .external(name: "KakaoSDKCommon"),
                 .external(name: "KakaoSDKAuth"),
                 .external(name: "KakaoSDKUser"),
-	    ]
+	    ],
+	    settings: .settings(
+        	configurations: [
+            	    .debug(name: "Debug", xcconfig: "Loop_On/Sources/Secret.xcconfig"),
+            	    .release(name: "Release", xcconfig: "Loop_On/Sources/Secret.xcconfig")
+        	]
+    	   )
         ),
         .target(
             name: "Loop_OnTests",
