@@ -33,6 +33,17 @@ enum GoalType: String, CaseIterable {
             return "내면 관리"
         }
     }
+
+    var apiValue: String {
+        switch self {
+        case .capability:
+            return "SKILL"
+        case .routine:
+            return "ROUTINE"
+        case .innerManagement:
+            return "MENTAL"
+        }
+    }
 }
 
 @MainActor
@@ -43,15 +54,18 @@ final class GoalSelectViewModel: ObservableObject {
     var canProceed: Bool {
         selectedGoal != nil
     }
+
+    var selectedCategory: String? {
+        selectedGoal?.apiValue
+    }
     
     func selectGoal(_ goal: GoalType) {
         selectedGoal = goal
     }
     
-    func proceedToNext() {
-        guard let goal = selectedGoal else { return }
-        // TODO: goal_type으로 저장하고 다음 화면으로 이동
-        print("Selected goal: \(goal.rawValue)")
+    func proceedToNext() -> String? {
+        // Step1에서 선택한 카테고리(API 값)를 반환
+        selectedCategory
     }
 }
 

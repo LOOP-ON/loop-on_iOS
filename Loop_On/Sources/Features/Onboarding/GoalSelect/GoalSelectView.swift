@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct GoalSelectView: View {
+    @Environment(NavigationRouter.self) private var router
     @StateObject private var viewModel = GoalSelectViewModel()
     
     var body: some View {
@@ -86,7 +87,10 @@ struct GoalSelectView: View {
     // MARK: - 3. 하단 CTA 영역
     private var nextButtonView: some View {
         Button {
-            viewModel.proceedToNext()
+            if let category = viewModel.proceedToNext() {
+                // Step1에서 선택한 카테고리를 Step2로 전달
+                router.push(.app(.goalInput(category: category)))
+            }
         } label: {
             Text("다음으로")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
@@ -152,4 +156,5 @@ private struct GoalCardView: View {
 
 #Preview("iPhone 15 Pro") {
     GoalSelectView()
+        .environment(NavigationRouter())
 }
