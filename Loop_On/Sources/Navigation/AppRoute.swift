@@ -16,4 +16,7 @@ enum AppRoute: Hashable {
     case account
     case notifications
     case system
+    case goalSelect
+    case goalInput(category: String)
+    case insightSelect(goalText: String, category: String)
 }

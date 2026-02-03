@@ -7,6 +7,8 @@
 import SwiftUI
 
 struct IntroView: View {
+    @Environment(NavigationRouter.self) private var router
+
     var body: some View {
         ZStack {
             Color("100")
@@ -66,7 +68,8 @@ struct IntroView: View {
     // MARK: - 3. CTA 버튼 영역
     private var startJourneyButtonView: some View {
         Button {
-            // TODO: 온보딩 목표 선택 화면으로 이동
+            // 온보딩 Step1(GoalSelect)로 이동
+            router.push(.app(.goalSelect))
         } label: {
             Text("여정 시작하기")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
@@ -82,9 +85,11 @@ struct IntroView: View {
 
 #Preview("iPhone 15 Pro") {
     IntroView()
+        .environment(NavigationRouter())
 }
 
 
 #Preview("iPhone 16 Pro Max") {
     IntroView()
+        .environment(NavigationRouter())
 }

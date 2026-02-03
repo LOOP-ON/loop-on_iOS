@@ -7,8 +7,13 @@
 import SwiftUI
 
 struct GoalInputView: View {
-    @StateObject private var viewModel = GoalInputViewModel()
+    @Environment(NavigationRouter.self) private var router
+    @StateObject private var viewModel: GoalInputViewModel
     @FocusState private var isFieldFocused: Bool
+
+    init(category: String) {
+        _viewModel = StateObject(wrappedValue: GoalInputViewModel(category: category))
+    }
 
     var body: some View {
         ZStack {
@@ -101,8 +106,13 @@ struct GoalInputView: View {
     // MARK: - 4. 하단 CTA 영역
     private var nextButtonView: some View {
         Button {
-            // TODO: 목표 입력 저장 후 다음 화면으로 이동
-            print("입력 목표:", viewModel.goalText)
+            // Step2 목표 입력 -> 목표 생성 API 호출
+            viewModel.submitGoal()
+            let trimmedGoal = viewModel.goalText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedGoal.isEmpty {
+                router.push(.app(.insightSelect(goalText: trimmedGoal, category: viewModel.category)))
+            }
+            // TODO: 목표 입력 저장 성공 후 다음 화면으로 이동
         } label: {
             Text("다음으로")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
@@ -124,11 +134,11 @@ struct GoalInputView: View {
 }
 
 #Preview("iPhone 15 Pro") {
-    GoalInputView()
+    GoalInputView(category: "SKILL")
 }
 
 #Preview("iPhone 16 Pro Max") {
-    GoalInputView()
+    GoalInputView(category: "ROUTINE")
 }
 
 
