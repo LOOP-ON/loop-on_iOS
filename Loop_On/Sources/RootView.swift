@@ -10,6 +10,7 @@ struct RootView: View {
     @Environment(NavigationRouter.self) private var router
     @Environment(SessionStore.self) private var session
 
+    @StateObject private var homeViewModel = HomeViewModel()
     var body: some View {
         @Bindable var router = router
 
@@ -48,16 +49,42 @@ struct RootView: View {
                         .navigationBarBackButtonHidden(true)
                         .ignoresSafeArea(.all)
 
+                case .app(.settings):
+                    SettingsView()
+                        .navigationBarBackButtonHidden(true)
+
+                case .app(.account):
+                    AccountView()
+                        .navigationBarBackButtonHidden(true)
+
+                case .app(.notifications):
+                    NotificationsView()
+                        .navigationBarBackButtonHidden(true)
+
+                case .app(.system):
+                    SystemView()
+                        .navigationBarBackButtonHidden(true)
+
+                case .app(.goalSelect):
+                    GoalSelectView()
+
+                case let .app(.goalInput(category)):
+                    GoalInputView(category: category)
+
+                case let .app(.insightSelect(goalText, category)):
+                    InsightSelectView(goalText: goalText, category: category)
+
                 case let .app(.detail(title)):
                     // DetailView(title: title)   임시로 Text(title)로 대체
                     Text(title)
 
                 case let .app(.profile(userID)):
-                    // ProfileView(userID: userID) 임시로 Text("\(userID)")로 대체
-                    Text("\(userID)")
+                    PersonalProfileView()
+                        .navigationBarBackButtonHidden(true)
                 }
             }
         }
+        .environmentObject(homeViewModel)
     }
 }
 

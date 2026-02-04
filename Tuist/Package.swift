@@ -30,6 +30,9 @@ let package = Package(
         .package(url: "https://github.com/Alamofire/Alamofire", from: "5.10.0"),
 	.package(url: "https://github.com/kakao/kakao-ios-sdk", .upToNextMajor(from: "2.25.0")),
         .package(url: "https://github.com/onevcat/Kingfisher.git", .upToNextMajor(from: "8.6.1")),
-        .package(url: "https://github.com/Moya/Moya.git", .upToNextMajor(from: "15.0.3"))
+        .package(url: "https://github.com/Moya/Moya.git", .upToNextMajor(from: "15.0.3")),
+	
+	// HorizonCalendar - 달력 라이브러리
+	.package(url: "https://github.com/airbnb/HorizonCalendar.git", from: "1.15.0")
     ]
 )

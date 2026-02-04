@@ -35,7 +35,34 @@ struct SignUpView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .background(Color(.systemBackground))
+        .fullScreenCover(item: $vm.activeSheet) { sheet in
+            fullSheetContent(for: sheet)
+        }
+        // 회원가입 API가 성공하면 프로필 설정 화면으로 이동
+        .onChange(of: vm.isSignUpSuccess) { _, success in
+            guard success else { return }
+            router.push(.auth(.setProfile))
+        }
     }
+    @ViewBuilder
+        func fullSheetContent(for sheet: SignUpSheet) -> some View {
+            switch sheet {
+            case .agreement:
+                CommonPopupView(
+                    isPresented: Binding(
+                        get: { vm.activeSheet == .agreement },
+                        set: { if !$0 { vm.activeSheet = nil } }
+                    ),
+                    title: "약관에 동의해주세요.",
+                    message: "회원가입을 위해 약관 동의가 필요합니다.",
+                    leftButtonText: "닫기",
+                    rightButtonText: "확인",
+                    leftAction: { vm.activeSheet = nil },
+                    rightAction: { vm.activeSheet = nil }
+                )
+                .presentationBackground(.clear)
+            }
+        }
 }
 
 
@@ -52,6 +79,13 @@ private struct SignUpPreviewContainer: View {
             SignUpView()
                 .environment(router)
                 .environment(session)
+                .navigationDestination(for: Route.self) { route in
+                    if case .auth(.setProfile) = route {
+                        ProfileView()
+                            .environment(router)
+                            .environment(session)
+                    }
+                }
         }
     }
 }

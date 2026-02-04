@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import PhotosUI
 
 struct ShareJourneyView: View {
     @StateObject private var viewModel = ShareJourneyViewModel()
@@ -62,7 +63,7 @@ struct ShareJourneyView: View {
         VStack {
             Button(action: viewModel.uploadChallenge) {
                 Text("챌린지 업로드")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
@@ -83,27 +84,40 @@ struct ShareJourneyView: View {
         VStack(alignment: .trailing, spacing: 10) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(0..<viewModel.photos.count, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.black, lineWidth: 1)
-                            .frame(width: 110, height: 110)
-                            .overlay(Image(systemName: "photo")
-                            .foregroundStyle(Color.gray))
+                    ForEach(viewModel.photos.indices, id: \.self) { index in
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: viewModel.photos[index])
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 110, height: 110)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            
+                            Button(action: { viewModel.removePhoto(at: index) }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 30))
+                                    .foregroundStyle(.white, .black.opacity(0.4))
+                                    .padding(4)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
             }
             
-            Button(action: viewModel.addPhoto) {
+            PhotosPicker(
+                selection: $viewModel.selectedItems,
+                maxSelectionCount: 10 - viewModel.photos.count,
+                matching: .images
+            ) {
                 Text("사진 추가 \(viewModel.photos.count)/10")
                     .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(.primaryColorVarient65)))
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(.primaryColorVarient65)))
                     .foregroundStyle(Color.white)
             }
             .padding(.trailing, 20)
+            .disabled(viewModel.photos.count >= 10)
         }
     }
 
@@ -131,20 +145,32 @@ struct ShareJourneyView: View {
                     viewModel.toggleSelection(tag)
                 }
             }
-            .background(Color.white)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
             
-            Button(action: viewModel.addHashtag) {
+            Button(action: viewModel.prepareAddHashtag) {
                 Text("해시태그 직접 추가")
                     .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(.primaryColorVarient65)))
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            // 5개 이상이면 버튼을 시각적으로 비활성화 처리
+                            .fill(viewModel.hashtags.count >= 5 ? Color.gray.opacity(0.4) : Color(.primaryColorVarient65))
+                    )
                     .foregroundColor(.white)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
+            // 버튼 자체 비활성화 로직
+            .disabled(viewModel.hashtags.count >= 5)
         }
         .padding(.horizontal, 20)
+        .alert("해시태그 추가", isPresented: $viewModel.isShowingHashtagAlert) {
+            TextField("추가할 태그를 입력하세요", text: $viewModel.newHashtagInput)
+            Button("추가", action: viewModel.confirmAddHashtag)
+            Button("취소", role: .cancel) { viewModel.newHashtagInput = "" }
+        } message: {
+            Text("루틴을 잘 나타내는 태그를 입력해주세요.")
+        }
     }
 
     private var captionSection: some View {
@@ -201,5 +227,10 @@ struct ShareJourneyView: View {
 
 // Preview
 #Preview {
-    ShareJourneyView()
+    let viewModel = ShareJourneyViewModel()
+    if let dummyImage = UIImage(systemName: "photo.on.rectangle.angled") {
+        viewModel.photos = [dummyImage, dummyImage]
+    }
+    
+    return ShareJourneyView()
 }

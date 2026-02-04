@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 
 struct HomeHeaderView: View {
+    var onSettingsTapped: (() -> Void)?
 
     var body: some View {
         HStack {
@@ -24,10 +25,15 @@ struct HomeHeaderView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width:34)
-                Image(systemName: "gearshape")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width:24)
+                Button(action: {
+                    onSettingsTapped?()
+                }) {
+                    Image(systemName: "gearshape")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width:24)
+                }
+                .buttonStyle(.plain)
             }
             .font(.system(size: 20))
             .foregroundColor(.black)

@@ -7,10 +7,10 @@
 import Foundation
 
 public struct API {
-    
-    /// 전체 서버의 공통 Base URL
+
+    /// 전체 서버의 공통 Base URL. Info.plist의 BASE_URL을 사용하며, 서버 오픈 후 해당 값만 변경하면 됩니다.
     /// 각 Feature API의 path는 이 baseURL에 붙여서 구성
-    public static let baseURL = "https://example.com"
+    public static var baseURL: String { Config.baseURL }
 
     // MARK: - 주요 기능별 Endpoint 경로
     

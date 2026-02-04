@@ -9,30 +9,30 @@ import Foundation
 import SwiftUI
 
 struct RoutineCardView: View {
-    let title: String
-    let time: String
-    let isCompleted: Bool // 완료 여부
+    // 개별 속성 대신 도메인 모델을 주입받음
+    let routine: RoutineModel
     let onConfirm: () -> Void
     let onDelay: () -> Void
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 16, weight: .medium))
+                Text(routine.title) // 모델의 title 사용
+                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
 
-                Text(time)
-                    .font(.system(size: 13))
+                Text(routine.time) // 모델의 time 사용
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 13))
                     .foregroundStyle(Color("25-Text"))
             }
 
             Spacer()
 
-            if isCompleted {
+            // 서버에서 받아온 완료 상태(isCompleted)에 따라 UI 분기
+            if routine.isCompleted {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(Color(.primaryColorVarient65))
                     .font(.system(size: 24))
-                    .frame(width: 56)
+                    .frame(width: 56, height: 68)
             } else {
                 VStack(spacing: 8) {
                     actionButton("인증", action: onConfirm)
@@ -41,7 +41,7 @@ struct RoutineCardView: View {
             }
         }
         .padding(16)
-        .frame(minHeight: 98)
+        .frame(minHeight: 96)
         .background(
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color.white)
@@ -59,7 +59,6 @@ struct RoutineCardView: View {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.primaryColorVarient65))
                 )
-
         }
     }
 }
@@ -68,17 +67,13 @@ struct RoutineCardView: View {
 #Preview {
     VStack(spacing: 12) {
         RoutineCardView(
-            title: "아침에 일어나 물 한 컵 마시기",
-            time: "08:00 알림 예정",
-            isCompleted: false,
+            routine: RoutineModel(id: 1, title: "물 한 컵 마시기", time: "08:00", isCompleted: false),
             onConfirm: {},
             onDelay: {}
         )
 
         RoutineCardView(
-            title: "정해진 시간에 침대에 눕기",
-            time: "23:00 알림 예정",
-            isCompleted: false,
+            routine: RoutineModel(id: 2, title: "침대에 눕기", time: "23:00", isCompleted: true),
             onConfirm: {},
             onDelay: {}
         )

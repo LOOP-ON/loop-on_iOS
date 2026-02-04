@@ -12,4 +12,11 @@ enum AppRoute: Hashable {
     case detail(title: String)
     case profile(userID: Int)
     case routineCoach
+    case settings
+    case account
+    case notifications
+    case system
+    case goalSelect
+    case goalInput(category: String)
+    case insightSelect(goalText: String, category: String)
 }

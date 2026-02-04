@@ -10,11 +10,14 @@ import SwiftUI
 import PhotosUI
 
 struct PhotoPicker: UIViewControllerRepresentable {
-    @Binding var image: UIImage?
+    @Binding var images: [UIImage]
+    var selectionLimit: Int // 선택 가능한 개수 전달
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var config = PHPickerConfiguration()
-        config.filter = .images // 이미지만 선택 가능
+        config.filter = .images
+        config.selectionLimit = selectionLimit // 최대 선택 개수 설정 (3개)
+        
         let picker = PHPickerViewController(configuration: config)
         picker.delegate = context.coordinator
         return picker
@@ -28,14 +31,24 @@ struct PhotoPicker: UIViewControllerRepresentable {
 
     class Coordinator: NSObject, PHPickerViewControllerDelegate {
         let parent: PhotoPicker
-        init(_ parent: PhotoPicker) { self.parent = parent }
+
+        init(_ parent: PhotoPicker) {
+            self.parent = parent
+        }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             picker.dismiss(animated: true)
-            guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else { return }
-            provider.loadObject(ofClass: UIImage.self) { image, _ in
-                DispatchQueue.main.async {
-                    self.parent.image = image as? UIImage
+
+            for result in results {
+                let provider = result.itemProvider
+                if provider.canLoadObject(ofClass: UIImage.self) {
+                    provider.loadObject(ofClass: UIImage.self) { image, _ in
+                        if let uiImage = image as? UIImage {
+                            DispatchQueue.main.async {
+                                self.parent.images.append(uiImage)
+                            }
+                        }
+                    }
                 }
             }
         }

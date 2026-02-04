@@ -14,7 +14,9 @@ struct ChallengePlazaView: View {
         ChallengeFeedView(
             cards: $viewModel.cards,
             emptyMessage: viewModel.emptyMessage,
-            onLikeTap: viewModel.didToggleLike
+            onLikeTap: viewModel.didToggleLike,
+            onEdit: viewModel.didTapEdit,
+            onDelete: viewModel.didTapDelete
         )
     }
 }

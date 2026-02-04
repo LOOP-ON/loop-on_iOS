@@ -12,7 +12,7 @@ struct EmailLoginSection: View {
     @Binding var password: String
     @Binding var isPasswordVisible: Bool
     
-    let helperText: String
+    let helperText: String?
     
     let onLoginTapped: () -> Void
     let onFindTapped: () -> Void
@@ -37,17 +37,21 @@ struct EmailLoginSection: View {
                 .submitLabel(.next)
                 .textFieldStyle(.plain)
                 .padding(.horizontal, 14)
-                .frame(height: 40)
+                .frame(height: 44)
                 .foregroundStyle(Color("45-Text"))       // 입력된 텍스트 색
-                .background(Color("background"))
+                .background(Color("95"))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 
                 passwordField
                 
-                Text(helperText)
+                // 에러 메시지가 있을 때만 Helper Text 렌더링
+                Text(helperText ?? "")
                     .font(.footnote)
-                    .foregroundStyle(Color("45-Text"))
+                    .foregroundStyle(Color("red"))
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: 5) // 고정 높이를 설정하여 영역 유지
+                    .padding(.vertical, 2) // 위아래 적절한 간격 유지
+                    .opacity(helperText == nil ? 0 : 1) // 에러가 없으면 숨김 처리
                 
                 Button(action: onLoginTapped) {
                     Text("로그인")
@@ -55,7 +59,7 @@ struct EmailLoginSection: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .foregroundStyle(Color(.white))
-                        .background(Color("55"))
+                        .background(Color("85"))
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -77,8 +81,8 @@ struct EmailLoginSection: View {
             .padding(.top, 6)
         }
         .padding(16)
-        .background(Color("100"))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .animation(.default, value: helperText)
     }
     
     private var passwordField: some View {
@@ -116,8 +120,8 @@ struct EmailLoginSection: View {
             .accessibilityLabel(isPasswordVisible ? "비밀번호 숨기기" : "비밀번호 보기")
         }
         .padding(.horizontal, 14)
-        .frame(height: 40)
-        .background(Color("background"))
+        .frame(height: 44)
+        .background(Color("95"))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
     

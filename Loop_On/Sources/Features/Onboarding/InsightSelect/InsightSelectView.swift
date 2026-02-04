@@ -7,7 +7,16 @@
 import SwiftUI
 
 struct InsightSelectView: View {
-    @StateObject private var viewModel = InsightSelectViewModel()
+    @StateObject private var viewModel: InsightSelectViewModel
+
+    init(goalText: String, category: String) {
+        _viewModel = StateObject(
+            wrappedValue: InsightSelectViewModel(
+                goalText: goalText,
+                selectedCategory: category
+            )
+        )
+    }
 
     var body: some View {
         ZStack {
@@ -101,11 +110,8 @@ struct InsightSelectView: View {
     // MARK: - 3. 하단 CTA 영역
     private var createLoopButtonView: some View {
         Button {
-            // TODO: 선택 인사이트 배열 저장 후 루프 생성 로딩 화면으로 이동
-            let selectedTitles = viewModel.selected
-                .map(\.title)
-                .sorted()
-            print("선택 인사이트:", selectedTitles)
+            // 인사이트 선택 결과로 루프 생성 흐름 시작
+            viewModel.createLoop()
         } label: {
             Text("루프 생성하기")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
@@ -163,10 +169,10 @@ private struct InsightCardView: View {
 }
 
 #Preview("iPhone 15 Pro") {
-    InsightSelectView()
+    InsightSelectView(goalText: "건강한 생활 만들기", category: "ROUTINE")
 }
 
 #Preview("iPhone 16 Pro Max") {
-    InsightSelectView()
+    InsightSelectView(goalText: "역량 강화 목표", category: "SKILL")
 }
 

@@ -22,4 +22,12 @@ final class ChallengePlazaViewModel: ObservableObject {
     func didToggleLike(id: UUID, isLiked: Bool) {
         // TODO: API 연결 시 좋아요/취소 요청 처리 (id, isLiked)
     }
+
+    func didTapEdit(id: UUID) {
+        // TODO: API 연결 시 게시물 수정 화면 이동 처리 (id)
+    }
+
+    func didTapDelete(id: UUID) {
+        // TODO: API 연결 시 게시물 삭제 처리 (id)
+    }
 }

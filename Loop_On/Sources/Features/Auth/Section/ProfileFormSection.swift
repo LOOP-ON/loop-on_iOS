@@ -12,20 +12,7 @@ struct ProfileFormSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 이름 입력 필드
-            ProfileTextField(
-                text: $vm.name,
-                placeholder: "이름",
-                textColorName: "25-Text",
-                placeholderColorName: "45-Text",
-                backgroundColorName: "background"
-            )
-            .onChange(of: vm.name) { _, _ in
-                vm.validateName()
-            }
-            .padding(.bottom, 8)
-            
-            // 닉네임 입력 필드 (중복확인 버튼 포함)
+            // 닉네임 입력 필드 (중복확인 버튼 포함) - Figma ProfileView 기준, 닉네임만 사용
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 10) {
                     ProfileTextField(
@@ -62,41 +49,12 @@ struct ProfileFormSection: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .disabled(vm.nicknameCheckState == .checking || !vm.isNicknameValid)
+                    // 비밀번호 재설정 화면과 동일하게, 색은 유지하고 터치만 막기
+                    .allowsHitTesting(vm.nicknameCheckState != .checking && vm.isNicknameValid)
                 }
             }
             .padding(.bottom, 8)
-            
-            // 생년월일 입력 필드
-            VStack(alignment: .leading, spacing: 4) {
-                ProfileTextField(
-                    text: $vm.birthday,
-                    placeholder: "생년월일 (YYYYMMDD)",
-                    textColorName: "25-Text",
-                    placeholderColorName: "45-Text",
-                    backgroundColorName: "background",
-                    keyboard: .numberPad
-                )
-                .overlay(alignment: .trailing) {
-                    if vm.isBirthdayValid {
-                        TrailingStatusIcon(state: .available)
-                            .padding(.trailing, 12)
-                    }
-                }
-                .onChange(of: vm.birthday) { _, _ in
-                    // 숫자만 입력되도록 제한
-                    vm.birthday = String(vm.birthday.prefix(8))
-                    vm.validateBirthday()
-                }
-                
-                // Helper Text 공간 항상 확보
-                Text(vm.birthdayHelperText ?? "")
-                    .font(.system(size: 12))
-                    .foregroundStyle(vm.birthdayHelperText == nil ? Color.clear : Color("StatusRed"))
-                    .frame(height: 16, alignment: .leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            
+
             // 에러 메시지
             if let errorMessage = vm.errorMessage {
                 Text(errorMessage)
@@ -126,8 +84,9 @@ struct ProfileFormSection: View {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(vm.canSaveProfile ? Color("PrimaryColor55") : Color("85"))
             )
-            .disabled(!vm.canSaveProfile || vm.isLoading)
-            .opacity(vm.canSaveProfile && !vm.isLoading ? 1 : 0.7)
+            // 비밀번호 재설정 화면과 동일하게, 시스템 disabled 스타일을 사용하지 않고
+            // 터치 가능 여부만 제어하여 텍스트 색상과 알파를 유지
+            .allowsHitTesting(vm.canSaveProfile && !vm.isLoading)
             .padding(.top, 8)
         }
     }

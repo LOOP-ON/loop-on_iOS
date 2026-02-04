@@ -10,6 +10,7 @@ let project = Project(
             bundleId: "dev.tuist.Loop-On",
             infoPlist: .extendingDefault(
                 with: [
+	  	    "BASE_URL": "$(BASE_URL)",
                     "UILaunchScreen": [
                         "UIColorName": "",
                         "UIImageName": "",
@@ -32,8 +33,7 @@ let project = Project(
                 ]
             ),
 	    sources: ["Loop_On/Sources/**"],
-        resources: ["Loop_On/Resources/**"],
-            
+            resources: ["Loop_On/Resources/**"],
 	   // buildableFolders: [ "Loop_On/Sources", "Loop_On/Resources"],
 
             dependencies: [
@@ -46,7 +46,13 @@ let project = Project(
                 .external(name: "KakaoSDKCommon"),
                 .external(name: "KakaoSDKAuth"),
                 .external(name: "KakaoSDKUser"),
-	    ]
+	    ],
+	    settings: .settings(
+        	configurations: [
+            	    .debug(name: "Debug", xcconfig: "Loop_On/Sources/Secret.xcconfig"),
+            	    .release(name: "Release", xcconfig: "Loop_On/Sources/Secret.xcconfig")
+        	]
+    	   )
         ),
         .target(
             name: "Loop_OnTests",
@@ -58,5 +64,9 @@ let project = Project(
             // buildableFolders: ["Loop_On/Tests"],
             dependencies: [.target(name: "Loop_On")]
         ),
+    ],
+    additionalFiles: [
+        "Loop_On/Sources/Secret.xcconfig",
+	"Loop_On/Sources/Loading/Loading 51 _ Monoplane.json"
     ]
 )

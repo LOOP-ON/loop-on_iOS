@@ -7,13 +7,16 @@
 
 import Moya
 import Foundation
-import UIKit
 
 enum AuthAPI {
     case login(email: String, password: String)
-    case signUp(request: SignUpRequest, profileImage: UIImage?)
-    // 로그아웃
-    // 토큰 재발
+    /// 회원가입 - UserSignUpRequest (`/api/users`)
+    /// 현재 단계에서는 이메일/비밀번호/비밀번호 확인만 전송하고,
+    /// 이름/닉네임/생년월일은 프로필 API에서 별도 관리한다.
+    case signUp(request: SignUpRequest)
+    /// 로그아웃. 서버 연동 후 엔드포인트 연결 시 사용. 로그아웃 시 KeychainService.deleteToken()은 SessionStore에서 호출됨.
+    case logout
+    // 토큰 재발 (서버 명세 후 추가)
 }
 
 extension AuthAPI: TargetType {
@@ -21,14 +24,19 @@ extension AuthAPI: TargetType {
 
     var path: String {
         switch self {
-        case .login: return "/auth/login"
-        case .signUp: return "/auth/signup"
+        case .login:
+            return "/auth/login"
+        case .signUp:
+            return "/api/users"
+        case .logout:
+            return "/auth/logout"
         }
     }
 
     var method: Moya.Method {
         switch self {
-            case .login, .signUp: return .post
+        case .login, .signUp: return .post
+        case .logout: return .post
         }
     }
 
@@ -39,22 +47,10 @@ extension AuthAPI: TargetType {
                 parameters: ["email": email, "password": password],
                 encoding: JSONEncoding.default
             )
-        
-        case let .signUp(request, image):
-            // 사진이 포함되므로 MultipartFormData로 미리 준비 가능.
-            // 명세서가 나오면 필드 이름(name)만 수정.
-            var formData: [MultipartFormData] = []
-            
-            // 텍스트 데이터 추가
-            if let jsonData = try? JSONEncoder().encode(request) {
-                formData.append(MultipartFormData(provider: .data(jsonData), name: "signupData", mimeType: "application/json"))
-            }
-                
-            // 이미지 데이터 추가
-            if let image = image, let imageData = image.jpegData(compressionQuality: 0.8) {
-                formData.append(MultipartFormData(provider: .data(imageData), name: "profileImage", fileName: "profile.jpg", mimeType: "image/jpeg"))
-            }
-            return .uploadMultipart(formData)
+        case let .signUp(request):
+            return .requestJSONEncodable(request)
+        case .logout:
+            return .requestPlain
         }
     }
 
