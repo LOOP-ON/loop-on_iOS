@@ -66,22 +66,19 @@ final class InsightSelectViewModel: ObservableObject {
     }
 
     func createLoop() {
-        // Step3: 인사이트 선택 결과를 다음 플로우로 전달
-        // TODO: 선택 인사이트 배열 저장 후 루프 생성 로딩 화면으로 이동
-        // API Request 구성
         let request = InsightSelectRequest(
             goalText: goalText,
             selectedCategory: selectedCategory,
             selectedInsights: selectedTitles
         )
 
-        // API Call: POST /api/coach/insights (경로 확정 필요)
         isCreatingLoop = true
         errorMessage = nil
 
         networkManager.request(
             target: .createLoop(request: request),
-            decodingType: ApiResponse<InsightSelectResponse>.self
+
+            decodingType: InsightSelectResponse.self
         ) { [weak self] result in
             guard let self else { return }
             Task { @MainActor in
@@ -89,9 +86,8 @@ final class InsightSelectViewModel: ObservableObject {
 
                 switch result {
                 case .success(let response):
-                    if !response.isSuccess {
-                        self.errorMessage = response.message
-                    }
+                    print("루프 생성 성공: \(response)")
+                    
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
                 }

@@ -31,6 +31,7 @@ struct AuthView: View {
                         isPasswordVisible: $isPasswordVisible,
                         helperText: viewModel.errorMessage,
                         onLoginTapped: {
+                            print("ROUTER DEBUG: login 함수 호출 직전")
                             viewModel.login()
                         },
                         onFindTapped: {
@@ -69,9 +70,8 @@ struct AuthView: View {
             // 이력 저장
             session.markLoggedIn()
 
-            // Home으로 이동
+            // 탭바 루트로 복귀
             router.reset()
-            router.push(.app(.home))
         }
     }
 }
@@ -83,17 +83,20 @@ struct AuthView: View {
 private struct AuthPreviewContainer: View {
     @State private var router = NavigationRouter()
     @State private var session = SessionStore()
+    @State private var flowStore = SignUpFlowStore()
 
     var body: some View {
         NavigationStack(path: $router.path) {
             AuthView()
                 .environment(router)
                 .environment(session)
+                .environment(flowStore)
                 .navigationDestination(for: Route.self) { route in
                     if case .auth(.signUp) = route {
                         SignUpView()
                             .environment(router)
                             .environment(session)
+                            .environment(flowStore)
                     }
                 }
         }

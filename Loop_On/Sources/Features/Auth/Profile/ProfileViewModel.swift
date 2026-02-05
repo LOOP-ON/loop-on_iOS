@@ -18,7 +18,8 @@ final class ProfileViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var isProfileSaved: Bool = false
     
-    private let networkManager = DefaultNetworkManager<ProfileAPI>()
+    private let networkManager = DefaultNetworkManager<AuthAPI>()
+    private var flowStore: SignUpFlowStore?
     
     // 입력 검증 상태
     enum ValidationState {
@@ -118,38 +119,41 @@ final class ProfileViewModel: ObservableObject {
     }
     
     // 프로필 저장
-    func saveProfile() {
+    func completeSignUp() {
         guard canSaveProfile else {
             validateAllFields()
+            return
+        }
+        guard let flowStore else {
+            errorMessage = "회원가입 정보를 불러올 수 없습니다. 이전 화면부터 다시 진행해주세요."
             return
         }
         
         isLoading = true
         errorMessage = nil
         
-        let profileDTO = ProfileDTO(
-            userId: nil,
-            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            nickname: nickname.trimmingCharacters(in: .whitespacesAndNewlines),
-            birthday: birthday.trimmingCharacters(in: .whitespacesAndNewlines),
-            profileImage: profileImageURL
+        // 2단계 입력값을 스토어에 반영
+        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        flowStore.setProfile(nickname: trimmedNickname, profileImageUrl: profileImageURL)
+        
+        // 최종 회원가입 요청 바디 생성
+        let request = SignUpRequest(
+            email: flowStore.email,
+            password: flowStore.password,
+            confirmPassword: flowStore.confirmPassword,
+            nickname: flowStore.nickname,
+            profileImageUrl: flowStore.profileImageUrl,
+            agreedTermIds: flowStore.agreedTermIds
         )
         
-        networkManager.request(
-            target: .createProfile(profile: profileDTO),
-            decodingType: ApiResponse<ProfileDTO>.self
-        ) { [weak self] result in
-            guard let self = self else { return }
-            
+        // 응답 포맷이 ApiResponse를 쓰지 않더라도 동작하도록 상태코드 기반으로 처리
+        networkManager.requestStatusCode(target: .signUp(request: request)) { [weak self] result in
+            guard let self else { return }
             self.isLoading = false
             
             switch result {
-            case .success(let response):
-                if response.isSuccess {
-                    self.isProfileSaved = true
-                } else {
-                    self.errorMessage = response.message
-                }
+            case .success:
+                self.isProfileSaved = true
             case .failure(let error):
                 self.errorMessage = error.localizedDescription
             }
@@ -193,16 +197,34 @@ final class ProfileViewModel: ObservableObject {
         }
         
         nicknameCheckState = .checking
+        errorMessage = nil
         
-        // TODO: 실제 API 호출로 변경
-        try? await Task.sleep(nanoseconds: 600_000_000)
-        
-        // 더미 로직: "used"가 포함되면 중복
-        if trimmed.lowercased().contains("used") {
-            nicknameCheckState = .duplicated
-        } else {
+        let result = await requestStatusCodeAsync(target: .checkNickname(nickname: trimmed))
+        switch result {
+        case .success:
             nicknameCheckState = .available
             lastCheckedNickname = trimmed
+        case .failure(let error):
+            if case let .serverError(statusCode, _) = error, statusCode == 409 {
+                nicknameCheckState = .duplicated
+            } else {
+                nicknameCheckState = .idle
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+    
+    /// SignUpView(1단계)에서 입력한 값을 프로필 단계에서 사용하기 위해 바인딩
+    func bindFlowStore(_ store: SignUpFlowStore) {
+        self.flowStore = store
+    }
+    
+    /// completion 기반 네트워크를 async로 감싸서 사용
+    private func requestStatusCodeAsync(target: AuthAPI) async -> Result<Void, NetworkError> {
+        await withCheckedContinuation { continuation in
+            networkManager.requestStatusCode(target: target) { result in
+                continuation.resume(returning: result)
+            }
         }
     }
 }

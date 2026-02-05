@@ -8,6 +8,22 @@
 import Foundation
 import AuthenticationServices
 
+struct BaseResponse<T: Decodable>: Decodable {
+    let result: String
+    let code: String
+    let message: String
+    let data: T?
+}
+
+// 실제 로그인 데이터 모델
+struct LoginData: Decodable {
+    let accessToken: String
+    
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "accessToken"
+    }
+}
+
 /// 로그인 성공 시 서버 응답 모델. accessToken은 키체인에 보관됩니다.
 /// 서버에서 "accessToken" 또는 "token" 키로 내려줄 수 있도록 CodingKeys 지원.
 struct LoginResponse: Decodable {
@@ -54,19 +70,22 @@ final class AuthViewModel: ObservableObject {
     }
 
     func login() {
+        print("DEBUG: login() 함수 진입 - email: \(email)")
+            
         networkManager.request(
             target: .login(email: email, password: password),
-            decodingType: LoginResponse.self
+            decodingType: LoginData.self
         ) { [weak self] result in
             switch result {
-            case .success(let response):
-                // Body로 받은 accessToken을 키체인에 저장
-                KeychainService.shared.saveToken(response.accessToken)
-                
-                // refreshToken은 iOS 시스템 쿠키 저장소에 자동으로 담김
+            case .success(let loginData):
+                KeychainService.shared.saveToken(loginData.accessToken)
                 self?.isLoggedIn = true
+                print("로그인 성공!")
+                    
             case .failure(let error):
-                self?.errorMessage = "이메일 또는 비밀번호가 일치하지 않습니다."
+                print("로그인 실패 에러: \(error)")
+                // 요청하신 대로 에러 메시지 고정
+                self?.errorMessage = "비밀번호가 일치하지 않습니다."
             }
         }
     }
