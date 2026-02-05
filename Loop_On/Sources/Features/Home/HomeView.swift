@@ -32,8 +32,8 @@ struct HomeView: View {
                             .padding(.top, 16)
                         
                         JourneyProgressCardView(
-                            completed: info.completedCount,
-                            total: info.totalCount
+                            completed: info.completedJourney,
+                            total: info.totalJourney
                         )
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
@@ -84,15 +84,31 @@ private extension HomeView {
 
     var routineSectionView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("목표 건강한 생활 만들기")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(Color(.primaryColorVarient65))
+            HStack(spacing: 8) {
+                Text("목표")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color("PrimaryColor55"))
+                
+                Text(viewModel.goalTitle.isEmpty ? "목표를 불러오는 중..." : viewModel.goalTitle)
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
+                    .foregroundStyle(Color.black)
+            }
+            .padding(.horizontal, 2)
+            .background(
+                Rectangle()
+                    .fill(Color(red: 0xEE/255, green: 0x4B/255, blue: 0x2B/255, opacity: 0x33/255))
+                    .frame(height: 8),
+                alignment: .bottomLeading
+            )
 
             VStack(spacing: 8) {
                 ForEach(0..<viewModel.routines.count, id: \.self) { index in
                     // 객체 전체를 전달
                     RoutineCardView(
                         routine: viewModel.routines[index],
+                        // 미완료 루틴 처리 모드라면 '인증' 버튼 비활성화
+                        isConfirmDisabled: viewModel.hasUncompletedRoutines,
+                        
                         onConfirm: {
                             viewModel.selectRoutine(at: index)
                             viewModel.completeRoutine(at: index)
@@ -100,6 +116,10 @@ private extension HomeView {
                         onDelay: {
                             viewModel.selectRoutine(at: index)
                             viewModel.activeFullSheet = .delay
+                        },
+                        onViewDelay: {
+                            viewModel.selectRoutine(at: index)
+                            viewModel.activeFullSheet = .viewDelay
                         }
                     )
                 }
@@ -109,13 +129,24 @@ private extension HomeView {
 
     var recordButton: some View {
         Button(action: {
-            viewModel.activeFullSheet = .reflection
+            // 전날 미완료 루틴 처리 모드일 때 (hasUncompletedRoutines == true)
+            if viewModel.hasUncompletedRoutines {
+                // 아직 완료/미루기가 안 된 첫 번째 카드를 찾아 미루기 팝업 노출
+                if let firstIdx = viewModel.routines.firstIndex(where: { !$0.isCompleted && !$0.isDelayed }) {
+                    viewModel.selectRoutine(at: firstIdx)
+                    viewModel.activeFullSheet = .delay
+                }
+            }
+            // 평상시 모드일 때 (전날 완료했거나 오늘 루틴 진행 중)
+            else {
+                viewModel.activeFullSheet = .reflection
+            }
         }) {
-            Text("여정 기록하기") // 필요 시 Reflection 상태 바인딩 추가
+            // 텍스트 판단 기준을 플래그로 변경
+            Text(viewModel.hasUncompletedRoutines ? "미완료 루틴 미루기" : "여정 기록하기")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
                 .foregroundStyle(Color.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
+                .frame(maxWidth: .infinity, minHeight: 56)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color(.primaryColorVarient65)))
         }
     }
@@ -187,14 +218,19 @@ private extension HomeView {
             } else {
                 EmptyView()
             }
-        case .delay: 
+        case .delay:
             DelayPopupView(
                 index: viewModel.selectedRoutineIndex,
                 title: viewModel.selectedRoutine?.title ?? "",
                 isPresented: Binding(
                     get: { viewModel.activeFullSheet == .delay },
                     set: { if !$0 { viewModel.activeFullSheet = nil } }
-                )
+                ),
+                onDelaySuccess: { reason in
+                    viewModel.delayRoutine(at: viewModel.selectedRoutineIndex, reason: reason)
+                },
+                isReadOnly: viewModel.selectedRoutine?.isDelayed ?? false,
+                initialReason: viewModel.selectedRoutine?.delayReason
             )
             .presentationBackground(.clear)
 //        case .journeyReport:
@@ -223,6 +259,39 @@ private extension HomeView {
             .presentationBackground(.clear)
         case .shareJourney:
             ShareJourneyView()
+            
+        case .viewDelay:
+            DelayPopupView(
+                index: viewModel.selectedRoutineIndex,
+                title: viewModel.selectedRoutine?.title ?? "",
+                isPresented: Binding(
+                    get: { viewModel.activeFullSheet == .viewDelay },
+                    set: { if !$0 { viewModel.activeFullSheet = nil } }
+                ),
+                onDelaySuccess: { reason in
+                    viewModel.delayRoutine(at: viewModel.selectedRoutineIndex, reason: reason)
+                },
+                isReadOnly: true, // 확인 모드로 실행
+                initialReason: viewModel.selectedRoutine?.delayReason // 저장된 사유 전달
+            )
+            .presentationBackground(.clear)
+        
+        // 전날 미완료 루틴이 있을 때 로직
+        case .uncompletedRoutineAlert:
+                CommonPopupView(
+                    isPresented: .constant(true),
+                    title: "어제 완료되지 않은 루틴있어요!",
+                    message: "모든 루틴의 ‘미루기’를 완료해야 오늘 루틴을 확\n인할 수 있습니다.\n어제 루틴을 완료하지 못한 이유를 기록해주세요 :)",
+                    leftButtonText: "취소",
+                    rightButtonText: "미완료 루틴 기록하기",
+                    leftAction: { viewModel.activeFullSheet = nil },
+                    rightAction: {
+                        // 기록하기 버튼 클릭 시 미루기(사유 입력) 팝업으로 연결
+                        viewModel.activeFullSheet = .delay
+                    },
+                    onClose: { viewModel.activeFullSheet = nil }
+                )
+                .presentationBackground(.clear)
         }
     }
 }

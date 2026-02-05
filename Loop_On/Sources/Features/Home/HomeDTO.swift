@@ -13,16 +13,21 @@ struct HomeDataResponseDTO: Codable {
     let loopId: Int
     let title: String
     let currentDay: Int
-    let totalRoutines: Int
-    let completedRoutines: Int
+    let totalJourney: Int
+    let completedJourney: Int
+    let todayRoutine: Int    // 오늘 목표 루틴 개수 (기초값 3)
+    var todayRoutineCount: Int // 오늘 실제 완료한 루틴 개수
+    var yesterdayRoutineCount: Int // 어제 완료한 루틴 개수
     let routines: [RoutineDTO]
 }
 
 struct RoutineDTO: Codable {
     let id: Int
     let title: String
-    let alarmTime: String
+    var alarmTime: String
     let isCompleted: Bool
+    var isDelayed: Bool
+    var delayReason: String
 }
 
 // MARK: - Domain Model
@@ -30,18 +35,23 @@ struct RoutineDTO: Codable {
 struct RoutineModel: Identifiable {
     let id: Int
     let title: String
-    let time: String
+    var time: String
     var isCompleted: Bool
+    var isDelayed: Bool
+    var delayReason: String
 }
 
 struct JourneyInfo {
     let loopId: Int
     let currentDay: Int
-    let totalCount: Int
-    let completedCount: Int
+    let totalJourney: Int    // 전체 여정 기간 (일수)
+    var completedJourney: Int // 완료된 일수
+    let todayRoutine: Int    // 오늘 목표 루틴 개수 (기초값 3)
+    var todayRoutineCount: Int // 오늘 실제 완료한 루틴 개수
+    var yesterdayRoutineCount: Int // 어제 완료한 루틴 개수
 }
 
-// MARK: - Reflection Request DTO
+// MARK: - Reflection Reques벼t DTO
 struct ReflectionRequestDTO: Codable {
     let loopId: Int
     let day: Int
