@@ -31,6 +31,7 @@ struct AuthView: View {
                         isPasswordVisible: $isPasswordVisible,
                         helperText: viewModel.errorMessage,
                         onLoginTapped: {
+                            print("ROUTER DEBUG: login 함수 호출 직전")
                             viewModel.login()
                         },
                         onFindTapped: {
