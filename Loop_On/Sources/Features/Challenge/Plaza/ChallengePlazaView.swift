@@ -16,7 +16,8 @@ struct ChallengePlazaView: View {
             emptyMessage: viewModel.emptyMessage,
             onLikeTap: viewModel.didToggleLike,
             onEdit: viewModel.didTapEdit,
-            onDelete: viewModel.didTapDelete
+            onDelete: viewModel.didTapDelete,
+            onCommentTap: viewModel.loadComments
         )
     }
 }

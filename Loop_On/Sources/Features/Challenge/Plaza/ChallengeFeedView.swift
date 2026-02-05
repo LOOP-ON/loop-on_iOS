@@ -2,7 +2,7 @@
 //  ChallengeFeedView.swift
 //  Loop_On
 //
-//  Created by 이경민 on 1/22/26.
+//  Created by 김세은 on 1/22/26.
 //
 
 import SwiftUI
@@ -13,6 +13,7 @@ struct ChallengeFeedView: View {
     var onLikeTap: ((UUID, Bool) -> Void)?
     var onEdit: ((UUID) -> Void)?
     var onDelete: ((UUID) -> Void)?
+    var onCommentTap: ((UUID) -> [ChallengeComment])?
 
     var body: some View {
         ScrollView {
@@ -34,7 +35,8 @@ struct ChallengeFeedView: View {
                             card: $card,
                             onLikeTap: onLikeTap,
                             onEdit: onEdit,
-                            onDelete: onDelete
+                            onDelete: onDelete,
+                            onCommentTap: onCommentTap
                         )
                     }
                 }
