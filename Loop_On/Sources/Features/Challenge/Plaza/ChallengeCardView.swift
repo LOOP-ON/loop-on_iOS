@@ -2,7 +2,7 @@
 //  ChallengeCardView.swift
 //  Loop_On
 //
-//  Created by 이경민 on 1/22/26.
+//  Created by 김세은 on 1/22/26.
 //
 
 import SwiftUI
@@ -12,7 +12,10 @@ struct ChallengeCardView: View {
     var onLikeTap: ((UUID, Bool) -> Void)?
     var onEdit: ((UUID) -> Void)?
     var onDelete: ((UUID) -> Void)?
+    var onCommentTap: ((UUID) -> [ChallengeComment])?
     @State private var isShowingMenu = false
+    @State private var isShowingCommentSheet = false
+    @State private var comments: [ChallengeComment] = []
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -72,7 +75,15 @@ struct ChallengeCardView: View {
                     Spacer()
 
                     HStack(spacing: 16) {
-                        Image(systemName: "bubble.left")
+                        Button {
+                            // TODO: API 연결 시 댓글 조회 요청 트리거
+                            comments = onCommentTap?(card.id) ?? ChallengeComment.sample
+                            isShowingCommentSheet = true
+                        } label: {
+                            Image(systemName: "bubble.left")
+                                .foregroundStyle(Color.gray)
+                        }
+                        .buttonStyle(.plain)
                         Button {
                             card.isLiked.toggle()
                             // TODO: API 연결 시 좋아요/취소 요청 트리거
@@ -108,6 +119,13 @@ struct ChallengeCardView: View {
                 .fill(Color.white)
         )
         .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
+        .sheet(isPresented: $isShowingCommentSheet) {
+            ChallengeCommentSheetView(
+                comments: comments,
+                onClose: { isShowingCommentSheet = false }
+            )
+            .presentationDetents([.height(520), .large])
+        }
     }
 
     private var imageCarousel: some View {

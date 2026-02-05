@@ -15,6 +15,7 @@ struct ChallengeView: View {
     @State private var selectedTopTab: ChallengeTopTab = .plaza
     @State private var hasLoadedStoredTab = false
     @StateObject private var friendsViewModel = ChallengeFriendsViewModel()
+    @State private var isShowingShareJourney = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -47,8 +48,7 @@ struct ChallengeView: View {
 
             if selectedTopTab == .plaza {
                 Button {
-                    // TODO: 여정 공유 화면으로 이동
-                    // router.push(.app(.shareJourney))
+                    isShowingShareJourney = true
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 22, weight: .bold))
@@ -90,6 +90,9 @@ struct ChallengeView: View {
                 .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 6)
             }
             .presentationBackground(.clear)
+        }
+        .fullScreenCover(isPresented: $isShowingShareJourney) {
+            ShareJourneyView()
         }
         .onAppear {
             if !hasLoadedStoredTab {
