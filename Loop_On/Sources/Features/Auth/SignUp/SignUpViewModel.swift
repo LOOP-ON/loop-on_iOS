@@ -36,53 +36,10 @@ final class SignUpViewModel: ObservableObject {
         }
     }
 
-    // 회원가입
-    @Published var isShowingAgreementPopup: Bool = false
+    // 네트워크
     private let networkManager = DefaultNetworkManager<AuthAPI>()
 
-    @Published var isSignUpSuccess: Bool = false
     @Published var errorMessage: String?
-
-    func requestSignUp() {
-        // 화면에서 막더라도 혹시 모를 오동작을 대비해 1차 방어 로직 추가
-        guard canGoNext else {
-            errorMessage = "회원가입 정보를 다시 확인해주세요."
-            return
-        }
-        
-        // Xcode 프리뷰 또는 로컬 UI 테스트용 더미 처리. 서버 열리면 여기 지우기
-        #if DEBUG
-        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != nil {
-            // 네트워크 없이 바로 성공 처리
-            self.isSignUpSuccess = true
-            return
-        }
-        #endif
-
-        // 필요한 데이터 생성
-        let requestData = SignUpRequest(
-            email: self.email,
-            password: self.password,
-            confirmPassword: self.passwordConfirm,
-            // 이름/닉네임/생년월일은 이후 프로필 단계에서 입력하므로 현재는 nil로 전송
-            name: nil,
-            nickname: nil,
-            birthDate: nil
-        )
-        
-        // 네트워크 요청
-        networkManager.request(
-            target: .signUp(request: requestData),
-            decodingType: EmptyResponse.self // 혹은 유저 정보를 담은 모델
-        ) { [weak self] result in
-            switch result {
-            case .success:
-                self?.isSignUpSuccess = true
-            case .failure(let error):
-                self?.errorMessage = error.localizedDescription
-            }
-        }
-    }
 
 
     // 이메일 중복 체크
@@ -99,6 +56,7 @@ final class SignUpViewModel: ObservableObject {
     // Agreements
     struct AgreementItem: Identifiable {
         let id = UUID()
+        let termId: Int
         let title: String
         let isRequired: Bool
         let hasDetail: Bool
@@ -106,16 +64,26 @@ final class SignUpViewModel: ObservableObject {
     }
 
     @Published var agreements: [AgreementItem] = [
-        .init(title: "LOOP:ON 이용약관 동의", isRequired: true, hasDetail: true, isOn: false),
-        .init(title: "개인정보 수집·이용 동의", isRequired: true, hasDetail: true, isOn: false),
-        .init(title: "서비스 성격 고지 체크", isRequired: true, hasDetail: true, isOn: false),
-        .init(title: "개인정보 수집·이용 동의", isRequired: false, hasDetail: true, isOn: false),
-        .init(title: "개인정보 제 3자 제공 동의", isRequired: false, hasDetail: true, isOn: false),
-        .init(title: "마케팅 정보 수신 동의", isRequired: false, hasDetail: true, isOn: false),
+        // 서버 약관 ID(termId)는 백엔드에서 내려주는 값에 맞춰야 합니다.
+        // 현재는 예시로 1~6을 매핑해두었고, 실제 ID가 다르면 여기만 수정하면 됩니다.
+        .init(termId: 1, title: "LOOP:ON 이용약관 동의", isRequired: true, hasDetail: true, isOn: false),
+        .init(termId: 2, title: "개인정보 수집·이용 동의", isRequired: true, hasDetail: true, isOn: false),
+        .init(termId: 3, title: "서비스 성격 고지 체크", isRequired: true, hasDetail: true, isOn: false),
+        .init(termId: 4, title: "개인정보 수집·이용 동의(선택)", isRequired: false, hasDetail: true, isOn: false),
+        .init(termId: 5, title: "개인정보 제 3자 제공 동의(선택)", isRequired: false, hasDetail: true, isOn: false),
+        .init(termId: 6, title: "마케팅 정보 수신 동의(선택)", isRequired: false, hasDetail: true, isOn: false),
     ]
 
     var isAllRequiredAgreed: Bool {
         agreements.filter { $0.isRequired }.allSatisfy { $0.isOn }
+    }
+    
+    /// 서버로 전송할 약관 동의 ID 목록
+    var selectedAgreedTermIds: [Int] {
+        agreements
+            .filter { $0.isOn }
+            .map { $0.termId }
+            .sorted()
     }
     
     var isPasswordValid: Bool {
@@ -138,6 +106,10 @@ final class SignUpViewModel: ObservableObject {
 
     // Helper 영역에 표시할 메시지 (없으면 nil)
     var helperMessage: String? {
+        if let errorMessage = errorMessage {
+                return errorMessage
+        }
+        
         switch emailCheckState {
         case .invalidFormat:
             return "이메일 형식이 올바르지 않습니다."
@@ -185,15 +157,44 @@ final class SignUpViewModel: ObservableObject {
             return
         }
 
+        guard trimmed != lastCheckedEmail else { return }
+
         emailCheckState = .checking
-
-        try? await Task.sleep(nanoseconds: 600_000_000)
-
-        if trimmed.lowercased().contains("used") {
-            emailCheckState = .duplicated
-        } else {
+        errorMessage = nil
+        
+        let result = await requestStatusCodeAsync(target: .checkEmail(email: trimmed))
+        
+        switch result {
+        case .success:
             emailCheckState = .available
             lastCheckedEmail = trimmed
+        case .failure(let error):
+            // 1. 실제 에러 내용을 콘솔에 출력 (중요!)
+            print("DEBUG - 이메일 중복 확인 실패: \(error)")
+            
+            if case let .serverError(statusCode, _) = error {
+                // 2. 스웨거에서 확인한 중복 응답 코드가 409가 맞는지 확인하세요.
+                if statusCode == 409 {
+                    emailCheckState = .duplicated
+                } else {
+                    // 404나 500 등 다른 에러인 경우
+                    emailCheckState = .idle
+                    errorMessage = "서버 에러 발생 (코드: \(statusCode))"
+                }
+            } else {
+                // 네트워크 연결 끊김 등 기타 에러
+                emailCheckState = .idle
+                errorMessage = "네트워크 연결을 확인해주세요."
+            }
+        }
+    }
+
+    /// completion 기반 네트워크를 async로 감싸서 사용 (UI 코드 단순화)
+    private func requestStatusCodeAsync(target: AuthAPI) async -> Result<Void, NetworkError> {
+        await withCheckedContinuation { continuation in
+            networkManager.requestStatusCode(target: target) { result in
+                continuation.resume(returning: result)
+            }
         }
     }
 

@@ -58,12 +58,12 @@ private struct AgreementSectionPreviewWrapper: View {
         self.allRequiredOn = allRequiredOn
 
         let base: [SignUpViewModel.AgreementItem] = [
-            .init(title: "LOOP:ON 이용약관 동의", isRequired: true, hasDetail: true, isOn: false),
-            .init(title: "개인정보 수집·이용 동의", isRequired: true, hasDetail: true, isOn: false),
-            .init(title: "서비스 성격 고지 체크", isRequired: true, hasDetail: true, isOn: false),
-            .init(title: "개인정보 수집·이용 동의", isRequired: false, hasDetail: true, isOn: false),
-            .init(title: "개인정보 제 3자 제공 동의", isRequired: false, hasDetail: true, isOn: false),
-            .init(title: "마케팅 정보 수신 동의", isRequired: false, hasDetail: true, isOn: false),
+            .init(termId: 1, title: "LOOP:ON 이용약관 동의", isRequired: true, hasDetail: true, isOn: false),
+            .init(termId: 2, title: "개인정보 수집·이용 동의", isRequired: true, hasDetail: true, isOn: false),
+            .init(termId: 3, title: "서비스 성격 고지 체크", isRequired: true, hasDetail: true, isOn: false),
+            .init(termId: 4, title: "개인정보 수집·이용 동의", isRequired: false, hasDetail: true, isOn: false),
+            .init(termId: 5, title: "개인정보 제 3자 제공 동의", isRequired: false, hasDetail: true, isOn: false),
+            .init(termId: 6, title: "마케팅 정보 수신 동의", isRequired: false, hasDetail: true, isOn: false),
         ]
 
         _items = State(initialValue: base)

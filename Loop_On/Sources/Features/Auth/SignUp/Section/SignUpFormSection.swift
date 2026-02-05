@@ -12,6 +12,7 @@ struct SignUpFormSection: View {
     @State private var isPwVisible = false
     @State private var isPwConfirmVisible = false
     @Environment(NavigationRouter.self) private var router // 라우터 환경변수 가져오기
+    @Environment(SignUpFlowStore.self) private var flowStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -79,8 +80,15 @@ struct SignUpFormSection: View {
                     return
                 }
                 
-                // 이메일/비밀번호/비밀번호 확인 검증이 통과된 상태에서만 서버에 회원가입 요청
-                vm.requestSignUp()
+                // 1단계 입력값을 공유 스토어에 저장 후 프로필 화면으로 이동
+                //   프로필 단계에서 최종 회원가입 API를 호출
+                flowStore.setCredentials(
+                    email: vm.email,
+                    password: vm.password,
+                    confirmPassword: vm.passwordConfirm
+                )
+                flowStore.setAgreedTermIds(vm.selectedAgreedTermIds)
+                router.push(.auth(.setProfile))
             } label: {
                 Text("다음으로")
                     .font(.system(size: 15, weight: .semibold))
@@ -126,9 +134,13 @@ private struct SignUpFormSectionPreviewWrapper: View {
 
     @StateObject private var vm = SignUpViewModel()
     let preset: Preset
+    @State private var router = NavigationRouter()
+    @State private var flowStore = SignUpFlowStore()
 
     var body: some View {
         SignUpFormSection(vm: vm)
+            .environment(router)
+            .environment(flowStore)
             .onAppear {
                 // 프리뷰에서 상태를 빠르게 확인하기 위한 더미 값
                 switch preset {

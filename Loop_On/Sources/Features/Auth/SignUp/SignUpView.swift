@@ -11,7 +11,6 @@ import SwiftUI
 struct SignUpView: View {
     @StateObject private var vm = SignUpViewModel()
     @Environment(NavigationRouter.self) private var router
-    @Environment(SessionStore.self) private var session
 
     var body: some View {
         ScrollView {
@@ -37,11 +36,6 @@ struct SignUpView: View {
         .background(Color(.systemBackground))
         .fullScreenCover(item: $vm.activeSheet) { sheet in
             fullSheetContent(for: sheet)
-        }
-        // 회원가입 API가 성공하면 프로필 설정 화면으로 이동
-        .onChange(of: vm.isSignUpSuccess) { _, success in
-            guard success else { return }
-            router.push(.auth(.setProfile))
         }
     }
     @ViewBuilder
@@ -73,17 +67,20 @@ struct SignUpView: View {
 private struct SignUpPreviewContainer: View {
     @State private var router = NavigationRouter()
     @State private var session = SessionStore()
+    @State private var flowStore = SignUpFlowStore()
 
     var body: some View {
         NavigationStack(path: $router.path) {
             SignUpView()
                 .environment(router)
                 .environment(session)
+                .environment(flowStore)
                 .navigationDestination(for: Route.self) { route in
                     if case .auth(.setProfile) = route {
                         ProfileView()
                             .environment(router)
                             .environment(session)
+                            .environment(flowStore)
                     }
                 }
         }

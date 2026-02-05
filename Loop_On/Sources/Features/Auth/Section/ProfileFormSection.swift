@@ -65,14 +65,15 @@ struct ProfileFormSection: View {
             
             // 저장 버튼
             Button {
-                vm.saveProfile()
+                // 최종 회원가입(`/api/users`) 호출
+                vm.completeSignUp()
             } label: {
                 HStack {
                     if vm.isLoading {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: Color("100")))
                     } else {
-                        Text("3일 여정 시작하기")
+                        Text("가입 완료하기")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color("100"))
                     }

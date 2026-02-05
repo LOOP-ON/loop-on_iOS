@@ -83,17 +83,20 @@ struct AuthView: View {
 private struct AuthPreviewContainer: View {
     @State private var router = NavigationRouter()
     @State private var session = SessionStore()
+    @State private var flowStore = SignUpFlowStore()
 
     var body: some View {
         NavigationStack(path: $router.path) {
             AuthView()
                 .environment(router)
                 .environment(session)
+                .environment(flowStore)
                 .navigationDestination(for: Route.self) { route in
                     if case .auth(.signUp) = route {
                         SignUpView()
                             .environment(router)
                             .environment(session)
+                            .environment(flowStore)
                     }
                 }
         }

@@ -11,10 +11,11 @@ struct SignUpRequest: Codable {
     let email: String
     let password: String
     let confirmPassword: String
-    /// 이름 - 현재 화면에서는 입력하지 않고, 나중에 프로필 단계에서 별도 API로 관리
-    let name: String?
-    /// 닉네임 - 현재 화면에서는 입력하지 않고, 나중에 프로필 단계에서 별도 API로 관리
-    let nickname: String?
-    /// 생년월일 - 현재 화면에서는 입력하지 않고, 나중에 프로필 단계에서 별도 API로 관리
-    let birthDate: String?
+    /// 닉네임 - 백엔드 회원가입 명세(`/api/users`)에서 필수일 수 있어 프로필 단계에서 최종 입력 후 전송
+    let nickname: String
+    /// 프로필 이미지 URL - 이미지 업로드 API(`/api/users/upload-profile-image`) 성공 후 받은 URL을 전송
+    /// - NOTE: 이미지 선택/업로드 UI가 아직 없어서 nil 가능하도록 설계
+    let profileImageUrl: String?
+    /// 약관 동의 ID 목록 (예: [1,2,3,6])
+    let agreedTermIds: [Int]
 }

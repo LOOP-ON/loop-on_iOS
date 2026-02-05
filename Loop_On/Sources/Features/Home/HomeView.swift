@@ -300,4 +300,5 @@ private extension HomeView {
     RootView()
         .environment(NavigationRouter())
         .environment(SessionStore())
+        .environment(SignUpFlowStore())
 }
