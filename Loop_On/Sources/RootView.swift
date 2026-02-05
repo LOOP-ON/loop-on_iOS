@@ -22,8 +22,7 @@ struct RootView: View {
                     RootTabView()
                 } else {
                     AuthView()
-                    
-//                    RootTabView() 회원가입 api 연동 기간 동안 잠시 주석 처리
+                    // RootTabView() 회원가입 api 연동 기간 동안 잠시 주석 처리
                 }
             }
             .navigationDestination(for: Route.self) { route in

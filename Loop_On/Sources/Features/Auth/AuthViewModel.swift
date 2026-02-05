@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import AuthenticationServices
 
 struct BaseResponse<T: Decodable>: Decodable {
     let result: String
@@ -87,5 +88,51 @@ final class AuthViewModel: ObservableObject {
                 self?.errorMessage = "비밀번호가 일치하지 않습니다."
             }
         }
+    }
+
+    /// Apple Sign In 성공 시 호출. credential에서 토큰을 추출해 서버 로그인 수행.
+    func loginWithApple(credential: ASAuthorizationAppleIDCredential) {
+        guard let identityTokenData = credential.identityToken,
+              let identityToken = String(data: identityTokenData, encoding: .utf8) else {
+            errorMessage = "Apple 로그인 정보를 가져올 수 없습니다."
+            return
+        }
+
+        let authorizationCode = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+        let fullName = credential.fullName
+
+        let request = AppleLoginRequest(
+            identityToken: identityToken,
+            authorizationCode: authorizationCode,
+            userIdentifier: credential.user,
+            email: credential.email,
+            firstName: fullName?.givenName,
+            lastName: fullName?.familyName
+        )
+
+        networkManager.request(
+            target: .appleLogin(request: request),
+            decodingType: LoginResponse.self
+        ) { [weak self] result in
+            switch result {
+            case .success(let response):
+                KeychainService.shared.saveToken(response.accessToken)
+                self?.isLoggedIn = true
+            case .failure:
+                self?.errorMessage = "Apple 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요."
+            }
+        }
+    }
+
+    /// Apple Sign In 실패 콜백에서 호출.
+    func handleAppleLoginFailure(_ error: Error) {
+        let nsError = error as NSError
+        if nsError.domain == ASAuthorizationError.errorDomain,
+           nsError.code == ASAuthorizationError.canceled.rawValue {
+            // 사용자가 취소한 경우 에러 메시지 표시하지 않음
+            errorMessage = nil
+            return
+        }
+        errorMessage = "Apple 로그인에 실패했습니다."
     }
 }
