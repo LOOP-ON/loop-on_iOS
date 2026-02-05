@@ -79,7 +79,7 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
                     }
 
                     let apiResponse = try JSONDecoder().decode(ApiResponse<T>.self, from: response.data)
-                    return completion(.success(apiResponse.result))
+                    return completion(.success(apiResponse.data))
 
                 } catch {
                     return completion(.failure(.decodingError(underlyingError: error as! DecodingError)))
@@ -118,12 +118,12 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
                     }
 
                     let apiResponse = try JSONDecoder().decode(ApiResponse<T>.self, from: response.data)
-                    guard let result = apiResponse.result else {
-                        return completion(.failure(.serverError(statusCode: response.statusCode, message: "결과 없음")))
+                    guard let resultData = apiResponse.data else {
+                        return completion(.failure(.serverError(statusCode: response.statusCode, message: "결과 데이터 없음")))
                     }
 
                     let cacheTime = extractCacheTimeInterval(from: response)
-                    completion(.success((result, cacheTime)))
+                    completion(.success((resultData, cacheTime)))
 
                 } catch {
                     completion(.failure(.decodingError(underlyingError: error as! DecodingError)))
@@ -139,16 +139,27 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
     /// 공통 응답 처리 로직 (성공/실패/디코딩)
     private func handleResponse<T: Decodable>(_ response: Response, decodingType: T.Type) -> Result<T, NetworkError> {
         do {
+            // HTTP 상태 코드 확인
             guard (200...299).contains(response.statusCode) else {
                 let error = try? JSONDecoder().decode(ErrorResponse.self, from: response.data)
                 return .failure(.serverError(statusCode: response.statusCode, message: error?.message ?? "서버 오류"))
             }
+
+            // ApiResponse 형식으로 디코딩 시도
             let apiResponse = try JSONDecoder().decode(ApiResponse<T>.self, from: response.data)
-            guard let result = apiResponse.result else {
-                return .failure(.serverError(statusCode: response.statusCode, message: "결과 없음"))
+
+            // 서버가 보낸 result 값이 "SUCCESS"인지 문자열로 비교
+            if apiResponse.result == "SUCCESS" {
+                if let resultData = apiResponse.data {
+                    return .success(resultData)
+                }
+                return .failure(.serverError(statusCode: response.statusCode, message: "데이터가 없습니다."))
+            } else {
+                // 실패 시 서버가 보내준 message를 에러 메시지로 사용
+                return .failure(.serverError(statusCode: response.statusCode, message: apiResponse.message))
             }
-            return .success(result)
         } catch {
+            // 여기서 isSuccess를 못 찾아 에러가 나고 있었음. 수정 후엔 해결됨.
             return .failure(.decodingError(underlyingError: error as! DecodingError))
         }
     }

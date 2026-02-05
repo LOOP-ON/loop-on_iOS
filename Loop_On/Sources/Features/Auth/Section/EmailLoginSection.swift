@@ -59,7 +59,7 @@ struct EmailLoginSection: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .foregroundStyle(Color(.white))
-                        .background(Color("85"))
+                        .background(canSubmit ? Color("PrimaryColor-Varient75") : Color("85"))
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
@@ -126,8 +126,14 @@ struct EmailLoginSection: View {
     }
     
     private var canSubmit: Bool {
-        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let emailOk = !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let pwOk = !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        
+        if !email.isEmpty || !password.isEmpty {
+            print("DEBUG: emailOk: \(emailOk), pwOk: \(pwOk)")
+        }
+        
+        return emailOk && pwOk
     }
 }
 

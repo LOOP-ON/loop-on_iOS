@@ -11,20 +11,12 @@ import Foundation
 
 
 // MARK: - 공통 응답 포맷 (성공 응답)
-// 대부분의 API 응답이 다음과 같은 구조로 전달됨:
-// {
-//   "isSuccess": true,
-//   "code": "SUCCESS",
-//   "message": "요청에 성공했습니다.",
-//   "result": { ... }
-// }
-
 // 제네릭으로 감싸서 어떤 타입이 오더라도 result를 추출 가능.
 public struct ApiResponse<T: Decodable>: Decodable {
-    public let isSuccess: Bool    // 요청 성공 여부
+    public let result: String    // 요청 성공 여부
     public let code: String       // 서버에서 정의한 상태 코드 (예: "SUCCESS", "USER_NOT_FOUND")
     public let message: String    // 상태 메시지
-    public let result: T?         // 실제 응답 데이터 (없을 수도 있음)
+    public let data: T?         // 실제 응답 데이터 (없을 수도 있음)
 }
 
 // MARK: - 에러 응답 파싱용 구조체
