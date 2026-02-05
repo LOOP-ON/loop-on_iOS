@@ -40,6 +40,8 @@ struct SocialLoginSection: View {
                 case .success(let auth):
                     if let credential = auth.credential as? ASAuthorizationAppleIDCredential {
                         onAppleSuccess(credential)
+                    } else {
+                        onAppleFailure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Apple 로그인 정보를 가져올 수 없습니다."]))
                     }
                 case .failure(let error):
                     onAppleFailure(error)
