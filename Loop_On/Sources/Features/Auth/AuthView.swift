@@ -70,9 +70,8 @@ struct AuthView: View {
             // 이력 저장
             session.markLoggedIn()
 
-            // Home으로 이동
+            // 탭바 루트로 복귀
             router.reset()
-            router.push(.app(.home))
         }
     }
 }
