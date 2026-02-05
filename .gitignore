@@ -1,5 +1,8 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,swift,cocoapods
 
+### Cursor IDE ###
+.cursor/
+
 ### CocoaPods ###
 ## CocoaPods GitIgnore Template
 
