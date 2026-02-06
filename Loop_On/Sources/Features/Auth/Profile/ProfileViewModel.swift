@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import _PhotosUI_SwiftUI
 
 @MainActor
 final class ProfileViewModel: ObservableObject {
@@ -20,6 +21,8 @@ final class ProfileViewModel: ObservableObject {
     
     private let networkManager = DefaultNetworkManager<AuthAPI>()
     private var flowStore: SignUpFlowStore?
+    
+    @Published var selectedImageData: Data? // 선택된 이미지
     
     // 입력 검증 상태
     enum ValidationState {
@@ -80,9 +83,7 @@ final class ProfileViewModel: ObservableObject {
     
     // 모든 필드가 유효한지 확인
     var canSaveProfile: Bool {
-        // 디자인 변경: 닉네임만 필수 입력/검증 대상으로 사용
-        isNicknameValid &&
-        nicknameCheckState == .available
+        isNicknameValid && nicknameCheckState == .available
     }
     
     // 닉네임 도움말 텍스트
@@ -119,46 +120,160 @@ final class ProfileViewModel: ObservableObject {
     }
     
     // 프로필 저장
+//    func completeSignUp() {
+//        guard canSaveProfile else {
+//            validateAllFields()
+//            return
+//        }
+//        guard let flowStore else {
+//            errorMessage = "회원가입 정보를 불러올 수 없습니다. 이전 화면부터 다시 진행해주세요."
+//            return
+//        }
+//        
+//        isLoading = true
+//        errorMessage = nil
+//        
+//        // 2단계 입력값을 스토어에 반영
+//        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+//        flowStore.setProfile(nickname: trimmedNickname, profileImageUrl: profileImageURL)
+//        
+//        // 최종 회원가입 요청 바디 생성
+//        let request = SignUpRequest(
+//            email: flowStore.email,
+//            password: flowStore.password,
+//            confirmPassword: flowStore.confirmPassword,
+//            nickname: flowStore.nickname,
+//            profileImageUrl: flowStore.profileImageUrl,
+//            agreedTermIds: flowStore.agreedTermIds
+//        )
+//        
+//        // 응답 포맷이 ApiResponse를 쓰지 않더라도 동작하도록 상태코드 기반으로 처리
+//        networkManager.requestStatusCode(target: .signUp(request: request)) { [weak self] result in
+//            guard let self else { return }
+//            self.isLoading = false
+//            
+//            switch result {
+//            case .success:
+//                self.isProfileSaved = true
+//            case .failure(let error):
+//                self.errorMessage = error.localizedDescription
+//            }
+//        }
+//    }
+    
+    @Published var imageItem: PhotosPickerItem? {
+        didSet {
+            Task {
+                // 사용자가 사진을 고르면 데이터를 로드
+                if let data = try? await imageItem?.loadTransferable(type: Data.self) {
+                    self.selectedImageData = data // 서버로 보낼 실제 데이터
+                }
+            }
+        }
+    }
+    
+    @Published var imageSelection: PhotosPickerItem? {
+        didSet {
+            if let imageSelection {
+                loadTransferable(from: imageSelection)
+            }
+        }
+    }
+    
+    // PhotosPickerItem에서 Data를 추출하는 함수
+    private func loadTransferable(from imageSelection: PhotosPickerItem) {
+        Task {
+            do {
+                // 이미지를 Data 타입으로 로드
+                if let data = try await imageSelection.loadTransferable(type: Data.self) {
+                    self.selectedImageData = data
+                }
+            } catch {
+                self.errorMessage = "이미지를 불러오는 데 실패했습니다."
+            }
+        }
+    }
+
+    
     func completeSignUp() {
         guard canSaveProfile else {
             validateAllFields()
             return
         }
-        guard let flowStore else {
-            errorMessage = "회원가입 정보를 불러올 수 없습니다. 이전 화면부터 다시 진행해주세요."
-            return
-        }
-        
+
         isLoading = true
         errorMessage = nil
-        
-        // 2단계 입력값을 스토어에 반영
-        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        flowStore.setProfile(nickname: trimmedNickname, profileImageUrl: profileImageURL)
-        
-        // 최종 회원가입 요청 바디 생성
-        let request = SignUpRequest(
-            email: flowStore.email,
-            password: flowStore.password,
-            confirmPassword: flowStore.confirmPassword,
-            nickname: flowStore.nickname,
-            profileImageUrl: flowStore.profileImageUrl,
-            agreedTermIds: flowStore.agreedTermIds
-        )
-        
-        // 응답 포맷이 ApiResponse를 쓰지 않더라도 동작하도록 상태코드 기반으로 처리
-        networkManager.requestStatusCode(target: .signUp(request: request)) { [weak self] result in
-            guard let self else { return }
-            self.isLoading = false
-            
-            switch result {
-            case .success:
-                self.isProfileSaved = true
-            case .failure(let error):
-                self.errorMessage = error.localizedDescription
-            }
+
+        if let imageData = selectedImageData {
+            // 사진이 있는 경우: 이미지 업로드 후 회원가입 진행
+            uploadImageAndSignUp(imageData: imageData)
+        } else {
+            // 사진이 없는 경우: 바로 회원가입 진행
+            executeFinalSignUp()
         }
     }
+    
+    // 이미지 업로드 전용 함수
+    private func uploadImageAndSignUp(imageData: Data) {
+    networkManager.request(
+        target: .uploadProfileImage(data: imageData, fileName: "profile.jpg", mimeType: "image/jpeg"),
+        decodingType: String.self
+    ) { [weak self] result in
+            guard let self else { return }
+            
+        switch result {
+        case .success(let uploadedUrl):
+            // 서버가 준 이미지 URL을 저장
+            print("DEBUG: 이미지 업로드 성공 - URL: \(uploadedUrl)")
+            self.profileImageURL = uploadedUrl
+                
+            // 성공한 URL을 가지고 회원가입 API를 호출
+            self.executeFinalSignUp()
+                
+        case .failure(let error):
+            self.isLoading = false
+            self.errorMessage = "이미지 업로드 실패: \(error.localizedDescription)"
+        }
+    }
+}
+    
+    // 최종 회원가입 API 호출
+private func executeFinalSignUp() {
+    guard let flowStore else {
+        self.isLoading = false
+        self.errorMessage = "가입 정보가 유효하지 않습니다."
+        return
+    }
+            
+    let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+    // flowStore에 현재 입력한 닉네임과 업로드된 이미지 URL을 반영
+    flowStore.setProfile(nickname: trimmedNickname, profileImageUrl: self.profileImageURL)
+            
+    // 스웨거 명세에 맞게 SignUpRequest를 생성
+    let request = SignUpRequest(
+        email: flowStore.email,
+        password: flowStore.password,
+        confirmPassword: flowStore.confirmPassword,
+        nickname: flowStore.nickname,
+        profileImageUrl: flowStore.profileImageUrl, // 서버에서 받은 URL이 여기에
+        agreedTermIds: flowStore.agreedTermIds
+    )
+            
+    networkManager.requestStatusCode(target: .signUp(request: request)) { [weak self] result in
+        guard let self else { return }
+        self.isLoading = false
+                
+        switch result {
+        case .success:
+            print("DEBUG: 회원가입 최종 성공")
+            self.isProfileSaved = true
+        case .failure(let error):
+            self.errorMessage = "회원가입 실패: \(error.localizedDescription)"
+        }
+    }
+}
+    
     
     // 모든 필드 검증
     private func validateAllFields() {
@@ -185,31 +300,46 @@ final class ProfileViewModel: ObservableObject {
     func checkNicknameDuplicate() async {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 형식 검증
+        // 형식 검증 우선 수행
         guard isNicknameValid else {
             nicknameCheckState = .invalidFormat
+            errorMessage = "닉네임 형식이 올바르지 않습니다." // 안내 문구 추가
             return
         }
         
-        // 이전에 확인한 닉네임과 같으면 스킵
-        guard trimmed != lastCheckedNickname else {
-            return
-        }
+        // 이전에 이미 확인한 닉네임과 같다면 중복 요청 방지
+        guard trimmed != lastCheckedNickname else { return }
         
         nicknameCheckState = .checking
         errorMessage = nil
         
-        let result = await requestStatusCodeAsync(target: .checkNickname(nickname: trimmed))
-        switch result {
-        case .success:
-            nicknameCheckState = .available
-            lastCheckedNickname = trimmed
-        case .failure(let error):
-            if case let .serverError(statusCode, _) = error, statusCode == 409 {
-                nicknameCheckState = .duplicated
-            } else {
-                nicknameCheckState = .idle
-                errorMessage = error.localizedDescription
+        // API 요청 시작
+        networkManager.request(
+            target: .checkNickname(nickname: trimmed),
+            decodingType: NicknameCheckResponse.self // 정의한 응답 모델 사용
+        ) { [weak self] result in
+            guard let self else { return }
+            
+            // 메인 스레드에서 UI 업데이트
+            Task { @MainActor in
+                switch result {
+                case .success(let response):
+                    // 서버 응답의 isAvailable 값에 따라 상태 결정
+                    if response.isAvailable {
+                        self.nicknameCheckState = .available
+                        self.lastCheckedNickname = trimmed
+                        self.errorMessage = nil // 에러 메시지 제거
+                    } else {
+                        self.nicknameCheckState = .duplicated
+                        self.errorMessage = "이미 사용 중인 닉네임입니다."
+                    }
+                    
+                case .failure(let error):
+                    // 서버 에러 코드에 따른 처리
+                    self.nicknameCheckState = .idle
+                    self.errorMessage = "중복 확인 중 오류가 발생했습니다. 다시 시도해주세요."
+                    print("DEBUG: 닉네임 중복 체크 실패: \(error)")
+                }
             }
         }
     }
@@ -227,4 +357,9 @@ final class ProfileViewModel: ObservableObject {
             }
         }
     }
+}
+
+struct NicknameCheckResponse: Decodable {
+    let isAvailable: Bool
+    let message: String
 }

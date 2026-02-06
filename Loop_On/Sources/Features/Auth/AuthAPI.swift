@@ -80,16 +80,25 @@ extension AuthAPI: TargetType {
                 parameters: ["email": email, "password": password],
                 encoding: JSONEncoding.default
             )
+            
         case let .appleLogin(request):
             return .requestJSONEncodable(request)
+            
         case let .signUp(request):
             return .requestJSONEncodable(request)
+            
         case let .checkEmail(email):
             return .requestParameters(
                 parameters: ["email": email], encoding: URLEncoding.queryString
             )
+        
+        // 닉네임 중복 확인
         case let .checkNickname(nickname):
-            return .requestParameters(parameters: ["nickname": nickname], encoding: JSONEncoding.default)
+            return .requestParameters(
+                parameters: ["nickname": nickname],
+                encoding: URLEncoding.queryString
+            )
+            
         case let .uploadProfileImage(data, fileName, mimeType):
             let form = MultipartFormData(
                 provider: .data(data),
@@ -98,6 +107,7 @@ extension AuthAPI: TargetType {
                 mimeType: mimeType
             )
             return .uploadMultipart([form])
+            
         case .logout:
             return .requestPlain
         }

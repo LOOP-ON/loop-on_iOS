@@ -152,40 +152,40 @@ final class SignUpViewModel: ObservableObject {
 
     func checkEmailDuplicate() async {
         let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 이메일 형식 검사
         guard isValidEmail(trimmed) else {
             emailCheckState = .invalidFormat
             return
         }
 
+        // 이미 확인한 이메일과 같으면 스킵
         guard trimmed != lastCheckedEmail else { return }
 
         emailCheckState = .checking
         errorMessage = nil
         
-        let result = await requestStatusCodeAsync(target: .checkEmail(email: trimmed))
+        // API 호출 및 결과 파싱
+        let result = await requestAsync(target: .checkEmail(email: trimmed), decodingType: EmailCheckResponse.self)
         
         switch result {
-        case .success:
-            emailCheckState = .available
-            lastCheckedEmail = trimmed
-        case .failure(let error):
-            // 1. 실제 에러 내용을 콘솔에 출력 (중요!)
-            print("DEBUG - 이메일 중복 확인 실패: \(error)")
-            
-            if case let .serverError(statusCode, _) = error {
-                // 2. 스웨거에서 확인한 중복 응답 코드가 409가 맞는지 확인하세요.
-                if statusCode == 409 {
-                    emailCheckState = .duplicated
-                } else {
-                    // 404나 500 등 다른 에러인 경우
-                    emailCheckState = .idle
-                    errorMessage = "서버 에러 발생 (코드: \(statusCode))"
-                }
+        case .success(let response):
+            // 서버에서 준 isAvailable 값에 따라 상태 결정
+            if response.isAvailable {
+                emailCheckState = .available
+                lastCheckedEmail = trimmed
+                errorMessage = nil
             } else {
-                // 네트워크 연결 끊김 등 기타 에러
-                emailCheckState = .idle
-                errorMessage = "네트워크 연결을 확인해주세요."
+                // 중복된 경우 서버가 준 메시지 활용
+                emailCheckState = .duplicated
+                errorMessage = response.message
             }
+            
+        case .failure(let error):
+            print("DEBUG - 이메일 중복 확인 실패: \(error)")
+            emailCheckState = .idle
+            // 서버 에러 메시지가 있다면 표시
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -197,6 +197,14 @@ final class SignUpViewModel: ObservableObject {
             }
         }
     }
+    
+    private func requestAsync<T: Decodable>(target: AuthAPI, decodingType: T.Type) async -> Result<T, NetworkError> {
+        await withCheckedContinuation { continuation in
+            networkManager.request(target: target, decodingType: decodingType) { result in
+                continuation.resume(returning: result)
+            }
+        }
+    }
 
 
     private func isValidEmail(_ s: String) -> Bool {
@@ -204,4 +212,9 @@ final class SignUpViewModel: ObservableObject {
         let pattern = #"^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
         return s.range(of: pattern, options: .regularExpression) != nil
     }
+}
+
+struct EmailCheckResponse: Decodable {
+    let isAvailable: Bool
+    let message: String
 }

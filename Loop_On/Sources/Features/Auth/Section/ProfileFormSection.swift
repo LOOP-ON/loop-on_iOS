@@ -60,7 +60,8 @@ struct ProfileFormSection: View {
                 Text(errorMessage)
                     .font(.system(size: 12))
                     .foregroundStyle(Color("StatusRed"))
-                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             
             // 저장 버튼
@@ -83,13 +84,12 @@ struct ProfileFormSection: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(vm.canSaveProfile ? Color("PrimaryColor55") : Color("85"))
+                    .fill(vm.canSaveProfile ? Color("PrimaryColor-Varient65") : Color("85"))
             )
-            // 비밀번호 재설정 화면과 동일하게, 시스템 disabled 스타일을 사용하지 않고
-            // 터치 가능 여부만 제어하여 텍스트 색상과 알파를 유지
             .allowsHitTesting(vm.canSaveProfile && !vm.isLoading)
-            .padding(.top, 8)
+            .padding(.top, 4)
         }
+        .animation(.default, value: vm.errorMessage)
     }
 }
 
