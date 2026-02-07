@@ -43,7 +43,7 @@ struct AuthView: View {
                     )
 
                     SocialLoginSection(
-                        onKakaoTapped: { /* TODO */ },
+                        onKakaoTapped: { viewModel.loginWithKakao() },
                         onGoogleTapped: { /* TODO */ },
                         onAppleSuccess: { viewModel.loginWithApple(credential: $0) },
                         onAppleFailure: { viewModel.handleAppleLoginFailure($0) }

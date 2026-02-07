@@ -7,6 +7,8 @@
 
 import Foundation
 import AuthenticationServices
+import KakaoSDKAuth
+import KakaoSDKUser
 
 struct BaseResponse<T: Decodable>: Decodable {
     let result: String
@@ -21,6 +23,16 @@ struct LoginData: Decodable {
     
     enum CodingKeys: String, CodingKey {
         case accessToken = "accessToken"
+        case accessTokenSnake = "access_token"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let token = try? c.decode(String.self, forKey: .accessToken) {
+            accessToken = token
+        } else {
+            accessToken = try c.decode(String.self, forKey: .accessTokenSnake)
+        }
     }
 }
 
@@ -86,6 +98,98 @@ final class AuthViewModel: ObservableObject {
                 print("로그인 실패 에러: \(error)")
                 // 요청하신 대로 에러 메시지 고정
                 self?.errorMessage = "비밀번호가 일치하지 않습니다."
+            }
+        }
+    }
+
+    func loginWithKakao() {
+        print("✅ Kakao login start")
+        if UserApi.isKakaoTalkLoginAvailable() {
+            print("✅ KakaoTalk app login available")
+            UserApi.shared.loginWithKakaoTalk { [weak self] token, error in
+                self?.handleKakaoLoginResult(token: token, error: error)
+            }
+        } else {
+            print("✅ Kakao account login fallback")
+            UserApi.shared.loginWithKakaoAccount { [weak self] token, error in
+                self?.handleKakaoLoginResult(token: token, error: error)
+            }
+        }
+    }
+
+    private func handleKakaoLoginResult(token: OAuthToken?, error: Error?) {
+        Task { @MainActor in
+            print("✅ handleKakaoLoginResult started")
+            if let error {
+                errorMessage = "카카오 로그인에 실패했습니다."
+                print("Kakao login error: \(error.localizedDescription)")
+                return
+            }
+
+            guard let accessToken = token?.accessToken else {
+                errorMessage = "카카오 로그인 토큰을 가져오지 못했습니다."
+                return
+            }
+
+            print("✅ Kakao token received")
+            print("KAKAO accessToken:", accessToken)
+            ensureKakaoScopes { [weak self] scopedToken in
+                guard let self else { return }
+                let backendToken = scopedToken ?? accessToken
+                // print("✅ Backend request: /api/auth/login/social")
+                // print("✅ Backend body: {\"provider\":\"KAKAO\",\"accessToken\":\"\(backendToken)\"}")
+                self.networkManager.request(
+                    target: .socialLogin(provider: "KAKAO", accessToken: backendToken),
+                    decodingType: LoginData.self
+                ) { [weak self] result in
+                    guard let self else { return }
+                    Task { @MainActor in
+                        switch result {
+                        case .success(let loginData):
+                            // print("✅ Backend response: \(loginData)")
+                            // print("isMainThread:", Thread.isMainThread)
+                            DispatchQueue.main.async {
+                                KeychainService.shared.saveToken(loginData.accessToken)
+                                self.isLoggedIn = true
+                                print("✅ isLoggedIn set to true")
+                            }
+                        case .failure(let error):
+                            print("❌ Kakao socialLogin failed:", error)
+                            self.errorMessage = "카카오 로그인에 실패했습니다."
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func ensureKakaoScopes(completion: @escaping (String?) -> Void) {
+        let requiredScopes = ["profile_nickname", "account_email", "profile_image"]
+        UserApi.shared.me { [weak self] user, error in
+            if let error {
+                print("Kakao user info error: \(error.localizedDescription)")
+            }
+
+            let hasNickname = !(user?.kakaoAccount?.profile?.nickname?.isEmpty ?? true)
+            let hasEmail = !(user?.kakaoAccount?.email?.isEmpty ?? true)
+            let hasProfileImage = !(user?.kakaoAccount?.profile?.profileImageUrl?.absoluteString.isEmpty ?? true)
+
+            if hasNickname && hasEmail && hasProfileImage {
+                completion(nil)
+                return
+            }
+
+            // 동의 항목 부족 시 추가 동의 요청
+            UserApi.shared.loginWithKakaoAccount(scopes: requiredScopes) { token, error in
+                if let error {
+                    Task { @MainActor in
+                        self?.errorMessage = "카카오 동의 항목을 확인해 주세요."
+                    }
+                    print("Kakao scope consent error: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+                completion(token?.accessToken)
             }
         }
     }

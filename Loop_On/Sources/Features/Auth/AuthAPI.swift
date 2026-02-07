@@ -24,7 +24,9 @@ struct AppleLoginRequest: Encodable {
 
 enum AuthAPI {
     case login(email: String, password: String)
-    /// Apple 로그인 - identityToken(JWT) 등 전달.
+    /// 소셜 로그인 - provider(KAKAO/APPLE) + accessToken 전달
+    case socialLogin(provider: String, accessToken: String)
+    /// Apple 로그인 - identityToken(JWT) 등 전달. (레거시)
     case appleLogin(request: AppleLoginRequest)
     /// 회원가입 - UserSignUpRequest (`/api/users`)
     /// 현재 단계에서는 이메일/비밀번호/비밀번호 확인만 전송하고,
@@ -43,12 +45,19 @@ enum AuthAPI {
 }
 
 extension AuthAPI: TargetType {
-    var baseURL: URL { URL(string: API.baseURL)! }
+    var baseURL: URL {
+        guard let url = URL(string: API.baseURL) else {
+            fatalError("Invalid API.baseURL: \(API.baseURL)")
+        }
+        return url
+    }
 
     var path: String {
         switch self {
         case .login:
             return "/api/auth/login"
+        case .socialLogin:
+            return "/api/auth/login/social"
         case .appleLogin:
             return "/api/auth/apple"
         case .signUp:
@@ -66,7 +75,7 @@ extension AuthAPI: TargetType {
 
     var method: Moya.Method {
         switch self {
-        case .login, .appleLogin, .signUp, .checkEmail, .checkNickname, .uploadProfileImage:
+        case .login, .socialLogin, .appleLogin, .signUp, .checkEmail, .checkNickname, .uploadProfileImage:
             return .post
         case .logout:
             return .post
@@ -78,6 +87,11 @@ extension AuthAPI: TargetType {
         case let .login(email, password):
             return .requestParameters(
                 parameters: ["email": email, "password": password],
+                encoding: JSONEncoding.default
+            )
+        case let .socialLogin(provider, accessToken):
+            return .requestParameters(
+                parameters: ["provider": provider, "accessToken": accessToken],
                 encoding: JSONEncoding.default
             )
         case let .appleLogin(request):
