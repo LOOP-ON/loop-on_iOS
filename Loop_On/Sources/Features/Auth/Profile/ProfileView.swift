@@ -32,12 +32,12 @@ struct ProfileView: View {
         }
         .onChange(of: vm.isProfileSaved) { _, isSaved in
             if isSaved {
-                // 회원가입 완료 시 로그인 이력 저장 (백엔드 정책에 따라 조정 가능)
+                // 회원가입 완료 시 로그인 이력 저장
                 session.markLoggedIn()
                 flowStore.reset()
                 // 프로필 저장 성공 후 홈 화면으로 이동
                 router.reset()
-                router.push(.app(.home))
+                router.push(.app(.onBoarding))
             }
         }
     }

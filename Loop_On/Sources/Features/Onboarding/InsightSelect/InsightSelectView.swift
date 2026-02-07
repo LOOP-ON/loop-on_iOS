@@ -8,6 +8,8 @@ import SwiftUI
 
 struct InsightSelectView: View {
     @StateObject private var viewModel: InsightSelectViewModel
+    @Environment(NavigationRouter.self) private var router
+    @Environment(SessionStore.self) private var session
 
     init(goalText: String, category: String) {
         _viewModel = StateObject(
@@ -112,6 +114,8 @@ struct InsightSelectView: View {
         Button {
             // 인사이트 선택 결과로 루프 생성 흐름 시작
             viewModel.createLoop()
+            session.completeOnboarding()
+            router.reset()
         } label: {
             Text("루프 생성하기")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
@@ -170,9 +174,13 @@ private struct InsightCardView: View {
 
 #Preview("iPhone 15 Pro") {
     InsightSelectView(goalText: "건강한 생활 만들기", category: "ROUTINE")
+        .environment(NavigationRouter())
+        .environment(SessionStore())
 }
 
 #Preview("iPhone 16 Pro Max") {
     InsightSelectView(goalText: "역량 강화 목표", category: "SKILL")
+        .environment(NavigationRouter())
+        .environment(SessionStore())
 }
 

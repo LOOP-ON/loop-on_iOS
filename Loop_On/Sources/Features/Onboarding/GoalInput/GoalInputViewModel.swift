@@ -11,7 +11,7 @@ import Foundation
 final class GoalInputViewModel: ObservableObject {
     private let networkManager = DefaultNetworkManager<OnboardingAPI>()
 
-    @Published var nickname: String = "서리"
+    @Published var nickname: String = ""
     @Published var goalText: String = ""
     @Published var isSaving: Bool = false
     @Published var errorMessage: String?
@@ -27,6 +27,10 @@ final class GoalInputViewModel: ObservableObject {
 
     var canProceed: Bool {
         !goalText.isEmpty
+    }
+    
+    func updateNickname(_ name: String) {
+        self.nickname = name
     }
 
     func updateGoalText(_ newValue: String) {

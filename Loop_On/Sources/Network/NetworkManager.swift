@@ -41,14 +41,21 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
     typealias Endpoint = API
     let provider: MoyaProvider<API>
 
-    /// 테스트(stub) 여부와 플러그인을 지정. 기본값으로 AuthPlugin이 적용되어 인증 API에 Bearer 토큰이 붙습니다.
-    init(stub: Bool = false, plugins: [PluginType] = [AuthPlugin()]) {
-        if stub {
-            provider = MoyaProvider<API>(stubClosure: MoyaProvider.immediatelyStub, plugins: plugins)
-        } else {
-            provider = MoyaProvider<API>(plugins: plugins)
+    /// 테스트(stub) 여부와 플러그인을 지정. 기본값으로 AuthPlugin이 적용되어 인증 API에 Bearer 토큰이 붙음
+//    init(stub: Bool = false, plugins: [PluginType] = [AuthPlugin()]) {
+//        if stub {
+//            provider = MoyaProvider<API>(stubClosure: MoyaProvider.immediatelyStub, plugins: plugins)
+//        } else {
+//            provider = MoyaProvider<API>(plugins: plugins)
+//        }
+//    }
+    init(stub: Bool = false, plugins: [PluginType] = []) {
+            if stub {
+                provider = MoyaProvider<API>(stubClosure: MoyaProvider.immediatelyStub, plugins: plugins)
+            } else {
+                provider = MoyaProvider<API>(plugins: plugins)
+            }
         }
-    }
 
     // MARK: - 실제 요청 함수 구현
 

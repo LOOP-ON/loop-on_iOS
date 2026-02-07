@@ -17,7 +17,7 @@ struct RootView: View {
         NavigationStack(path: $router.path) {
             // 시작 화면 분기 (Splash 다음에 여기로 들어옴)
             Group {
-                if session.hasLoggedInBefore {
+                if session.hasValidToken && session.isOnboardingCompleted {
 //                    HomeView()
                     RootTabView()
                 } else {
@@ -66,6 +66,11 @@ struct RootView: View {
 
                 case .app(.goalSelect):
                     GoalSelectView()
+                        .navigationBarBackButtonHidden(true)
+                
+                case .app(.onBoarding):
+                    IntroView()
+                        .navigationBarBackButtonHidden(true)
 
                 case let .app(.goalInput(category)):
                     GoalInputView(category: category)

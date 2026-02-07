@@ -238,41 +238,43 @@ final class ProfileViewModel: ObservableObject {
 }
     
     // 최종 회원가입 API 호출
-private func executeFinalSignUp() {
-    guard let flowStore else {
-        self.isLoading = false
-        self.errorMessage = "가입 정보가 유효하지 않습니다."
-        return
-    }
+    private func executeFinalSignUp() {
+        guard let flowStore else { return }
             
-    let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        flowStore.setProfile(nickname: trimmedNickname, profileImageUrl: profileImageURL)
+            
+        let request = SignUpRequest(
+            email: flowStore.email,
+            password: flowStore.password,
+            confirmPassword: flowStore.confirmPassword,
+            nickname: flowStore.nickname,
+            profileImageUrl: flowStore.profileImageUrl,
+            agreedTermIds: flowStore.agreedTermIds
+        )
         
-    // flowStore에 현재 입력한 닉네임과 업로드된 이미지 URL을 반영
-    flowStore.setProfile(nickname: trimmedNickname, profileImageUrl: self.profileImageURL)
+        networkManager.request(
+            target: .signUp(request: request),
+            decodingType: LoginData.self // AuthViewModel에 정의된 LoginData 사용
+        ) { [weak self] result in
+            guard let self else { return }
             
-    // 스웨거 명세에 맞게 SignUpRequest를 생성
-    let request = SignUpRequest(
-        email: flowStore.email,
-        password: flowStore.password,
-        confirmPassword: flowStore.confirmPassword,
-        nickname: flowStore.nickname,
-        profileImageUrl: flowStore.profileImageUrl, // 서버에서 받은 URL이 여기에
-        agreedTermIds: flowStore.agreedTermIds
-    )
-            
-    networkManager.requestStatusCode(target: .signUp(request: request)) { [weak self] result in
-        guard let self else { return }
-        self.isLoading = false
-                
-        switch result {
-        case .success:
-            print("DEBUG: 회원가입 최종 성공")
-            self.isProfileSaved = true
-        case .failure(let error):
-            self.errorMessage = "회원가입 실패: \(error.localizedDescription)"
+            Task { @MainActor in
+                self.isLoading = false
+                switch result {
+                case .success(let loginData):
+                    // 가입 성공 시 받은 토큰을 키체인에 저장
+                    KeychainService.shared.saveToken(loginData.accessToken)
+                    self.isProfileSaved = true
+                    print("DEBUG: 회원가입 성공 및 토큰 저장 완료")
+                    
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                    print("DEBUG: 회원가입 API 실패 - \(error)")
+                }
+            }
         }
     }
-}
     
     
     // 모든 필드 검증
@@ -300,51 +302,50 @@ private func executeFinalSignUp() {
     func checkNicknameDuplicate() async {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 형식 검증 우선 수행
         guard isNicknameValid else {
             nicknameCheckState = .invalidFormat
-            errorMessage = "닉네임 형식이 올바르지 않습니다." // 안내 문구 추가
+            errorMessage = "닉네임 형식이 올바르지 않습니다."
             return
         }
         
-        // 이전에 이미 확인한 닉네임과 같다면 중복 요청 방지
+        // 이전에 성공적으로 확인한 닉네임과 같다면 중복 요청 방지
         guard trimmed != lastCheckedNickname else { return }
         
         nicknameCheckState = .checking
         errorMessage = nil
         
-        // API 요청 시작
+        let currentRequestNickname = trimmed
+
         networkManager.request(
             target: .checkNickname(nickname: trimmed),
-            decodingType: NicknameCheckResponse.self // 정의한 응답 모델 사용
+            decodingType: NicknameCheckResponse.self
         ) { [weak self] result in
             guard let self else { return }
             
-            // 메인 스레드에서 UI 업데이트
             Task { @MainActor in
+                guard self.nickname.trimmingCharacters(in: .whitespacesAndNewlines) == currentRequestNickname else { return }
+
                 switch result {
                 case .success(let response):
-                    // 서버 응답의 isAvailable 값에 따라 상태 결정
                     if response.isAvailable {
                         self.nicknameCheckState = .available
-                        self.lastCheckedNickname = trimmed
-                        self.errorMessage = nil // 에러 메시지 제거
+                        self.lastCheckedNickname = currentRequestNickname
+                        self.errorMessage = nil
                     } else {
                         self.nicknameCheckState = .duplicated
-                        self.errorMessage = "이미 사용 중인 닉네임입니다."
+                        self.errorMessage = response.message
                     }
                     
                 case .failure(let error):
-                    // 서버 에러 코드에 따른 처리
                     self.nicknameCheckState = .idle
-                    self.errorMessage = "중복 확인 중 오류가 발생했습니다. 다시 시도해주세요."
+                    self.errorMessage = "중복 확인 중 오류가 발생했습니다."
                     print("DEBUG: 닉네임 중복 체크 실패: \(error)")
                 }
             }
         }
     }
     
-    /// SignUpView(1단계)에서 입력한 값을 프로필 단계에서 사용하기 위해 바인딩
+    /// SignUpView 에서 입력한 값을 프로필 단계에서 사용하기 위해 바인딩
     func bindFlowStore(_ store: SignUpFlowStore) {
         self.flowStore = store
     }

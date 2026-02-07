@@ -33,6 +33,7 @@ struct ProfileFormSection: View {
                         if vm.nicknameCheckState != .idle {
                             vm.nicknameCheckState = .idle
                         }
+                        vm.errorMessage = nil
                         vm.validateNickname()
                     }
                     

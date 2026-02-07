@@ -49,7 +49,11 @@ enum GoalType: String, CaseIterable {
 @MainActor
 final class GoalSelectViewModel: ObservableObject {
     @Published var selectedGoal: GoalType?
-    @Published var nickname: String = "서리" // TODO: 실제 사용자 닉네임으로 변경
+    @Published var nickname: String = ""
+    
+    func updateNickname(_ name: String) {
+        self.nickname = name
+    }
     
     var canProceed: Bool {
         selectedGoal != nil
