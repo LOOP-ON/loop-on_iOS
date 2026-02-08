@@ -8,7 +8,7 @@
 import Foundation
 
 final class ChallengeFriendsViewModel: ObservableObject {
-    private let networkManager: DefaultNetworkManager<ChallengeAPI>
+    private let networkManager: DefaultNetworkManager<FriendsAPI>
     private var hasLoadedFriends = false
 
     @Published var friends: [ChallengeFriend]
@@ -23,7 +23,7 @@ final class ChallengeFriendsViewModel: ObservableObject {
         friends: [ChallengeFriend] = [],
         hasPendingRequests: Bool = true,
         friendRequests: [ChallengeFriendRequest] = ChallengeFriendRequest.sampleRequests,
-        networkManager: DefaultNetworkManager<ChallengeAPI> = DefaultNetworkManager<ChallengeAPI>()
+        networkManager: DefaultNetworkManager<FriendsAPI> = DefaultNetworkManager<FriendsAPI>()
     ) {
         self.friends = friends
         self.hasPendingRequests = hasPendingRequests

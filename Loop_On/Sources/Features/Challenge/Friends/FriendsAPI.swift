@@ -1,5 +1,5 @@
 //
-//  ChallengeAPI.swift
+//  FriendsAPI.swift
 //  Loop_On
 //
 //  Created by 김세은 on 2/7/26.
@@ -8,12 +8,12 @@
 import Foundation
 import Moya
 
-enum ChallengeAPI {
+enum FriendsAPI {
     // 친구 목록 조회 (GET /api/friend)
     case getFriends
 }
 
-extension ChallengeAPI: TargetType {
+extension FriendsAPI: TargetType {
     var baseURL: URL {
         guard let url = URL(string: API.baseURL) else {
             fatalError("Invalid API.baseURL: \(API.baseURL)")
