@@ -11,11 +11,12 @@ struct InsightSelectView: View {
     @Environment(NavigationRouter.self) private var router
     @Environment(SessionStore.self) private var session
 
-    init(goalText: String, category: String) {
+    init(goalText: String, category: String, insights: [String]) {
         _viewModel = StateObject(
             wrappedValue: InsightSelectViewModel(
                 goalText: goalText,
-                selectedCategory: category
+                selectedCategory: category,
+                insights: insights
             )
         )
     }
@@ -173,13 +174,15 @@ private struct InsightCardView: View {
 }
 
 #Preview("iPhone 15 Pro") {
-    InsightSelectView(goalText: "건강한 생활 만들기", category: "ROUTINE")
+    InsightSelectView(goalText: "건강한 생활 만들기", category: "ROUTINE",
+                      insights: ["아침 공복에 물 마시기", "10분 스트레칭"])
         .environment(NavigationRouter())
         .environment(SessionStore())
 }
 
 #Preview("iPhone 16 Pro Max") {
-    InsightSelectView(goalText: "역량 강화 목표", category: "SKILL")
+    InsightSelectView(goalText: "역량 강화 목표", category: "SKILL",
+                      insights: ["매일 코딩 1시간", "기술 블로그 작성"])
         .environment(NavigationRouter())
         .environment(SessionStore())
 }

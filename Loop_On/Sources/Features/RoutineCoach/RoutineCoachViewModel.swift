@@ -24,6 +24,7 @@ class RoutineCoachViewModel: ObservableObject {
     @Published var selectedRoutineIndex: Int? // 현재 수정 중인 루틴의 인덱스
     @Published var tempSelectionDate = Date() // 피커에서 임시로 선택 중인 시간
     @Published var isEditing: Bool = false // 편집 모드 상태
+    @Published var isRegenerating: Bool = false // 재생성 모드 상태
     
     
     // 이 값들은 이전 단계에서 받아왔거나 설정된 값이라고 가정
@@ -46,24 +47,42 @@ class RoutineCoachViewModel: ObservableObject {
         ]
     }
     
+    // 루틴 다시 생성 버튼 클릭 시
     func regenerateRoutines() {
-        // 루틴 다시 생성 로직
-        print("루틴 다시 생성")
+        isRegenerating = true
+        // 필요 시 여기서 새로운 루틴 데이터를 서버나 로컬에서 받아오는 로직 추가
+        print("재생성 모드 진입")
+    }
+        
+    // 재생성 '확인' 버튼 클릭 시
+    func confirmRegeneration() {
+        isRegenerating = false
+        // 확정된 루틴 데이터를 서버에 저장하거나 상태를 고정하는 로직
+        print("재생성 루틴 확정")
     }
     
     func editRoutinesDirectly() {
-        isEditing = true
+        self.isEditing = true
     }
 
     func finishEditing() {
-        isEditing = false
+        print("DEBUG: 완료 버튼이 눌렸습니다!")
+        
+        self.isEditing = false
         // 여기서 변경된 내용을 서버에 저장하는 API를 호출.
+        print("DEBUG: isEditing 상태가 \(self.isEditing)으로 변경되었습니다.")
     }
         
     func deleteRoutine(at index: Int) {
         routines.remove(at: index)
         // 삭제 후 인덱스 재정렬 로직.
         reorderRoutines()
+    }
+    
+    func regenerateSingleRoutine(at index: Int) {
+        // 해당 루틴의 데이터를 랜덤하게 변경하거나 서버에서 새로 받아옴
+        print("DEBUG: \(index + 1)번 루틴 재생성 요청")
+        // routines[index].name = "새로 생성된 루틴"
     }
     
     // MARK: - 루틴 삭제 및 자동 재정렬 (API 연동시 사용)

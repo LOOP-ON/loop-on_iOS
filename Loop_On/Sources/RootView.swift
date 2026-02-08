@@ -75,8 +75,8 @@ struct RootView: View {
                 case let .app(.goalInput(category)):
                     GoalInputView(category: category)
 
-                case let .app(.insightSelect(goalText, category)):
-                    InsightSelectView(goalText: goalText, category: category)
+                case let .app(.insightSelect(goalText, category, insights)):
+                    InsightSelectView(goalText: goalText, category: category, insights: insights)
 
                 case let .app(.detail(title)):
                     // DetailView(title: title)   임시로 Text(title)로 대체

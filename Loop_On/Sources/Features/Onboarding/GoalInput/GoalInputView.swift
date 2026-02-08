@@ -55,6 +55,16 @@ struct GoalInputView: View {
         .onTapGesture {
             isFieldFocused = false
         }
+        .alert("안내", isPresented: Binding(
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
+        )) {
+            Button("확인", role: .cancel) {
+                viewModel.errorMessage = nil
+            }
+        } message: {
+            Text(viewModel.errorMessage ?? "")
+        }
     }
 
     // MARK: - 1. 상단 영역 (Progress / Context)
@@ -120,13 +130,18 @@ struct GoalInputView: View {
     // MARK: - 4. 하단 CTA 영역
     private var nextButtonView: some View {
         Button {
-            // Step2 목표 입력 -> 목표 생성 API 호출
-            viewModel.submitGoal()
-            let trimmedGoal = viewModel.goalText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedGoal.isEmpty {
-                router.push(.app(.insightSelect(goalText: trimmedGoal, category: viewModel.category)))
+            // 목표 입력 -> 목표 생성 API 호출
+            viewModel.generateRecommendedLoops { success in
+                if success {
+                    let trimmedGoal = viewModel.goalText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    // 성공 시 받은 인사이트 목록을 가지고 다음 화면으로 이동
+                    router.push(.app(.insightSelect(
+                        goalText: trimmedGoal,
+                        category: viewModel.category,
+                        insights: viewModel.recommendedInsights
+                    )))
+                }
             }
-            // TODO: 목표 입력 저장 성공 후 다음 화면으로 이동
         } label: {
             Text("다음으로")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))

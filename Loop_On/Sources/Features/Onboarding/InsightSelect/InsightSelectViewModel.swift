@@ -40,11 +40,16 @@ final class InsightSelectViewModel: ObservableObject {
     @Published var isCreatingLoop: Bool = false
     @Published var errorMessage: String?
 
-    init(goalText: String, selectedCategory: String) {
+    init(goalText: String, selectedCategory: String, insights: [String]) {
         self.goalText = goalText
         self.selectedCategory = selectedCategory
+        
         if !goalText.isEmpty {
             self.goalTitle = goalText
+        }
+        
+        if !insights.isEmpty {
+            self.insights = insights.map { InsightItem(title: $0) }
         }
     }
 

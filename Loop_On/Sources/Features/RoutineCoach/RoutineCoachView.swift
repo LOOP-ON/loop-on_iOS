@@ -55,6 +55,7 @@ struct RoutineCoachView: View {
                                     pointColor: pointColor,
                                     isEditing: viewModel.isEditing,
                                     totalCount: viewModel.routines.count,
+                                    isRegenerating: viewModel.isRegenerating,
                                     onTimeTap: {
                                         viewModel.openTimePicker(for: index)
                                     },
@@ -63,6 +64,9 @@ struct RoutineCoachView: View {
                                     },
                                     onEditName: {
                                         viewModel.prepareEditName(for: index)
+                                    },
+                                    onRegenerate: {
+                                        viewModel.regenerateSingleRoutine(at: index)
                                     }
                                 )
                             }
@@ -94,22 +98,29 @@ struct RoutineCoachView: View {
                 // 하단 버튼 섹션
                 VStack(spacing: 16) {
                     HStack(spacing: 12) {
-                        Button(action: viewModel.regenerateRoutines) {
-                            Text("루틴 다시 생성")
+                        Button(action: {
+                            if viewModel.isRegenerating {
+                                viewModel.confirmRegeneration()
+                            } else {
+                                viewModel.regenerateRoutines()
+                            }
+                        }) {
+                            Text(viewModel.isRegenerating ? "확인" : "루틴 다시 생성")
                                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))
-                                .frame(width: 106, height: 33)
-                                .padding(.vertical, 3)
+                                .padding(.horizontal, 15)
+                                .frame(height: 33)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(viewModel.isEditing ? Color("85") : pointColor)
                                 )
                                 .foregroundStyle(.white)
                         }
-                        .disabled(viewModel.isEditing) // 수정 중엔 비활성화
+                        .disabled(viewModel.isEditing)
                         
                         Spacer()
                         
                         Button(action: {
+                            print("DEBUG: View에서 버튼 클릭 감지됨. 현재 isEditing: \(viewModel.isEditing)")
                             if viewModel.isEditing {
                                 viewModel.finishEditing()
                             } else {
@@ -118,13 +129,15 @@ struct RoutineCoachView: View {
                         }) {
                             Text(viewModel.isEditing ? "완료" : "루틴 직접 수정")
                                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))
-                                .frame(width: 106, height: 33)
+                                .padding(.horizontal, 15)
+                                .frame(height: 33)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(pointColor)
+                                        .fill(viewModel.isRegenerating ? Color("85") : pointColor)
                                 )
                                 .foregroundStyle(.white)
                         }
+                        .disabled(viewModel.isRegenerating)
                     }
                     
                     Spacer()
@@ -136,12 +149,12 @@ struct RoutineCoachView: View {
                             .padding(.vertical, 18)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(viewModel.isEditing ? Color("85") : pointColor)
+                                    .fill(viewModel.isEditing || viewModel.isRegenerating ? Color("85") : pointColor)
                             )
                             .foregroundStyle(.white)
                             .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 5)
                     }
-                    .disabled(viewModel.isEditing) // 수정 중엔 비활성화
+                    .disabled(viewModel.isEditing || viewModel.isRegenerating) // 수정 중엔 비활성화
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)

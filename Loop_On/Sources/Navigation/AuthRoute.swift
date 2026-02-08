@@ -7,7 +7,8 @@
 
 import SwiftUI
 
-enum AuthRoute: Hashable {
+/// 네비게이션 경로 복원 시 NavigationPath 디코딩에 필요
+enum AuthRoute: Hashable, Codable {
     case login
     case signUp
     case setProfile

@@ -7,7 +7,8 @@
 
 import Foundation
 
-enum AppRoute: Hashable {
+/// 네비게이션 경로 복원 시 NavigationPath 디코딩에 필요
+enum AppRoute: Hashable, Codable {
     case home
     case detail(title: String)
     case profile(userID: Int)
@@ -19,5 +20,5 @@ enum AppRoute: Hashable {
     case goalSelect
     case onBoarding
     case goalInput(category: String)
-    case insightSelect(goalText: String, category: String)
+    case insightSelect(goalText: String, category: String, insights: [String])
 }
