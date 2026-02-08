@@ -8,20 +8,27 @@
 import Foundation
 
 final class ChallengeFriendsViewModel: ObservableObject {
+    private let networkManager: DefaultNetworkManager<ChallengeAPI>
+    private var hasLoadedFriends = false
+
     @Published var friends: [ChallengeFriend]
     @Published var searchText: String = ""
     @Published var hasPendingRequests: Bool
     @Published var friendRequests: [ChallengeFriendRequest]
     @Published var isShowingRequestSheet: Bool = false
+    @Published var isLoadingFriends: Bool = false
+    @Published var loadFriendsErrorMessage: String?
 
     init(
-        friends: [ChallengeFriend] = ChallengeFriend.sampleFriends,
+        friends: [ChallengeFriend] = [],
         hasPendingRequests: Bool = true,
-        friendRequests: [ChallengeFriendRequest] = ChallengeFriendRequest.sampleRequests
+        friendRequests: [ChallengeFriendRequest] = ChallengeFriendRequest.sampleRequests,
+        networkManager: DefaultNetworkManager<ChallengeAPI> = DefaultNetworkManager<ChallengeAPI>()
     ) {
         self.friends = friends
         self.hasPendingRequests = hasPendingRequests
         self.friendRequests = friendRequests
+        self.networkManager = networkManager
     }
 
     var filteredFriends: [ChallengeFriend] {
@@ -33,9 +40,45 @@ final class ChallengeFriendsViewModel: ObservableObject {
         }
     }
 
-    func removeFriend(id: UUID) {
+    func removeFriend(id: Int) {
         // TODO: API 연결 시 친구 삭제 요청 처리 (id)
         friends.removeAll { $0.id == id }
+    }
+
+    func loadFriendsIfNeeded() {
+        guard !hasLoadedFriends else { return }
+        loadFriends()
+    }
+
+    func refreshFriends() {
+        hasLoadedFriends = false
+        loadFriends()
+    }
+
+    func loadFriends() {
+        print("✅ [Friends] loadFriends request start: GET /api/friend")
+        isLoadingFriends = true
+        networkManager.request(
+            target: .getFriends,
+            decodingType: [ChallengeFriendListItemDTO].self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                self.isLoadingFriends = false
+                self.hasLoadedFriends = true
+
+                switch result {
+                case .success(let items):
+                    self.loadFriendsErrorMessage = nil
+                    print("✅ [Friends] loadFriends success: count=\(items.count)")
+                    self.friends = items.map { ChallengeFriend(dto: $0) }
+                case .failure(let error):
+                    // TODO: API 연결 시 친구 목록 실패 처리 (에러 메시지 노출 등)
+                    print("❌ [Friends] loadFriends failed: \(error)")
+                    self.loadFriendsErrorMessage = "네트워크 상태를 확인한 뒤 다시 시도해 주세요.\n같은 현상이 지속될 경우 문의해 주세요."
+                }
+            }
+        }
     }
 
     func openRequestList() {
