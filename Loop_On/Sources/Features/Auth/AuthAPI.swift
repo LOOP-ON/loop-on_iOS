@@ -18,7 +18,7 @@ struct SocialLoginRequest: Encodable {
 
 enum AuthAPI {
     case login(email: String, password: String)
-    /// 소셜 로그인 (카카오/애플) - provider와 accessToken 전달.
+    /// 소셜 로그인 (카카오/애플) - provider와 accessToken 전달. `/api/auth/login/social`
     case socialLogin(request: SocialLoginRequest)
     /// 회원가입 - UserSignUpRequest (`/api/users`)
     /// 현재 단계에서는 이메일/비밀번호/비밀번호 확인만 전송하고,
@@ -37,7 +37,12 @@ enum AuthAPI {
 }
 
 extension AuthAPI: TargetType {
-    var baseURL: URL { URL(string: API.baseURL)! }
+    var baseURL: URL {
+        guard let url = URL(string: API.baseURL) else {
+            fatalError("Invalid API.baseURL: \(API.baseURL)")
+        }
+        return url
+    }
 
     var path: String {
         switch self {
