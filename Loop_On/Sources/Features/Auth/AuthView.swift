@@ -66,11 +66,10 @@ struct AuthView: View {
             }
         .onChange(of: viewModel.isLoggedIn) { _, loggedIn in
             guard loggedIn else { return }
-
+            print("📍 [AuthView] isLoggedIn=true → session.markLoggedIn() + router.reset()")
             // 이력 저장
             session.markLoggedIn()
-
-            // 탭바 루트로 복귀
+            // 탭바 루트로 복귀 (RootView가 session.hasLoggedInBefore로 홈 표시)
             router.reset()
         }
     }

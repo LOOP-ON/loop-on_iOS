@@ -167,6 +167,9 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
     /// Moya에서 받은 네트워크 에러를 우리 서비스용 에러로 변환
     private func handleNetworkError(_ error: Error) -> NetworkError {
         let nsError = error as NSError
+        #if DEBUG
+        print("🔴 NetworkError: domain=\(nsError.domain), code=\(nsError.code), \(nsError.localizedDescription)")
+        #endif
         switch nsError.code {
         case NSURLErrorNotConnectedToInternet:
             return .networkError(message: "인터넷 연결 없음")

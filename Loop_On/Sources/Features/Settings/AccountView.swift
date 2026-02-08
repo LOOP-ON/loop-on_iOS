@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AccountView: View {
     @Environment(NavigationRouter.self) private var router
+    @Environment(SessionStore.self) private var session
 
     // TODO: Replace with real user/session data
     private let email = "seoly@soongsil.ac.kr"
@@ -47,7 +48,8 @@ struct AccountView: View {
                         .padding(.top, 20)
                         .padding(.bottom, 10)
                     AccountCardRow(title: "로그아웃", trailing: nil, isDestructive: false, showsChevron: false) {
-                            // TODO: 로그아웃
+                            session.logout()
+                            router.reset()
                         }
                     AccountCardRow(title: "계정 탈퇴", trailing: nil, isDestructive: true, showsChevron: false) {
                         // TODO: 계정 탈퇴

@@ -8,26 +8,18 @@
 import Moya
 import Foundation
 
-/// Apple 로그인 시 서버로 전달할 요청 바디.
-/// - identityToken: Apple이 내려주는 JWT(문자열). 서버에서 검증용으로 사용.
-/// - authorizationCode: 서버에서 refresh token 교환 시 활용 가능. (옵션)
-/// - userIdentifier: Apple 고유 사용자 ID.
-/// - email, firstName, lastName: 첫 로그인에서만 내려올 수 있음.
-struct AppleLoginRequest: Encodable {
-    let identityToken: String
-    let authorizationCode: String?
-    let userIdentifier: String
-    let email: String?
-    let firstName: String?
-    let lastName: String?
+/// 소셜 로그인 시 서버로 전달할 요청 바디. (`POST /api/auth/login/social`)
+/// - provider: "KAKAO" 또는 "APPLE"
+/// - accessToken: KAKAO는 카카오 Access Token, APPLE은 애플 Authorization Code
+struct SocialLoginRequest: Encodable {
+    let provider: String
+    let accessToken: String
 }
 
 enum AuthAPI {
     case login(email: String, password: String)
-    /// 소셜 로그인 - provider(KAKAO/APPLE) + accessToken 전달
-    case socialLogin(provider: String, accessToken: String)
-    /// Apple 로그인 - identityToken(JWT) 등 전달. (레거시)
-    case appleLogin(request: AppleLoginRequest)
+    /// 소셜 로그인 (카카오/애플) - provider와 accessToken 전달. `/api/auth/login/social`
+    case socialLogin(request: SocialLoginRequest)
     /// 회원가입 - UserSignUpRequest (`/api/users`)
     /// 현재 단계에서는 이메일/비밀번호/비밀번호 확인만 전송하고,
     /// 이름/닉네임/생년월일은 프로필 API에서 별도 관리한다.
@@ -58,8 +50,6 @@ extension AuthAPI: TargetType {
             return "/api/auth/login"
         case .socialLogin:
             return "/api/auth/login/social"
-        case .appleLogin:
-            return "/api/auth/apple"
         case .signUp:
             return "/api/users"
         case .checkEmail:
@@ -75,7 +65,7 @@ extension AuthAPI: TargetType {
 
     var method: Moya.Method {
         switch self {
-        case .login, .socialLogin, .appleLogin, .signUp, .checkEmail, .checkNickname, .uploadProfileImage:
+        case .login, .socialLogin, .signUp, .checkEmail, .checkNickname, .uploadProfileImage:
             return .post
         case .logout:
             return .post
@@ -89,12 +79,7 @@ extension AuthAPI: TargetType {
                 parameters: ["email": email, "password": password],
                 encoding: JSONEncoding.default
             )
-        case let .socialLogin(provider, accessToken):
-            return .requestParameters(
-                parameters: ["provider": provider, "accessToken": accessToken],
-                encoding: JSONEncoding.default
-            )
-        case let .appleLogin(request):
+        case let .socialLogin(request):
             return .requestJSONEncodable(request)
         case let .signUp(request):
             return .requestJSONEncodable(request)

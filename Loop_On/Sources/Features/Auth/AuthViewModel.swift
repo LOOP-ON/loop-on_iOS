@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import AuthenticationServices
 import KakaoSDKAuth
 import KakaoSDKUser
@@ -139,7 +140,7 @@ final class AuthViewModel: ObservableObject {
                 // print("✅ Backend request: /api/auth/login/social")
                 // print("✅ Backend body: {\"provider\":\"KAKAO\",\"accessToken\":\"\(backendToken)\"}")
                 self.networkManager.request(
-                    target: .socialLogin(provider: "KAKAO", accessToken: backendToken),
+                    target: .socialLogin(request: SocialLoginRequest(provider: "KAKAO", accessToken: backendToken)),
                     decodingType: LoginData.self
                 ) { [weak self] result in
                     guard let self else { return }
@@ -194,36 +195,47 @@ final class AuthViewModel: ObservableObject {
         }
     }
 
-    /// Apple Sign In 성공 시 호출. credential에서 토큰을 추출해 서버 로그인 수행.
+    /// Apple Sign In 성공 시 호출. credential의 Authorization Code를 서버에 전달.
+    /// 시뮬레이터에서는 authorizationCode가 nil인 경우가 있어, identityToken을 폴백으로 사용.
     func loginWithApple(credential: ASAuthorizationAppleIDCredential) {
-        guard let identityTokenData = credential.identityToken,
-              let identityToken = String(data: identityTokenData, encoding: .utf8) else {
+        print("[Apple 로그인] loginWithApple 호출됨")
+
+        let accessToken: String
+        if let codeData = credential.authorizationCode,
+           let code = String(data: codeData, encoding: .utf8) {
+            accessToken = code
+            print("[Apple 로그인] authorizationCode 사용")
+        } else if let tokenData = credential.identityToken,
+                  let token = String(data: tokenData, encoding: .utf8) {
+            // 시뮬레이터 등에서 authorizationCode가 nil일 때 폴백 (서버가 identityToken도 받을 수 있어야 함)
+            accessToken = token
+            print("[Apple 로그인] identityToken 폴백 사용")
+        } else {
+            print("[Apple 로그인] authorizationCode, identityToken 둘 다 nil")
             errorMessage = "Apple 로그인 정보를 가져올 수 없습니다."
             return
         }
 
-        let authorizationCode = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
-        let fullName = credential.fullName
+        // Swagger 테스트용: accessToken을 클립보드에 복사 (개발 완료 후 제거)
+        UIPasteboard.general.string = accessToken
+        print("[Swagger 테스트] Apple token 클립보드 복사됨. Swagger accessToken에 Cmd+V 붙여넣기")
 
-        let request = AppleLoginRequest(
-            identityToken: identityToken,
-            authorizationCode: authorizationCode,
-            userIdentifier: credential.user,
-            email: credential.email,
-            firstName: fullName?.givenName,
-            lastName: fullName?.familyName
-        )
+        let request = SocialLoginRequest(provider: "APPLE", accessToken: accessToken)
 
         networkManager.request(
-            target: .appleLogin(request: request),
-            decodingType: LoginResponse.self
+            target: .socialLogin(request: request),
+            decodingType: LoginData.self
         ) { [weak self] result in
-            switch result {
-            case .success(let response):
-                KeychainService.shared.saveToken(response.accessToken)
-                self?.isLoggedIn = true
-            case .failure:
-                self?.errorMessage = "Apple 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요."
+            Task { @MainActor in
+                switch result {
+                case .success(let loginData):
+                    KeychainService.shared.saveToken(loginData.accessToken)
+                    self?.isLoggedIn = true
+                    print("✅ [Apple] 로그인 성공, isLoggedIn = true")
+                case .failure(let error):
+                    print("❌ [Apple] 로그인 실패: \(error)")
+                    self?.errorMessage = "Apple 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요."
+                }
             }
         }
     }
