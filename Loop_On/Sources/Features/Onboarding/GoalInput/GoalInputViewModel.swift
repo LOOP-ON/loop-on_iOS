@@ -41,15 +41,14 @@ final class GoalInputViewModel: ObservableObject {
         }
     }
 
-    func submitGoal() {
+    func submitGoal(completion: @escaping (Bool) -> Void) {
         let trimmedGoal = goalText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !trimmedGoal.isEmpty else { return }
-        guard !category.isEmpty else { return }
+        guard !trimmedGoal.isEmpty else {
+            completion(false)
+            return
+        }
 
         isSaving = true
-        errorMessage = nil
-
         let request = JourneyGoalRequest(goal: trimmedGoal, category: category)
 
         networkManager.request(
@@ -58,14 +57,14 @@ final class GoalInputViewModel: ObservableObject {
         ) { [weak self] result in
             guard let self else { return }
             Task { @MainActor in
-                self.isSaving = false
-
                 switch result {
                 case .success(let response):
                     self.journeyId = response.journeyId
-                    
+                    completion(true) // 성공 알림
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
+                    self.isSaving = false
+                    completion(false)
                 }
             }
         }
@@ -73,8 +72,7 @@ final class GoalInputViewModel: ObservableObject {
     
     @Published var recommendedInsights: [String] = [] // API로 받은 인사이트 저장용
 
-    /// POST /api/goals/loops 호출 후 성공 시 completion(true), 실패 시 completion(false) 호출.
-    /// completion은 항상 Main 스레드에서 호출되도록 보장합니다.
+    // 9번 api의 journeys/goals 랑 12번 api 2개 호출해야함
     func generateRecommendedLoops(completion: @escaping (Bool) -> Void) {
         let trimmedGoal = goalText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedGoal.isEmpty else {
@@ -97,12 +95,34 @@ final class GoalInputViewModel: ObservableObject {
                 self.isSaving = false
                 switch result {
                 case .success(let response):
+                    if let firstJourneyId = response.loops.first?.journeyId {
+                        self.journeyId = firstJourneyId
+                    }
                     self.recommendedInsights = response.loops.map { $0.goal }
                     completion(true)
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
                     completion(false)
                 }
+            }
+        }
+    }
+    
+    func proceedToNextStep(completion: @escaping (Bool) -> Void) {
+        self.isSaving = true // 로딩 시작
+        
+        // 여정 목표 생성 API 호출 (/api/journeys/goals)
+        submitGoal { success in
+            if success {
+                // 추천 루프 생성 API 호출 (/api/goals/loops)
+                // 이 메서드 내부에서 self.recommendedInsights에 결과가 저장
+                self.generateRecommendedLoops { recommendedSuccess in
+                    self.isSaving = false // 모든 작업 완료 후 로딩 해제
+                    completion(recommendedSuccess)
+                }
+            } else {
+                self.isSaving = false
+                completion(false)
             }
         }
     }

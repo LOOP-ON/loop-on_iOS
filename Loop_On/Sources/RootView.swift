@@ -42,8 +42,8 @@ struct RootView: View {
                 case .app(.home):
                     HomeView()
                 
-                case .app(.routineCoach):
-                    RoutineCoachView()
+                case let .app(.routineCoach(routines, journeyId)):
+                    RoutineCoachView(routines: routines, journeyId: journeyId)
                         .toolbar(.hidden, for: .tabBar)
                         .navigationBarBackButtonHidden(true)
                         .ignoresSafeArea(.all)
@@ -75,8 +75,8 @@ struct RootView: View {
                 case let .app(.goalInput(category)):
                     GoalInputView(category: category)
 
-                case let .app(.insightSelect(goalText, category, insights)):
-                    InsightSelectView(goalText: goalText, category: category, insights: insights)
+                case let .app(.insightSelect(goalText, category, insights, journeyId)):
+                    InsightSelectView(goalText: goalText, category: category, insights: insights, journeyId: journeyId)
 
                 case let .app(.detail(title)):
                     // DetailView(title: title)   임시로 Text(title)로 대체

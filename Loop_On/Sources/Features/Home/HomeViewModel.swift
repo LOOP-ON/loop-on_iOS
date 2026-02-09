@@ -61,6 +61,17 @@ class HomeViewModel: ObservableObject {
         guard let selected = selectedRoutine else { return 1 }
         return (routines.firstIndex(where: { $0.id == selected.id }) ?? 0) + 1
     }
+    
+    var routinesForCoaching: [RoutineCoach] {
+        routines.enumerated().map { index, model in
+            RoutineCoach(
+                index: index + 1,
+                name: model.title,
+                // RoutineModel의 time(String)을 Date로 변환하기 어려우면 현재 시간을 기본값으로 사용
+                alarmTime: Date()
+            )
+        }
+    }
 
     init() {
         fetchHomeData()

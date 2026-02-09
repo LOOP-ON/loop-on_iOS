@@ -15,6 +15,8 @@ enum OnboardingAPI {
     case createLoop(request: InsightSelectRequest)
     // 추천 루프 생성 API 케이스 추가
     case generateLoops(request: LoopRecommendationRequest)
+    // 11번 api (루틴 생성)
+    case createRoutines(request: RoutineCreateRequest)
 }
 
 extension OnboardingAPI: TargetType {
@@ -34,12 +36,14 @@ extension OnboardingAPI: TargetType {
             return "/api/coach/insights"
         case .generateLoops:
             return "/api/goals/loops"
+        case .createRoutines:
+            return "/api/routines"
         }
     }
 
     var method: Moya.Method {
         switch self {
-        case .createJourneyGoal, .generateLoops, .createLoop:
+        case .createJourneyGoal, .generateLoops, .createLoop, .createRoutines:
             return .post
         }
     }
@@ -51,6 +55,8 @@ extension OnboardingAPI: TargetType {
         case let .createLoop(request):
             return .requestJSONEncodable(request)
         case let .generateLoops(request):
+            return .requestJSONEncodable(request)
+        case let .createRoutines(request):
             return .requestJSONEncodable(request)
         }
     }

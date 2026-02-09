@@ -19,6 +19,7 @@ struct InsightItem: Identifiable, Hashable {
 
 @MainActor
 final class InsightSelectViewModel: ObservableObject {
+    var router: NavigationRouter?
     // API: 인사이트 선택 결과 저장/루프 생성 요청 매니저
     private let networkManager = DefaultNetworkManager<OnboardingAPI>()
 
@@ -39,10 +40,13 @@ final class InsightSelectViewModel: ObservableObject {
     @Published var selected: Set<InsightItem> = []
     @Published var isCreatingLoop: Bool = false
     @Published var errorMessage: String?
+    
+    @Published var journeyId: Int
 
-    init(goalText: String, selectedCategory: String, insights: [String]) {
+    init(goalText: String, selectedCategory: String, insights: [String], journeyId: Int) {
         self.goalText = goalText
         self.selectedCategory = selectedCategory
+        self.journeyId = journeyId
         
         if !goalText.isEmpty {
             self.goalTitle = goalText
@@ -69,36 +73,69 @@ final class InsightSelectViewModel: ObservableObject {
             selected.insert(item)
         }
     }
-
-    func createLoop() {
-        let request = InsightSelectRequest(
-            goalText: goalText,
-            selectedCategory: selectedCategory,
-            selectedInsights: selectedTitles
-        )
-
-        isCreatingLoop = true
-        errorMessage = nil
-
-        networkManager.request(
-            target: .createLoop(request: request),
-
-            decodingType: InsightSelectResponse.self
-        ) { [weak self] result in
-            guard let self else { return }
-            Task { @MainActor in
-                self.isCreatingLoop = false
-
-                switch result {
-                case .success(let response):
-                    print("루프 생성 성공: \(response)")
-                    
-                case .failure(let error):
-                    self.errorMessage = error.localizedDescription
-                }
-            }
-        }
+    
+    func convertToDate(_ timeString: String) -> Date {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.date(from: timeString) ?? Date()
     }
+    
+    func createLoop() {
+        // 선택된 인사이트들을 RoutineCoach 배열로 즉시 변환 (API 호출 X)
+        let newRoutines = selected.enumerated().map { index, item in
+            RoutineCoach(
+                index: index + 1,
+                name: item.title, // 선택한 인사이트 내용이 이름으로 들어감
+                alarmTime: convertToDate("09:00") // 기본 알림 시간 설정
+            )
+        }
+        
+        // 생성된 루틴과 함께 journeyId도 다음 화면(RoutineCoach)까지 전달
+        self.router?.push(.app(.routineCoach(routines: newRoutines, journeyId: self.journeyId)))
+    }
+    
+//    func createLoop() {
+//        // 선택된 인사이트들을 RoutineContentRequest 배열로 변환
+//        let routineRequests = selected.map { item in
+//            RoutineContentRequest(
+//                content: item.title,
+//                notificationTime: "09:00" // 기본값 혹은 사용자가 설정한 시간
+//            )
+//        }
+//        
+//        // 전체 요청 객체 생성 (journeyId는 현재 맥락에 맞는 ID 주입 필요)
+//        let request = RoutineCreateRequest(
+//            journeyId: self.journeyId,
+//            routines: routineRequests
+//        )
+//
+//        isCreatingLoop = true
+//        errorMessage = nil
+//
+//        // 11번 API 호출
+//        networkManager.request(target: .createRoutines(request: request), decodingType: RoutineCreateResponse.self) { [weak self] result in
+//            guard let self else { return }
+//            Task { @MainActor in
+//                self.isCreatingLoop = false
+//                switch result {
+//                case .success(let response):
+//                    // API 응답 데이터를 RoutineCoach 배열로 변환
+//                    let newRoutines = response.data.routines.enumerated().map { index, detail in
+//                        RoutineCoach(
+//                            index: index + 1,
+//                            name: detail.content, // 인사이트 내용이 루틴 이름으로 들어감
+//                            alarmTime: self.convertToDate(detail.notificationTime) // "09:00" -> Date
+//                        )
+//                    }
+//                    // 탭바의 HomeView로 이동하며 생성된 루틴 전달
+//                    self.router?.push(.app(.routineCoach(routines: newRoutines)))
+//                    
+//                case .failure(let error):
+//                    self.errorMessage = error.localizedDescription
+//                }
+//            }
+//        }
+//    }
 }
 
 

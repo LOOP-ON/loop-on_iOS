@@ -200,7 +200,7 @@ private extension HomeView {
                     if newValue {
                         viewModel.activeFullSheet = nil
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                            router.push(.app(.routineCoach))
+                            router.push(.app(.routineCoach(routines: viewModel.routinesForCoaching, journeyId: viewModel.journeyInfo?.loopId ?? 0)))
                             viewModel.resetJourneyStatus()
                         }
                     }

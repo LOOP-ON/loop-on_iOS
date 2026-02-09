@@ -131,14 +131,15 @@ struct GoalInputView: View {
     private var nextButtonView: some View {
         Button {
             // 목표 입력 -> 목표 생성 API 호출
-            viewModel.generateRecommendedLoops { success in
+            viewModel.proceedToNextStep { success in
                 if success {
                     let trimmedGoal = viewModel.goalText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    // 성공 시 받은 인사이트 목록을 가지고 다음 화면으로 이동
+                    // 모든 API 성공 시 다음 화면으로 이동
                     router.push(.app(.insightSelect(
                         goalText: trimmedGoal,
                         category: viewModel.category,
-                        insights: viewModel.recommendedInsights
+                        insights: viewModel.recommendedInsights,
+                        journeyId: viewModel.journeyId ?? 0
                     )))
                 }
             }

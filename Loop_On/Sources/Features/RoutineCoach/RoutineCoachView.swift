@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct RoutineCoachView: View {
-    @StateObject private var viewModel = RoutineCoachViewModel()
+    @StateObject private var viewModel: RoutineCoachViewModel
     @EnvironmentObject var homeViewModel: HomeViewModel
     
     // 브랜드 컬러 정의
@@ -22,6 +22,12 @@ struct RoutineCoachView: View {
     // 스크롤 상태
     @State private var scrollOffset: CGFloat = 0        // 현재 스크롤 위치(y, 아래로 갈수록 +)
     @State private var contentHeight: CGFloat = 0       // 전체 콘텐츠 높이
+    
+    init(routines: [RoutineCoach], journeyId: Int) { 
+        let vm = RoutineCoachViewModel(initialRoutines: routines)
+        vm.loop_id = journeyId // ViewModel의 loop_id에 전달받은 ID 할당
+        _viewModel = StateObject(wrappedValue: vm)
+    }
     
     var body: some View {
         ZStack {
@@ -247,6 +253,7 @@ extension RoutineCoachView {
 
 // MARK: - Preview
 #Preview{
-    RoutineCoachView()
+    RoutineCoachView(routines: [], journeyId: 1)
+            .environmentObject(HomeViewModel())
 }
 
