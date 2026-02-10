@@ -1,10 +1,3 @@
-//
-//  JourneyGoalDTOs.swift
-//  Loop_On
-//
-//  Created by 김세은 on 1/22/26.
-//
-
 import Foundation
 
 struct JourneyGoalRequest: Encodable {
@@ -14,6 +7,18 @@ struct JourneyGoalRequest: Encodable {
 
 struct JourneyGoalResponse: Decodable {
     let journeyId: Int
+
+    enum CodingKeys: String, CodingKey {
+        case journeyId = "journeyId"
+        case journeyIdSnake = "journey_id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.journeyId = (try? container.decode(Int.self, forKey: .journeyId))
+                      ?? (try? container.decode(Int.self, forKey: .journeyIdSnake))
+                      ?? 0
+    }
 }
 
 struct LoopRecommendationRequest: Encodable {
@@ -21,7 +26,6 @@ struct LoopRecommendationRequest: Encodable {
     let loopCount: Int
 }
 
-/// POST /api/goals/loops 응답. 서버가 camelCase 또는 snake_case 모두 처리
 struct LoopRecommendationResponse: Decodable {
     let goalId: Int?
     let goal: String?
@@ -30,8 +34,7 @@ struct LoopRecommendationResponse: Decodable {
     enum CodingKeys: String, CodingKey {
         case goalId = "goalId"
         case goalIdSnake = "goal_id"
-        case goal
-        case loops
+        case goal, loops
     }
 
     init(from decoder: Decoder) throws {

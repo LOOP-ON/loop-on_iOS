@@ -1,200 +1,85 @@
-//
-//  NetworkManager.swift
-//  Loop_On
-//
-//  Created by 이경민 on 12/31/25.
-//
-
-//  네트워크 요청을 담당하는 공통 관리 객체.
-//  - Moya 기반으로 네트워크 추상화를 제공함
-//  - 각 Feature에서 API enum을 정의하고, 해당 enum 타입으로 제네릭 네트워크 요청 가능
 import Foundation
 import Moya
 
-// MARK: - 프로토콜 정의
+// 응답 데이터가 없는 경우를 위한 빈 구조체
+struct EmptyData: Decodable {}
 
-/// Moya의 TargetType을 기반으로 다양한 API 요청을 처리하기 위한 공통 인터페이스.
-/// SwiftUI에서도 각 ViewModel이 이 프로토콜을 통해 네트워크 요청을 보냄.
 protocol NetworkManager {
     associatedtype Endpoint: TargetType
     var provider: MoyaProvider<Endpoint> { get }
-
-    /// 일반적인 응답이 있는 API 요청
     func request<T: Decodable>(target: Endpoint, decodingType: T.Type, completion: @escaping (Result<T, NetworkError>) -> Void)
-
-    /// 응답이 Optional인 경우 (데이터가 없을 수도 있음)
-    func requestOptional<T: Decodable>(target: Endpoint, decodingType: T.Type, completion: @escaping (Result<T?, NetworkError>) -> Void)
-
-    /// 응답 데이터 없이 상태 코드로만 성공 여부 판단 (204, 200 등)
     func requestStatusCode(target: Endpoint, completion: @escaping (Result<Void, NetworkError>) -> Void)
-
-    /// 응답 + Cache-Control max-age 정보까지 함께 반환하는 요청
-    func requestWithTime<T: Decodable>(target: Endpoint, decodingType: T.Type, completion: @escaping (Result<(T, TimeInterval?), NetworkError>) -> Void)
 }
 
-// MARK: - 구현체
-
-/// NetworkManager 프로토콜을 실제로 구현한 기본 네트워크 매니저.
-/// ViewModel에서 `DefaultNetworkManager<SomeAPI>()` 형태로 사용.
-/// 기본적으로 AuthPlugin이 적용되어 키체인 accessToken이 Authorization 헤더에 붙습니다.
 final class DefaultNetworkManager<API: TargetType>: NetworkManager {
     typealias Endpoint = API
     let provider: MoyaProvider<API>
 
-    /// 테스트(stub) 여부와 플러그인을 지정. 기본값으로 AuthPlugin이 적용되어 인증 API에 Bearer 토큰이 붙음
-//    init(stub: Bool = false, plugins: [PluginType] = [AuthPlugin()]) {
-//        if stub {
-//            provider = MoyaProvider<API>(stubClosure: MoyaProvider.immediatelyStub, plugins: plugins)
-//        } else {
-//            provider = MoyaProvider<API>(plugins: plugins)
-//        }
-//    }
     init(stub: Bool = false, plugins: [PluginType] = []) {
-            if stub {
-                provider = MoyaProvider<API>(stubClosure: MoyaProvider.immediatelyStub, plugins: plugins)
-            } else {
-                provider = MoyaProvider<API>(plugins: plugins)
-            }
+        if stub {
+            provider = MoyaProvider<API>(stubClosure: MoyaProvider.immediatelyStub, plugins: plugins)
+        } else {
+            provider = MoyaProvider<API>(plugins: plugins)
         }
+    }
 
-    // MARK: - 실제 요청 함수 구현
-
+    // 일반 데이터 요청
     func request<T: Decodable>(target: Endpoint, decodingType: T.Type, completion: @escaping (Result<T, NetworkError>) -> Void) {
-        provider.request(target) { [self] result in
+        provider.request(target) { [weak self] result in
+            guard let self = self else { return }
             switch result {
             case .success(let response):
-                let decoded = handleResponse(response, decodingType: decodingType)
-                completion(decoded)
+                completion(self.handleResponse(response, decodingType: decodingType))
             case .failure(let error):
-                completion(.failure(handleNetworkError(error)))
+                completion(.failure(self.handleNetworkError(error)))
             }
         }
     }
 
-    func requestOptional<T: Decodable>(target: Endpoint, decodingType: T.Type, completion: @escaping (Result<T?, NetworkError>) -> Void) {
-        provider.request(target) { [self] result in
-            switch result {
-            case .success(let response):
-                do {
-                    guard (200...299).contains(response.statusCode) else {
-                        let error = try? JSONDecoder().decode(ErrorResponse.self, from: response.data)
-                        return completion(.failure(.serverError(statusCode: response.statusCode, message: error?.message ?? "서버 오류")))
-                    }
-
-                    if response.data.isEmpty {
-                        return completion(.success(nil))
-                    }
-
-                    let apiResponse = try JSONDecoder().decode(ApiResponse<T>.self, from: response.data)
-                    return completion(.success(apiResponse.data))
-
-                } catch {
-                    return completion(.failure(.decodingError(underlyingError: error as! DecodingError)))
-                }
-
-            case .failure(let error):
-                completion(.failure(handleNetworkError(error)))
-            }
-        }
-    }
-
+    // ✅ ProfileViewModel에서 사용하는 상태 코드 요청 함수 복구
     func requestStatusCode(target: Endpoint, completion: @escaping (Result<Void, NetworkError>) -> Void) {
-        provider.request(target) { [self] result in
+        provider.request(target) { [weak self] result in
+            guard let self = self else { return }
             switch result {
             case .success(let response):
                 if (200...299).contains(response.statusCode) {
                     completion(.success(()))
                 } else {
-                    let error = try? JSONDecoder().decode(ErrorResponse.self, from: response.data)
-                    completion(.failure(.serverError(statusCode: response.statusCode, message: error?.message ?? "상태 코드 오류")))
+                    let base = try? JSONDecoder().decode(BaseResponse<EmptyData>.self, from: response.data)
+                    completion(.failure(.serverError(statusCode: response.statusCode, message: base?.message ?? "서버 오류")))
                 }
             case .failure(let error):
-                completion(.failure(handleNetworkError(error)))
+                completion(.failure(self.handleNetworkError(error)))
             }
         }
     }
 
-    func requestWithTime<T: Decodable>(target: Endpoint, decodingType: T.Type, completion: @escaping (Result<(T, TimeInterval?), NetworkError>) -> Void) {
-        provider.request(target) { [self] result in
-            switch result {
-            case .success(let response):
-                do {
-                    guard (200...299).contains(response.statusCode) else {
-                        let error = try? JSONDecoder().decode(ErrorResponse.self, from: response.data)
-                        return completion(.failure(.serverError(statusCode: response.statusCode, message: error?.message ?? "서버 오류")))
-                    }
-
-                    let apiResponse = try JSONDecoder().decode(ApiResponse<T>.self, from: response.data)
-                    guard let resultData = apiResponse.data else {
-                        return completion(.failure(.serverError(statusCode: response.statusCode, message: "결과 데이터 없음")))
-                    }
-
-                    let cacheTime = extractCacheTimeInterval(from: response)
-                    completion(.success((resultData, cacheTime)))
-
-                } catch {
-                    completion(.failure(.decodingError(underlyingError: error as! DecodingError)))
-                }
-            case .failure(let error):
-                completion(.failure(handleNetworkError(error)))
-            }
-        }
-    }
-
-    // MARK: - 내부 유틸리티 함수
-
-    /// 공통 응답 처리 로직 (성공/실패/디코딩)
     private func handleResponse<T: Decodable>(_ response: Response, decodingType: T.Type) -> Result<T, NetworkError> {
         do {
-            // HTTP 상태 코드 확인
-            guard (200...299).contains(response.statusCode) else {
-                let error = try? JSONDecoder().decode(ErrorResponse.self, from: response.data)
-                return .failure(.serverError(statusCode: response.statusCode, message: error?.message ?? "서버 오류"))
-            }
+            // AuthViewModel에 정의된 BaseResponse 구조로 먼저 읽음
+            let baseResponse = try JSONDecoder().decode(BaseResponse<T>.self, from: response.data)
 
-            // ApiResponse 형식으로 디코딩 시도
-            let apiResponse = try JSONDecoder().decode(ApiResponse<T>.self, from: response.data)
-
-            // 서버가 보낸 result 값이 "SUCCESS"인지 문자열로 비교
-            if apiResponse.result == "SUCCESS" {
-                if let resultData = apiResponse.data {
+            if baseResponse.result == "SUCCESS" {
+                if let resultData = baseResponse.data {
                     return .success(resultData)
                 }
                 return .failure(.serverError(statusCode: response.statusCode, message: "데이터가 없습니다."))
             } else {
-                // 실패 시 서버가 보내준 message를 에러 메시지로 사용
-                return .failure(.serverError(statusCode: response.statusCode, message: apiResponse.message))
+                return .failure(.serverError(statusCode: response.statusCode, message: baseResponse.message ?? "서버 오류"))
             }
+        } catch let error as DecodingError {
+            return .failure(.decodingError(underlyingError: error))
         } catch {
-            // 여기서 isSuccess를 못 찾아 에러가 나고 있었음. 수정 후엔 해결됨.
-            return .failure(.decodingError(underlyingError: error as! DecodingError))
+            return .failure(.unknown)
         }
     }
 
-    /// Moya에서 받은 네트워크 에러를 우리 서비스용 에러로 변환
     private func handleNetworkError(_ error: Error) -> NetworkError {
         let nsError = error as NSError
         switch nsError.code {
-        case NSURLErrorNotConnectedToInternet:
-            return .networkError(message: "인터넷 연결 없음")
-        case NSURLErrorTimedOut:
-            return .networkError(message: "요청 시간 초과")
-        default:
-            return .networkError(message: "알 수 없는 네트워크 오류")
+        case NSURLErrorNotConnectedToInternet: return .networkError(message: "인터넷 연결 없음")
+        case NSURLErrorTimedOut: return .networkError(message: "요청 시간 초과")
+        default: return .networkError(message: "네트워크 오류 발생")
         }
-    }
-
-    /// Cache-Control max-age 파싱 함수 (requestWithTime에서 사용)
-    private func extractCacheTimeInterval(from response: Response) -> TimeInterval? {
-        guard let cacheControl = response.response?.allHeaderFields["Cache-Control"] as? String else { return nil }
-        let components = cacheControl.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        for component in components {
-            if component.starts(with: "max-age") {
-                if let value = component.split(separator: "=").last, let interval = TimeInterval(value) {
-                    return interval
-                }
-            }
-        }
-        return nil
     }
 }

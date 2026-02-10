@@ -20,6 +20,7 @@ struct RootView: View {
                 if session.hasValidToken && session.isOnboardingCompleted {
 //                    HomeView()
                     RootTabView()
+                        .environmentObject(HomeViewModel())
                 } else {
                     AuthView()
                     // RootTabView() 회원가입 api 연동 기간 동안 잠시 주석 처리
