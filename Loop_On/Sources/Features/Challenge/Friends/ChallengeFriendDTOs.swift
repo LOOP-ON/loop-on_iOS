@@ -9,10 +9,10 @@ import Foundation
 
 struct ChallengeFriendListItemDTO: Decodable {
     let friendId: Int
-    let friendStatus: String
+    let friendStatus: String?
     let friendImageURL: String?
     let friendNickname: String
-    let friendBio: String
+    let friendBio: String?
     let createdAt: String
     let updatedAt: String
 
@@ -31,7 +31,7 @@ extension ChallengeFriend {
     init(dto: ChallengeFriendListItemDTO) {
         self.id = dto.friendId
         self.name = dto.friendNickname
-        self.subtitle = dto.friendBio
+        self.subtitle = dto.friendBio ?? ""
         self.isSelf = false
         self.imageURL = dto.friendImageURL
         self.status = dto.friendStatus

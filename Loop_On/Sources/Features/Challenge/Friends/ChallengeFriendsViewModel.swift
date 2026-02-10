@@ -53,8 +53,21 @@ final class ChallengeFriendsViewModel: ObservableObject {
     }
 
     func removeFriend(id: Int) {
-        // TODO: API 연결 시 친구 삭제 요청 처리 (id)
-        friends.removeAll { $0.id == id }
+        print("✅ [Friends] deleteFriend start: DELETE /api/friend/\(id)")
+        networkManager.requestStatusCode(
+            target: .deleteFriend(friendId: id)
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    self.friends.removeAll { $0.id == id }
+                case .failure(let error):
+                    // TODO: API 연결 시 친구 삭제 실패 처리 (에러 메시지 노출 등)
+                    print("❌ [Friends] deleteFriend failed: \(error)")
+                }
+            }
+        }
     }
 
     func loadFriendsIfNeeded() {
@@ -175,27 +188,83 @@ final class ChallengeFriendsViewModel: ObservableObject {
     }
 
     func acceptRequest(id: Int) {
-        // TODO: API 연결 시 친구 요청 수락 처리 (id)
-        friendRequests.removeAll { $0.id == id }
-        updatePendingCountFromList()
+        print("✅ [Friends] acceptFriendRequest start: PATCH /api/friend-request/\(id)/accept-one")
+        networkManager.request(
+            target: .acceptFriendRequest(requesterId: id),
+            decodingType: ChallengeFriendRequestSingleActionResponse.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    self.friendRequests.removeAll { $0.id == id }
+                    self.updatePendingCountFromList()
+                case .failure(let error):
+                    // TODO: API 연결 시 친구 요청 수락 실패 처리 (에러 메시지 노출 등)
+                    print("❌ [Friends] acceptFriendRequest failed: \(error)")
+                }
+            }
+        }
     }
 
     func rejectRequest(id: Int) {
-        // TODO: API 연결 시 친구 요청 거절 처리 (id)
-        friendRequests.removeAll { $0.id == id }
-        updatePendingCountFromList()
+        print("✅ [Friends] rejectFriendRequest start: DELETE /api/friend-request/\(id)/delete-one")
+        networkManager.request(
+            target: .rejectFriendRequest(requesterId: id),
+            decodingType: ChallengeFriendRequestSingleActionResponse.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    self.friendRequests.removeAll { $0.id == id }
+                    self.updatePendingCountFromList()
+                case .failure(let error):
+                    // TODO: API 연결 시 친구 요청 거절 실패 처리 (에러 메시지 노출 등)
+                    print("❌ [Friends] rejectFriendRequest failed: \(error)")
+                }
+            }
+        }
     }
 
     func acceptAllRequests() {
-        // TODO: API 연결 시 친구 요청 전체 수락 처리
-        friendRequests.removeAll()
-        updatePendingCountFromList()
+        print("✅ [Friends] acceptAllFriendRequests start: PATCH /api/friend-request/accept-all")
+        networkManager.request(
+            target: .acceptAllFriendRequests,
+            decodingType: ChallengeFriendRequestBulkResponse.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    self.friendRequests.removeAll()
+                    self.updatePendingCountFromList()
+                case .failure(let error):
+                    // TODO: API 연결 시 친구 요청 전체 수락 실패 처리 (에러 메시지 노출 등)
+                    print("❌ [Friends] acceptAllFriendRequests failed: \(error)")
+                }
+            }
+        }
     }
 
     func rejectAllRequests() {
-        // TODO: API 연결 시 친구 요청 전체 거절 처리
-        friendRequests.removeAll()
-        updatePendingCountFromList()
+        print("✅ [Friends] rejectAllFriendRequests start: DELETE /api/friend-request/delete-all")
+        networkManager.request(
+            target: .rejectAllFriendRequests,
+            decodingType: ChallengeFriendRequestBulkResponse.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    self.friendRequests.removeAll()
+                    self.updatePendingCountFromList()
+                case .failure(let error):
+                    // TODO: API 연결 시 친구 요청 전체 거절 실패 처리 (에러 메시지 노출 등)
+                    print("❌ [Friends] rejectAllFriendRequests failed: \(error)")
+                }
+            }
+        }
     }
 
     func closeRequestSheet() {

@@ -19,6 +19,16 @@ enum FriendsAPI {
     case getFriendRequests(page: Int, size: Int)
     // 친구 요청 개수 조회 (GET /api/friend-request/pending-count)
     case getPendingRequestCount
+    // 친구 요청 수락 (PATCH /api/friend-request/{requesterId}/accept-one)
+    case acceptFriendRequest(requesterId: Int)
+    // 친구 요청 거절 (DELETE /api/friend-request/{requesterId}/delete-one)
+    case rejectFriendRequest(requesterId: Int)
+    // 친구 요청 전체 수락 (PATCH /api/friend-request/accept-all)
+    case acceptAllFriendRequests
+    // 친구 요청 전체 거절 (DELETE /api/friend-request/delete-all)
+    case rejectAllFriendRequests
+    // 친구 삭제 (DELETE /api/friend/{friendId})
+    case deleteFriend(friendId: Int)
 }
 
 extension FriendsAPI: TargetType {
@@ -41,6 +51,16 @@ extension FriendsAPI: TargetType {
             return "/api/friend-request"
         case .getPendingRequestCount:
             return "/api/friend-request/pending-count"
+        case let .acceptFriendRequest(requesterId):
+            return "/api/friend-request/\(requesterId)/accept-one"
+        case let .rejectFriendRequest(requesterId):
+            return "/api/friend-request/\(requesterId)/delete-one"
+        case .acceptAllFriendRequests:
+            return "/api/friend-request/accept-all"
+        case .rejectAllFriendRequests:
+            return "/api/friend-request/delete-all"
+        case let .deleteFriend(friendId):
+            return "/api/friend/\(friendId)"
         }
     }
 
@@ -56,6 +76,16 @@ extension FriendsAPI: TargetType {
             return .get
         case .getPendingRequestCount:
             return .get
+        case .acceptFriendRequest:
+            return .patch
+        case .rejectFriendRequest:
+            return .delete
+        case .acceptAllFriendRequests:
+            return .patch
+        case .rejectAllFriendRequests:
+            return .delete
+        case .deleteFriend:
+            return .delete
         }
     }
 
@@ -83,6 +113,12 @@ extension FriendsAPI: TargetType {
                 encoding: URLEncoding.queryString
             )
         case .getPendingRequestCount:
+            return .requestPlain
+        case .acceptFriendRequest, .rejectFriendRequest:
+            return .requestPlain
+        case .acceptAllFriendRequests, .rejectAllFriendRequests:
+            return .requestPlain
+        case .deleteFriend:
             return .requestPlain
         }
     }

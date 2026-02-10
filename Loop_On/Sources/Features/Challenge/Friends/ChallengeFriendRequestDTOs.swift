@@ -51,3 +51,42 @@ extension ChallengeFriendRequest {
         self.imageURL = dto.friendImageURL
     }
 }
+
+struct ChallengeFriendRequestBulkResponse: Decodable {
+    let processCount: Int
+}
+
+struct ChallengeFriendRequestSingleActionResponse: Decodable {
+    let requesterId: Int?
+    let receiverId: Int?
+    let requesterNickname: String?
+    let receiverNickname: String?
+    let friendStatus: String?
+
+    enum CodingKeys: String, CodingKey {
+        case requesterId = "requesterId"
+        case receiverId = "receiverId"
+        case requesterNickname = "requesterNickname"
+        case receiverNickname = "receiverNickname"
+        case friendStatus = "friendStatus"
+    }
+
+    init(from decoder: Decoder) throws {
+        if let container = try? decoder.container(keyedBy: CodingKeys.self) {
+            requesterId = try container.decodeIfPresent(Int.self, forKey: .requesterId)
+            receiverId = try container.decodeIfPresent(Int.self, forKey: .receiverId)
+            requesterNickname = try container.decodeIfPresent(String.self, forKey: .requesterNickname)
+            receiverNickname = try container.decodeIfPresent(String.self, forKey: .receiverNickname)
+            friendStatus = try container.decodeIfPresent(String.self, forKey: .friendStatus)
+            return
+        }
+
+        let single = try decoder.singleValueContainer()
+        _ = try? single.decode(String.self)
+        requesterId = nil
+        receiverId = nil
+        requesterNickname = nil
+        receiverNickname = nil
+        friendStatus = nil
+    }
+}
