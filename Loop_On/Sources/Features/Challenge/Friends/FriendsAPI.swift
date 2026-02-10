@@ -124,6 +124,10 @@ extension FriendsAPI: TargetType {
     }
 
     var headers: [String: String]? {
-        ["Content-Type": "application/json"]
+        var header: [String: String] = ["Content-Type": "application/json"]
+        if let token = KeychainService.shared.loadToken(), !token.isEmpty {
+            header["Authorization"] = "Bearer \(token)"
+        }
+        return header
     }
 }

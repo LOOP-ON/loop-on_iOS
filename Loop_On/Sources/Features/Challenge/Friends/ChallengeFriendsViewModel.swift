@@ -189,9 +189,8 @@ final class ChallengeFriendsViewModel: ObservableObject {
 
     func acceptRequest(id: Int) {
         print("✅ [Friends] acceptFriendRequest start: PATCH /api/friend-request/\(id)/accept-one")
-        networkManager.request(
-            target: .acceptFriendRequest(requesterId: id),
-            decodingType: ChallengeFriendRequestSingleActionResponse.self
+        networkManager.requestStatusCode(
+            target: .acceptFriendRequest(requesterId: id)
         ) { [weak self] result in
             guard let self else { return }
             Task { @MainActor in
@@ -209,9 +208,8 @@ final class ChallengeFriendsViewModel: ObservableObject {
 
     func rejectRequest(id: Int) {
         print("✅ [Friends] rejectFriendRequest start: DELETE /api/friend-request/\(id)/delete-one")
-        networkManager.request(
-            target: .rejectFriendRequest(requesterId: id),
-            decodingType: ChallengeFriendRequestSingleActionResponse.self
+        networkManager.requestStatusCode(
+            target: .rejectFriendRequest(requesterId: id)
         ) { [weak self] result in
             guard let self else { return }
             Task { @MainActor in
@@ -229,9 +227,8 @@ final class ChallengeFriendsViewModel: ObservableObject {
 
     func acceptAllRequests() {
         print("✅ [Friends] acceptAllFriendRequests start: PATCH /api/friend-request/accept-all")
-        networkManager.request(
-            target: .acceptAllFriendRequests,
-            decodingType: ChallengeFriendRequestBulkResponse.self
+        networkManager.requestStatusCode(
+            target: .acceptAllFriendRequests
         ) { [weak self] result in
             guard let self else { return }
             Task { @MainActor in
@@ -249,9 +246,8 @@ final class ChallengeFriendsViewModel: ObservableObject {
 
     func rejectAllRequests() {
         print("✅ [Friends] rejectAllFriendRequests start: DELETE /api/friend-request/delete-all")
-        networkManager.request(
-            target: .rejectAllFriendRequests,
-            decodingType: ChallengeFriendRequestBulkResponse.self
+        networkManager.requestStatusCode(
+            target: .rejectAllFriendRequests
         ) { [weak self] result in
             guard let self else { return }
             Task { @MainActor in
