@@ -18,6 +18,12 @@ final class ChallengeFriendsViewModel: ObservableObject {
     @Published var isShowingRequestSheet: Bool = false
     @Published var isLoadingFriends: Bool = false
     @Published var loadFriendsErrorMessage: String?
+    @Published var searchResults: [ChallengeFriendSearchResult] = []
+    @Published var hasSearched: Bool = false
+    @Published var isSearching: Bool = false
+    @Published var searchErrorMessage: String?
+    @Published var isShowingSearchAlert: Bool = false
+    @Published var searchAlertMessage: String?
 
     init(
         friends: [ChallengeFriend] = [],
@@ -38,6 +44,11 @@ final class ChallengeFriendsViewModel: ObservableObject {
             $0.name.localizedCaseInsensitiveContains(keyword) ||
             $0.subtitle.localizedCaseInsensitiveContains(keyword)
         }
+    }
+
+    var isShowingSearchResults: Bool {
+        let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return hasSearched && !keyword.isEmpty
     }
 
     func removeFriend(id: Int) {
@@ -84,6 +95,58 @@ final class ChallengeFriendsViewModel: ObservableObject {
     func openRequestList() {
         // TODO: API 연결 시 친구 요청 목록 모달/화면 이동 처리
         isShowingRequestSheet = true
+    }
+
+    func clearSearchResults() {
+        hasSearched = false
+        searchResults = []
+        searchErrorMessage = nil
+    }
+
+    func searchFriends() {
+        let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else {
+            clearSearchResults()
+            return
+        }
+
+        hasSearched = true
+        isSearching = true
+        searchErrorMessage = nil
+
+        networkManager.request(
+            target: .searchFriends(query: keyword, page: 0, size: 20),
+            decodingType: ChallengeFriendSearchPageDTO.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                self.isSearching = false
+                switch result {
+                case .success(let page):
+                    self.searchResults = page.content.map { ChallengeFriendSearchResult(dto: $0) }
+                case .failure(let error):
+                    // TODO: API 연결 시 친구 검색 실패 처리 (에러 메시지 노출 등)
+                    print("❌ [Friends] searchFriends failed: \(error)")
+                    self.searchResults = []
+                    self.searchErrorMessage = "검색 결과를 불러오지 못했어요.\n네트워크 상태를 확인해 주세요."
+                }
+            }
+        }
+    }
+
+    func sendFriendRequest(userId: Int) {
+        guard let index = searchResults.firstIndex(where: { $0.id == userId }) else { return }
+        if searchResults[index].isRequestSent {
+            searchAlertMessage = "이미 친구 신청을 보냈습니다."
+            isShowingSearchAlert = true
+            return
+        }
+
+        // TODO: API 연결 시 친구 신청 요청 처리 (userId)
+        let nickname = searchResults[index].nickname
+        searchResults[index].isRequestSent = true
+        searchAlertMessage = "'\(nickname)'에게 친구 신청을 보냈습니다."
+        isShowingSearchAlert = true
     }
 
     func acceptRequest(id: UUID) {
