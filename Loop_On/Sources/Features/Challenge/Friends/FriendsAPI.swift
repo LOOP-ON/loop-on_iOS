@@ -13,6 +13,8 @@ enum FriendsAPI {
     case getFriends
     // 친구 검색 (GET /api/friend-request/search)
     case searchFriends(query: String, page: Int, size: Int)
+    // 친구 요청 전송 (POST /api/friend-request/send)
+    case sendFriendRequest(request: FriendRequestSendRequest)
 }
 
 extension FriendsAPI: TargetType {
@@ -29,6 +31,8 @@ extension FriendsAPI: TargetType {
             return "/api/friend"
         case .searchFriends:
             return "/api/friend-request/search"
+        case .sendFriendRequest:
+            return "/api/friend-request/send"
         }
     }
 
@@ -38,6 +42,8 @@ extension FriendsAPI: TargetType {
             return .get
         case .searchFriends:
             return .get
+        case .sendFriendRequest:
+            return .post
         }
     }
 
@@ -54,6 +60,8 @@ extension FriendsAPI: TargetType {
                 ],
                 encoding: URLEncoding.queryString
             )
+        case let .sendFriendRequest(request):
+            return .requestJSONEncodable(request)
         }
     }
 

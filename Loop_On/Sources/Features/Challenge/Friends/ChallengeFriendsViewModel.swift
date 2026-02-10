@@ -142,11 +142,35 @@ final class ChallengeFriendsViewModel: ObservableObject {
             return
         }
 
-        // TODO: API 연결 시 친구 신청 요청 처리 (userId)
-        let nickname = searchResults[index].nickname
-        searchResults[index].isRequestSent = true
-        searchAlertMessage = "'\(nickname)'에게 친구 신청을 보냈습니다."
-        isShowingSearchAlert = true
+        let request = FriendRequestSendRequest(receiverId: userId)
+        print("✅ [Friends] sendFriendRequest start: POST /api/friend-request/send body={receiverId:\(userId)}")
+        networkManager.request(
+            target: .sendFriendRequest(request: request),
+            decodingType: FriendRequestSendResponse.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success(let response):
+                    print("✅ [Friends] sendFriendRequest success")
+                    let nickname = self.searchResults[index].nickname
+                    self.searchResults[index].isRequestSent = true
+                    self.searchAlertMessage = "'\(nickname)'에게 친구 신청을 보냈습니다."
+                    self.isShowingSearchAlert = true
+                case .failure(let error):
+                    // TODO: API 연결 시 친구 신청 실패 처리 (에러 메시지 노출 등)
+                    print("❌ [Friends] sendFriendRequest failed: \(error)")
+                    if case let .serverError(_, message) = error,
+                       message.contains("이미 대기 중인 친구 요청") {
+                        self.searchResults[index].isRequestSent = true
+                        self.searchAlertMessage = "이미 친구 신청을 보냈습니다."
+                    } else {
+                        self.searchAlertMessage = "친구 신청을 보내지 못했어요.\n잠시 후 다시 시도해 주세요."
+                    }
+                    self.isShowingSearchAlert = true
+                }
+            }
+        }
     }
 
     func acceptRequest(id: UUID) {

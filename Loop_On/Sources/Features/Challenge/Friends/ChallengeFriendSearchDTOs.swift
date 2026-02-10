@@ -58,3 +58,25 @@ extension ChallengeFriendSearchResult {
         self.isRequestSent = false
     }
 }
+
+struct FriendRequestSendRequest: Encodable {
+    let receiverId: Int
+
+    enum CodingKeys: String, CodingKey {
+        case receiverId = "receiverId"
+    }
+}
+
+struct FriendRequestSendResponse: Decodable {
+    let requesterId: Int
+    let receiverId: Int
+    let requesterNickname: String
+    let receiverNickname: String
+
+    enum CodingKeys: String, CodingKey {
+        case requesterId = "requesterId"
+        case receiverId = "receiverId"
+        case requesterNickname = "requesterNickname"
+        case receiverNickname = "receiverNickname"
+    }
+}
