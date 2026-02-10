@@ -80,7 +80,6 @@ extension AuthAPI: TargetType {
                 encoding: JSONEncoding.default
             )
             
-        case let .appleLogin(request):
         case let .socialLogin(request):
             return .requestJSONEncodable(request)
             
