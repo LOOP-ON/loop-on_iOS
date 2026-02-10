@@ -172,7 +172,7 @@ final class SignUpViewModel: ObservableObject {
             // 1. 실제 에러 내용을 콘솔에 출력 (중요!)
             print("DEBUG - 이메일 중복 확인 실패: \(error)")
             
-            if case let .serverError(statusCode, _) = error {
+            if case let .serverError(statusCode, _, _) = error {
                 // 2. 스웨거에서 확인한 중복 응답 코드가 409가 맞는지 확인하세요.
                 if statusCode == 409 {
                     emailCheckState = .duplicated

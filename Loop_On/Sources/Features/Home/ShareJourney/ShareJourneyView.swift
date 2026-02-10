@@ -37,6 +37,9 @@ struct ShareJourneyView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .onAppear {
+                viewModel.dismiss = { dismiss() }
+            }
             .toolbar {
                 // 왼쪽 뒤로 가기 화살표 버튼
                 ToolbarItem(placement: .navigationBarLeading) {

@@ -11,6 +11,9 @@ import UIKit
 
 struct ChallengeView: View {
     @Environment(NavigationRouter.self) private var router
+    /// 프로필 탭 시 타인뷰 오버레이로 열기 (RootTabView에서 설정 → 하단 탭바 유지)
+    var onOpenOtherProfile: ((Int) -> Void)? = nil
+
     @SceneStorage("challenge.selectedTopTab") private var selectedTopTabRawValue: Int = ChallengeTopTab.plaza.rawValue
     @State private var selectedTopTab: ChallengeTopTab = .plaza
     @State private var hasLoadedStoredTab = false
@@ -34,7 +37,7 @@ struct ChallengeView: View {
                     .padding(.top, 16)
 
                 TabView(selection: $selectedTopTab) {
-                    ChallengePlazaView()
+                    ChallengePlazaView(onOpenOtherProfile: onOpenOtherProfile)
                         .tag(ChallengeTopTab.plaza)
 
                     ChallengeFriendsView(viewModel: friendsViewModel)
@@ -61,7 +64,7 @@ struct ChallengeView: View {
                         .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
                 }
                 .padding(.trailing, 20)
-                .padding(.bottom, safeAreaBottomHeight)
+                .padding(.bottom, bottomPaddingAboveTabBar)
             }
 
         }
@@ -150,6 +153,12 @@ private extension ChallengeView {
         let windowScene = scenes.first as? UIWindowScene
         let window = windowScene?.windows.first
         return window?.safeAreaInsets.bottom ?? 0
+    }
+
+    /// 하단 탭바 높이 + safe area. '+' 버튼이 탭바에 가리지 않도록 사용
+    private var bottomPaddingAboveTabBar: CGFloat {
+        let tabBarContentHeight: CGFloat = 56
+        return tabBarContentHeight + safeAreaBottomHeight
     }
 }
 

@@ -155,8 +155,8 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
                 }
                 return .failure(.serverError(statusCode: response.statusCode, message: "데이터가 없습니다."))
             } else {
-                // 실패 시 서버가 보내준 message를 에러 메시지로 사용
-                return .failure(.serverError(statusCode: response.statusCode, message: apiResponse.message))
+                // 실패 시 서버가 보내준 message와 code 사용 (예: result "FAIL", code "A001", message "인증이 필요합니다.")
+                return .failure(.serverError(statusCode: response.statusCode, message: apiResponse.message, serverCode: apiResponse.code))
             }
         } catch {
             // 여기서 isSuccess를 못 찾아 에러가 나고 있었음. 수정 후엔 해결됨.

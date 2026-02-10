@@ -8,10 +8,23 @@
 import SwiftUI
 
 struct PersonalProfileView: View {
+    /// true: 내 프로필, false: 타인 프로필
+    let isOwnProfile: Bool
+    /// 타인 프로필을 오버레이로 띄울 때 닫기 콜백 (설정 시 뒤로가기가 이걸 호출)
+    var onClose: (() -> Void)? = nil
+
     @Environment(NavigationRouter.self) private var router
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = PersonalProfileViewModel()
     @State private var isShowingProfileEdit = false
     @State private var isShowingShareJourney = false
+    /// 그리드에서 탭한 썸네일 인덱스 → 피드 상세 화면에서 해당 피드가 최상단에 오도록
+    @State private var feedDetailSelectedIndex: Int? = nil
+
+    init(isOwnProfile: Bool = true, onClose: (() -> Void)? = nil) {
+        self.isOwnProfile = isOwnProfile
+        self.onClose = onClose
+    }
     
     var body: some View {
         ZStack {
@@ -19,12 +32,42 @@ struct PersonalProfileView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 상단 헤더 (HomeView와 동일: Logo + passport + 설정)
-                HomeHeaderView(onSettingsTapped: {
-                    router.push(.app(.settings))
-                })
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
+                // 내 프로필: 기존 홈 헤더 (Logo + 설정)
+                // 타인 프로필: 기존 로고 자리에 뒤로가기 + Logo 조합
+                if isOwnProfile {
+                    HomeHeaderView(onSettingsTapped: {
+                        router.push(.app(.settings))
+                    })
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                } else {
+                    // 다른 화면과 동일: 로고가 시작하는 지점(leading 20)에 뒤로가기 화살표
+                    HStack(alignment: .center, spacing: 0) {
+                        Button {
+                            if let onClose = onClose {
+                                onClose()
+                            } else {
+                                dismiss()
+                            }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(Color("5-Text"))
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Image("Logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 164, height: 40)
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                }
                 
                 if let user = viewModel.user {
                     // 프로필 섹션 (고정)
@@ -63,6 +106,18 @@ struct PersonalProfileView: View {
         .fullScreenCover(isPresented: $isShowingShareJourney) {
             ShareJourneyView()
         }
+        .fullScreenCover(isPresented: Binding(
+            get: { feedDetailSelectedIndex != nil },
+            set: { if !$0 { feedDetailSelectedIndex = nil } }
+        )) {
+            if let index = feedDetailSelectedIndex, index < viewModel.myChallengeItems.count {
+                PersonalFeedDetailView(
+                    items: viewModel.myChallengeItems,
+                    selectedIndex: index,
+                    onClose: { feedDetailSelectedIndex = nil }
+                )
+            }
+        }
         .fullScreenCover(isPresented: $isShowingProfileEdit) {
             if let user = viewModel.user {
                 ProfileEditPopupView(
@@ -89,36 +144,48 @@ struct PersonalProfileView: View {
                                 .resizable()
                                 .scaledToFill()
                         } placeholder: {
-                            Circle()
-                                .fill(Color("85"))
+                            ZStack {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 44))
+                                    .foregroundStyle(Color.white)
+                            }
                         }
                         .frame(width: 110, height: 110)
                         .clipShape(Circle())
                     } else {
-                        Circle()
-                            .fill(Color("85"))
-                            .frame(width: 110, height: 110)
-                    }
-                    
-                    // 카메라 아이콘
-                    Button {
-                        // TODO: 프로필 이미지 편집
-                    } label: {
                         ZStack {
                             Circle()
-                                .fill(Color.black)
-                                .frame(width: 36, height: 36)
-                            
-                            Image("photo_camera")
-                                .resizable()
-                                .renderingMode(.template)
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
+                                .fill(Color.gray.opacity(0.3))
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 44))
                                 .foregroundStyle(Color.white)
                         }
+                        .frame(width: 110, height: 110)
                     }
-                    .buttonStyle(.plain)
-                    .offset(x: -2, y: -2)
+                    
+                    // 카메라 아이콘 (내 프로필에서만)
+                    if isOwnProfile {
+                        Button {
+                            // TODO: 프로필 이미지 편집
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.black)
+                                    .frame(width: 36, height: 36)
+                                
+                                Image("photo_camera")
+                                    .resizable()
+                                    .renderingMode(.template)
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
+                                    .foregroundStyle(Color.white)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .offset(x: -2, y: -2)
+                    }
                 }
                 
                 // 사용자 정보 (오른쪽)
@@ -144,15 +211,24 @@ struct PersonalProfileView: View {
             }
             
             // 액션 버튼들
-            HStack(alignment: .center, spacing: 20) {
-                ProfileActionButton(title: "프로필 편집") {
-                    isShowingProfileEdit = true
+            if isOwnProfile {
+                // 내 프로필: 프로필 편집 / 챌린지 추가 (두 개 버튼)
+                HStack(alignment: .center, spacing: 8) {
+                    ProfileActionButton(title: "프로필 편집") {
+                        isShowingProfileEdit = true
+                    }
+                    ProfileActionButton(title: "챌린지 추가") {
+                        isShowingShareJourney = true
+                    }
                 }
-                ProfileActionButton(title: "챌린지 추가") {
-                    isShowingShareJourney = true
+                .padding(.top, 24)
+            } else {
+                // 타인 프로필: 한 줄짜리 \"친구 신청\" 버튼
+                ProfileActionButton(title: "친구 신청") {
+                    // TODO: 친구 신청 API 연결
                 }
+                .padding(.top, 24)
             }
-            .padding(.top, 24)
         }
     }
     
@@ -165,7 +241,15 @@ struct PersonalProfileView: View {
         
         return LazyVGrid(columns: columns, spacing: 12) {
             ForEach(0..<viewModel.challengeImages.count, id: \.self) { index in
-                challengeImageCell(imageURL: viewModel.challengeImages[index])
+                Button {
+                    feedDetailSelectedIndex = index
+                } label: {
+                    challengeImageCell(imageURL: viewModel.challengeImages[index])
+                }
+                .buttonStyle(.plain)
+                .onAppear {
+                    viewModel.loadMoreChallengesIfNeeded(currentIndex: index)
+                }
             }
         }
     }

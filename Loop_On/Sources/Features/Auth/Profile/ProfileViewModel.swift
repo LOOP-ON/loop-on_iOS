@@ -205,7 +205,7 @@ final class ProfileViewModel: ObservableObject {
             nicknameCheckState = .available
             lastCheckedNickname = trimmed
         case .failure(let error):
-            if case let .serverError(statusCode, _) = error, statusCode == 409 {
+            if case let .serverError(statusCode, _, _) = error, statusCode == 409 {
                 nicknameCheckState = .duplicated
             } else {
                 nicknameCheckState = .idle

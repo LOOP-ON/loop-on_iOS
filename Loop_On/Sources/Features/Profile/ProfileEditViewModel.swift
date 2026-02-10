@@ -33,6 +33,8 @@ final class ProfileEditViewModel: ObservableObject {
         nickname.trimmingCharacters(in: .whitespacesAndNewlines) != originalNickname.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
+    private let networkManager = DefaultNetworkManager<AuthAPI>()
+    
     init(initialUser: UserModel) {
         // 초기값 설정
         self.nickname = initialUser.name
@@ -48,21 +50,30 @@ final class ProfileEditViewModel: ObservableObject {
     }
     
     func checkNicknameDuplication() {
+        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedNickname.isEmpty else {
+            duplicationCheckResult = .idle
+            return
+        }
+        
         isCheckingDuplication = true
         duplicationCheckResult = .checking
         
-        // 테스트: "인성" 입력 시 무조건 통과
-        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.isCheckingDuplication = false
-            // "인성" 입력 시 무조건 통과
-            if trimmedNickname == "인성" {
-                self.duplicationCheckResult = .available
-            } else {
-                // TODO: API 호출로 중복 확인
-                // 임시로 항상 사용 가능으로 설정
-                self.duplicationCheckResult = .available
+        networkManager.requestStatusCode(target: .checkNickname(nickname: trimmedNickname)) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isCheckingDuplication = false
+                
+                switch result {
+                case .success:
+                    self.duplicationCheckResult = .available
+                case .failure(let error):
+                    if case let .serverError(statusCode, _, _) = error, statusCode == 409 {
+                        self.duplicationCheckResult = .duplicated
+                    } else {
+                        self.duplicationCheckResult = .idle
+                    }
+                }
             }
         }
     }

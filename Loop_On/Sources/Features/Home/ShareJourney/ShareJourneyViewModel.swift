@@ -28,7 +28,12 @@ class ShareJourneyViewModel: ObservableObject {
     
     @Published var caption: String = ""
     @Published var expeditionSetting: String = "없음"
-    
+    /// API 연동 시 사용. 화면 진입 시 주입 가능 (기본 0)
+    var journeyId: Int = 0
+    var expeditionId: Int = 0
+
+    private let challengeNetworkManager = DefaultNetworkManager<ChallengeAPI>()
+
     private func handleSelectedItems() {
         let group = DispatchGroup()
             
@@ -103,9 +108,35 @@ class ShareJourneyViewModel: ObservableObject {
         newHashtagInput = ""
     }
     
-    // API 업로드 시뮬레이션
+    // POST /api/challenges 연동
     func uploadChallenge() {
-        print("업로드 시작: \(caption), 태그: \(hashtags)")
-        // URLSession 또는 Alamofire 로직이 여기에 들어갑니다.
+        let hashtagList = Array(selectedHashtags)
+        let dto = CreateChallengeRequestDTO(
+            hashtagList: hashtagList,
+            content: caption,
+            journeyId: journeyId,
+            expeditionId: expeditionId
+        )
+        let imageDatas = photos.compactMap { $0.jpegData(compressionQuality: 0.8) }
+
+        print("[챌린지 업로드] 요청 — journeyId: \(journeyId), expeditionId: \(expeditionId), content: \"\(caption)\", hashtags: \(hashtagList), 이미지 수: \(imageDatas.count)")
+
+        challengeNetworkManager.request(
+            target: .createChallenge(request: dto, imageDatas: imageDatas),
+            decodingType: CreateChallengeDataDTO.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let data):
+                    print("[챌린지 업로드] 성공 — challengeId: \(data.challengeId)")
+                    self?.dismiss?()
+                case .failure(let error):
+                    print("[챌린지 업로드] 실패: \(error)")
+                }
+            }
+        }
     }
+
+    /// 업로드 성공 시 화면 닫기용 (ShareJourneyView에서 설정)
+    var dismiss: (() -> Void)?
 }
