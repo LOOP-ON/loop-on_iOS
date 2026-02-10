@@ -11,6 +11,8 @@ struct RootView: View {
     @Environment(SessionStore.self) private var session
 
     @StateObject private var homeViewModel = HomeViewModel()
+    @State private var signUpFlowStore = SignUpFlowStore()
+
     var body: some View {
         @Bindable var router = router
 
@@ -89,6 +91,7 @@ struct RootView: View {
                 }
             }
         }
+        .environment(signUpFlowStore)
         .environmentObject(homeViewModel)
     }
 }

@@ -11,9 +11,14 @@ struct ChallengeFriendsView: View {
     @ObservedObject var viewModel: ChallengeFriendsViewModel
     @State private var pendingDeleteFriend: ChallengeFriend?
     @State private var isShowingDeleteAlert = false
+    private let shouldLoadOnAppear: Bool
 
-    init(viewModel: ChallengeFriendsViewModel = ChallengeFriendsViewModel()) {
+    init(
+        viewModel: ChallengeFriendsViewModel = ChallengeFriendsViewModel(),
+        shouldLoadOnAppear: Bool = true
+    ) {
         self.viewModel = viewModel
+        self.shouldLoadOnAppear = shouldLoadOnAppear
     }
 
     var body: some View {
@@ -25,20 +30,28 @@ struct ChallengeFriendsView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(viewModel.filteredFriends) { friend in
-                            ChallengeFriendRow(
-                                friend: friend,
-                                onDelete: { friendId in
-                                    pendingDeleteFriend = viewModel.friends.first { $0.id == friendId }
-                                    isShowingDeleteAlert = true
-                                }
-                            )
+                        if viewModel.filteredFriends.isEmpty {
+                            emptyFriendsState(message: viewModel.loadFriendsErrorMessage)
+                                .padding(.top, 24)
+                        } else {
+                            ForEach(viewModel.filteredFriends) { friend in
+                                ChallengeFriendRow(
+                                    friend: friend,
+                                    onDelete: { friendId in
+                                        pendingDeleteFriend = viewModel.friends.first { $0.id == friendId }
+                                        isShowingDeleteAlert = true
+                                    }
+                                )
+                            }
                         }
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 120)
                 }
                 .scrollIndicators(.hidden)
+                .refreshable {
+                    viewModel.refreshFriends()
+                }
             }
 
             requestButton
@@ -60,6 +73,11 @@ struct ChallengeFriendsView: View {
             }
         }
         .tint(Color(.primaryColor55))
+        .onAppear {
+            if shouldLoadOnAppear {
+                viewModel.loadFriendsIfNeeded()
+            }
+        }
     }
 }
 
@@ -121,11 +139,27 @@ private extension ChallengeFriendsView {
         let name = pendingDeleteFriend?.name ?? "친구"
         return "정말로 '\(name)'을(를) 친구 목록에서 삭제할까요?"
     }
+
+    func emptyFriendsState(message: String?) -> some View {
+        let title = message == nil ? "아직 친구가 없어요" : "목록을 불러오지 못했어요"
+        let detail = message ?? "친구를 추가하고 여정을 함께 시작해보세요."
+        return VStack(spacing: 8) {
+            Text(title)
+                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
+                .foregroundStyle(Color("5-Text"))
+
+            Text(detail)
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                .foregroundStyle(Color.gray)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+    }
 }
 
 private struct ChallengeFriendRow: View {
     let friend: ChallengeFriend
-    var onDelete: (UUID) -> Void
+    var onDelete: (Int) -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -170,6 +204,21 @@ private struct ChallengeFriendRow: View {
     }
 }
 
-#Preview {
-    ChallengeFriendsView(viewModel: ChallengeFriendsViewModel())
+#Preview("Empty") {
+    let emptyViewModel = ChallengeFriendsViewModel(
+        friends: [],
+        hasPendingRequests: false,
+        friendRequests: []
+    )
+    return ChallengeFriendsView(viewModel: emptyViewModel, shouldLoadOnAppear: false)
+}
+
+#Preview("Load Error") {
+    let errorViewModel = ChallengeFriendsViewModel(
+        friends: [],
+        hasPendingRequests: false,
+        friendRequests: []
+    )
+    errorViewModel.loadFriendsErrorMessage = "네트워크 상태를 확인한 뒤 다시 시도해 주세요.\n같은 현상이 지속될 경우 문의해 주세요."
+    return ChallengeFriendsView(viewModel: errorViewModel, shouldLoadOnAppear: false)
 }

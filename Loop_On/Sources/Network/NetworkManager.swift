@@ -76,6 +76,9 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
 
     private func handleNetworkError(_ error: Error) -> NetworkError {
         let nsError = error as NSError
+        #if DEBUG
+        print("🔴 NetworkError: domain=\(nsError.domain), code=\(nsError.code), \(nsError.localizedDescription)")
+        #endif
         switch nsError.code {
         case NSURLErrorNotConnectedToInternet: return .networkError(message: "인터넷 연결 없음")
         case NSURLErrorTimedOut: return .networkError(message: "요청 시간 초과")
