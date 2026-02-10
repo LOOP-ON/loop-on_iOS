@@ -9,8 +9,8 @@ import SwiftUI
 
 struct ChallengeFriendRequestSheet: View {
     let requests: [ChallengeFriendRequest]
-    var onAccept: (UUID) -> Void
-    var onReject: (UUID) -> Void
+    var onAccept: (Int) -> Void
+    var onReject: (Int) -> Void
     var onAcceptAll: () -> Void
     var onRejectAll: () -> Void
     var onClose: () -> Void
@@ -106,8 +106,8 @@ private extension ChallengeFriendRequestSheet {
 
 private struct RequestRow: View {
     let request: ChallengeFriendRequest
-    var onAccept: (UUID) -> Void
-    var onReject: (UUID) -> Void
+    var onAccept: (Int) -> Void
+    var onReject: (Int) -> Void
 
     var body: some View {
         HStack(spacing: 12) {

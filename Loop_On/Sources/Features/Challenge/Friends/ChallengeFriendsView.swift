@@ -88,12 +88,12 @@ struct ChallengeFriendsView: View {
                 pendingDeleteFriend = nil
             }
         }
-        .tint(Color(.primaryColor55))
+        .tint(Color(.primaryColorVarient65))
         .alert(
             "안내",
             isPresented: $viewModel.isShowingSearchAlert
         ) {
-            Button("확인", role: .cancel) {}
+            Button("확인") {}
         } message: {
             Text(viewModel.searchAlertMessage ?? "")
         }

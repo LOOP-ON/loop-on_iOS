@@ -15,6 +15,10 @@ enum FriendsAPI {
     case searchFriends(query: String, page: Int, size: Int)
     // 친구 요청 전송 (POST /api/friend-request/send)
     case sendFriendRequest(request: FriendRequestSendRequest)
+    // 받은 친구 요청 목록 조회 (GET /api/friend-request)
+    case getFriendRequests(page: Int, size: Int)
+    // 친구 요청 개수 조회 (GET /api/friend-request/pending-count)
+    case getPendingRequestCount
 }
 
 extension FriendsAPI: TargetType {
@@ -33,6 +37,10 @@ extension FriendsAPI: TargetType {
             return "/api/friend-request/search"
         case .sendFriendRequest:
             return "/api/friend-request/send"
+        case .getFriendRequests:
+            return "/api/friend-request"
+        case .getPendingRequestCount:
+            return "/api/friend-request/pending-count"
         }
     }
 
@@ -44,6 +52,10 @@ extension FriendsAPI: TargetType {
             return .get
         case .sendFriendRequest:
             return .post
+        case .getFriendRequests:
+            return .get
+        case .getPendingRequestCount:
+            return .get
         }
     }
 
@@ -62,6 +74,16 @@ extension FriendsAPI: TargetType {
             )
         case let .sendFriendRequest(request):
             return .requestJSONEncodable(request)
+        case let .getFriendRequests(page, size):
+            return .requestParameters(
+                parameters: [
+                    "page": page,
+                    "size": size
+                ],
+                encoding: URLEncoding.queryString
+            )
+        case .getPendingRequestCount:
+            return .requestPlain
         }
     }
 

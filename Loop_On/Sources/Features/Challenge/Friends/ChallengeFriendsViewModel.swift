@@ -24,11 +24,12 @@ final class ChallengeFriendsViewModel: ObservableObject {
     @Published var searchErrorMessage: String?
     @Published var isShowingSearchAlert: Bool = false
     @Published var searchAlertMessage: String?
+    @Published var pendingRequestCount: Int = 0
 
     init(
         friends: [ChallengeFriend] = [],
-        hasPendingRequests: Bool = true,
-        friendRequests: [ChallengeFriendRequest] = ChallengeFriendRequest.sampleRequests,
+        hasPendingRequests: Bool = false,
+        friendRequests: [ChallengeFriendRequest] = [],
         networkManager: DefaultNetworkManager<FriendsAPI> = DefaultNetworkManager<FriendsAPI>()
     ) {
         self.friends = friends
@@ -69,6 +70,7 @@ final class ChallengeFriendsViewModel: ObservableObject {
     func loadFriends() {
         print("✅ [Friends] loadFriends request start: GET /api/friend")
         isLoadingFriends = true
+        loadPendingRequestCount()
         networkManager.request(
             target: .getFriends,
             decodingType: [ChallengeFriendListItemDTO].self
@@ -93,8 +95,7 @@ final class ChallengeFriendsViewModel: ObservableObject {
     }
 
     func openRequestList() {
-        // TODO: API 연결 시 친구 요청 목록 모달/화면 이동 처리
-        isShowingRequestSheet = true
+        loadFriendRequests(openSheet: true)
     }
 
     func clearSearchResults() {
@@ -173,35 +174,88 @@ final class ChallengeFriendsViewModel: ObservableObject {
         }
     }
 
-    func acceptRequest(id: UUID) {
+    func acceptRequest(id: Int) {
         // TODO: API 연결 시 친구 요청 수락 처리 (id)
         friendRequests.removeAll { $0.id == id }
-        updatePendingState()
+        updatePendingCountFromList()
     }
 
-    func rejectRequest(id: UUID) {
+    func rejectRequest(id: Int) {
         // TODO: API 연결 시 친구 요청 거절 처리 (id)
         friendRequests.removeAll { $0.id == id }
-        updatePendingState()
+        updatePendingCountFromList()
     }
 
     func acceptAllRequests() {
         // TODO: API 연결 시 친구 요청 전체 수락 처리
         friendRequests.removeAll()
-        updatePendingState()
+        updatePendingCountFromList()
     }
 
     func rejectAllRequests() {
         // TODO: API 연결 시 친구 요청 전체 거절 처리
         friendRequests.removeAll()
-        updatePendingState()
+        updatePendingCountFromList()
     }
 
     func closeRequestSheet() {
         isShowingRequestSheet = false
     }
 
+    func loadFriendRequests(openSheet: Bool = false) {
+        networkManager.request(
+            target: .getFriendRequests(page: 0, size: 20),
+            decodingType: ChallengeFriendRequestPageDTO.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success(let page):
+                    self.friendRequests = page.content.map { ChallengeFriendRequest(dto: $0) }
+                    self.pendingRequestCount = self.friendRequests.count
+                    self.updatePendingState()
+                    if openSheet {
+                        self.isShowingRequestSheet = true
+                    }
+                case .failure(let error):
+                    print("❌ [Friends] loadFriendRequests failed: \(error)")
+                    self.friendRequests = []
+                    self.pendingRequestCount = 0
+                    self.updatePendingState()
+                    if openSheet {
+                        self.isShowingRequestSheet = true
+                    }
+                }
+            }
+        }
+    }
+
+    func loadPendingRequestCount() {
+        networkManager.request(
+            target: .getPendingRequestCount,
+            decodingType: Int.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success(let count):
+                    self.pendingRequestCount = count
+                    self.updatePendingState()
+                case .failure(let error):
+                    print("❌ [Friends] loadPendingRequestCount failed: \(error)")
+                    self.pendingRequestCount = 0
+                    self.updatePendingState()
+                }
+            }
+        }
+    }
+
+    private func updatePendingCountFromList() {
+        pendingRequestCount = friendRequests.count
+        updatePendingState()
+    }
+
     private func updatePendingState() {
-        hasPendingRequests = !friendRequests.isEmpty
+        hasPendingRequests = pendingRequestCount > 0
     }
 }
