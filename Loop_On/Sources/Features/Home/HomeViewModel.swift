@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import Moya
 
 enum ActiveFullSheet: Identifiable {
     case camera
@@ -38,6 +39,10 @@ enum ActiveFullSheet: Identifiable {
 }
 
 class HomeViewModel: ObservableObject {
+    private let provider = MoyaProvider<HomeAPI>()
+    private var cancellables = Set<AnyCancellable>()
+    private let networkManager = DefaultNetworkManager<HomeAPI>()
+    
     // UI 상태 관리
     @Published var journeyInfo: JourneyInfo?    // loop_id 및 진척도 정보 포함
     @Published var routines: [RoutineModel] = []
@@ -61,64 +66,138 @@ class HomeViewModel: ObservableObject {
         guard let selected = selectedRoutine else { return 1 }
         return (routines.firstIndex(where: { $0.id == selected.id }) ?? 0) + 1
     }
+    
+    var routinesForCoaching: [RoutineCoach] {
+        routines.enumerated().map { index, model in
+            RoutineCoach(
+                index: index + 1,
+                name: model.title,
+                // RoutineModel의 time(String)을 Date로 변환하기 어려우면 현재 시간을 기본값으로 사용
+                alarmTime: Date()
+            )
+        }
+    }
 
     init() {
-        fetchHomeData()
+//        fetchHomeData()
     }
 
     // MARK: - API 통신 (Mock)
     func fetchHomeData() {
         self.isLoading = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            // 더미 데이터 설정
-            let mockDTO = HomeDataResponseDTO(
-                loopId: 1,
-                title: "건강한 생활 만들기",
-                currentDay: 3, // 현재 1일차
-                totalJourney: 3,
-                completedJourney: 2,
-                todayRoutine: 3,       // 목표 개수
-                todayRoutineCount: 0,  // 오늘 시작 시점은 0
-                yesterdayRoutineCount: 3, // 어제 3개 중 2개만 완료한 상황 가정
-                routines: [
-                    RoutineDTO(id: 101, title: "아침에 일어나 물 한 컵 마시기", alarmTime: "08:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
-                    RoutineDTO(id: 102, title: "낮 시간에 몸 움직이기", alarmTime: "13:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
-                    RoutineDTO(id: 103, title: "정해진 시간에 침대에 눕기", alarmTime: "23:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요")
-                ]
-            )
-                
-            // totalCount를 루틴 개수(3)가 아닌, 전체 여정 기간(예: 3일)으로 설정
-            self.journeyInfo = JourneyInfo(
-                loopId: mockDTO.loopId,
-                currentDay: mockDTO.currentDay,
-                totalJourney: 3, // 프로그래스 바의 총 칸 수
-                completedJourney: 2,  // 시작 시 완료된 일수
-                todayRoutine: 3,
-                todayRoutineCount: 0,
-                yesterdayRoutineCount: 3
-            )
-                
-            self.routines = mockDTO.routines.map {
-                RoutineModel(id: $0.id, title: $0.title, time: "\($0.alarmTime) 알림 예정", isCompleted: $0.isCompleted, isDelayed: $0.isDelayed, delayReason: $0.delayReason)
+            
+        networkManager.request(
+            target: .fetchCurrentJourney,
+            decodingType: HomeDataDetail.self
+        ) { [weak self] result in
+            guard let self = self else { return }
+
+            DispatchQueue.main.async {
+                self.isLoading = false
+                switch result {
+                case .success(let data):
+                    // 성공 시 data는 HomeDataDetail 타입
+                    self.updateUI(with: data)
+
+                case .failure(let error):
+                    print("API Error:", error.localizedDescription)
+                }
             }
-            
-            // 미완료 루틴 플래그 판단 로직
-            // 완료된 루틴 개수가 총 루틴 개수보다 적으면 미처리된 것이 있다고 판단
-            let hasUnsettledRoutine = self.routines.contains { !$0.isCompleted && !$0.isDelayed }
-            
-            if hasUnsettledRoutine {
-            // 미처리된 루틴이 있을 때만 미완료 모드 활성화 및 팝업 노출
-                self.hasUncompletedRoutines = true
-                self.activeFullSheet = .uncompletedRoutineAlert
-            } else {
-                // 모든 루틴이 '완료' 혹은 '미루기'로 처리되었다면 팝업을 띄우지 않음
-                self.hasUncompletedRoutines = false
-            }
-            
-            self.isLoading = false
-            self.goalTitle = mockDTO.title
         }
     }
+        
+    private func updateUI(with data: HomeDataDetail) {
+        self.goalTitle = data.journey.goal
+            
+        // 기존 JourneyInfo 모델에 맞춰 매핑
+        self.journeyInfo = JourneyInfo(
+            loopId: data.journey.journeyId,
+            currentDay: 1, // 필요 시 계산 로직 추가
+            totalJourney: data.todayProgress.totalCount,
+            completedJourney: data.todayProgress.completedCount,
+            todayRoutine: data.routines.count,
+            todayRoutineCount: data.todayProgress.completedCount,
+            yesterdayRoutineCount: 0
+        )
+            
+        // 루틴 리스트 매핑
+        self.routines = data.routines.map { dto in
+            RoutineModel(
+                id: dto.id,
+                title: dto.title,
+                time: "\(dto.alarmTime) 알림 예정",
+                isCompleted: dto.isCompleted,
+                isDelayed: dto.isDelayed,
+                delayReason: dto.delayReason
+            )
+        }
+            
+        // 미완료 루틴 처리 로직 실행
+        checkUncompletedRoutines()
+    }
+    
+    private func checkUncompletedRoutines() {
+        let hasUnsettledRoutine = self.routines.contains { !$0.isCompleted && !$0.isDelayed }
+            
+        if hasUnsettledRoutine {
+            self.hasUncompletedRoutines = true
+            self.activeFullSheet = .uncompletedRoutineAlert
+        } else {
+            self.hasUncompletedRoutines = false
+        }
+    }
+//    func fetchHomeData() {
+//        self.isLoading = true
+//        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+//            // 더미 데이터 설정
+//            let mockDTO = HomeDataResponseDTO(
+//                loopId: 1,
+//                title: "건강한 생활 만들기",
+//                currentDay: 3, // 현재 1일차
+//                totalJourney: 3,
+//                completedJourney: 2,
+//                todayRoutine: 3,       // 목표 개수
+//                todayRoutineCount: 0,  // 오늘 시작 시점은 0
+//                yesterdayRoutineCount: 3, // 어제 3개 중 2개만 완료한 상황 가정
+//                routines: [
+//                    RoutineDTO(id: 101, title: "아침에 일어나 물 한 컵 마시기", alarmTime: "08:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
+//                    RoutineDTO(id: 102, title: "낮 시간에 몸 움직이기", alarmTime: "13:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요"),
+//                    RoutineDTO(id: 103, title: "정해진 시간에 침대에 눕기", alarmTime: "23:00", isCompleted: false, isDelayed: false, delayReason: "컨디션이 좋지 않아요")
+//                ]
+//            )
+//                
+//            // totalCount를 루틴 개수(3)가 아닌, 전체 여정 기간(예: 3일)으로 설정
+//            self.journeyInfo = JourneyInfo(
+//                loopId: mockDTO.loopId,
+//                currentDay: mockDTO.currentDay,
+//                totalJourney: 3, // 프로그래스 바의 총 칸 수
+//                completedJourney: 2,  // 시작 시 완료된 일수
+//                todayRoutine: 3,
+//                todayRoutineCount: 0,
+//                yesterdayRoutineCount: 3
+//            )
+//                
+//            self.routines = mockDTO.routines.map {
+//                RoutineModel(id: $0.id, title: $0.title, time: "\($0.alarmTime) 알림 예정", isCompleted: $0.isCompleted, isDelayed: $0.isDelayed, delayReason: $0.delayReason)
+//            }
+//            
+//            // 미완료 루틴 플래그 판단 로직
+//            // 완료된 루틴 개수가 총 루틴 개수보다 적으면 미처리된 것이 있다고 판단
+//            let hasUnsettledRoutine = self.routines.contains { !$0.isCompleted && !$0.isDelayed }
+//            
+//            if hasUnsettledRoutine {
+//            // 미처리된 루틴이 있을 때만 미완료 모드 활성화 및 팝업 노출
+//                self.hasUncompletedRoutines = true
+//                self.activeFullSheet = .uncompletedRoutineAlert
+//            } else {
+//                // 모든 루틴이 '완료' 혹은 '미루기'로 처리되었다면 팝업을 띄우지 않음
+//                self.hasUncompletedRoutines = false
+//            }
+//            
+//            self.isLoading = false
+//            self.goalTitle = mockDTO.title
+//        }
+//    }
     
     // MARK: - 루틴 완료 처리 (인증 버튼 클릭 시 호출)
     func completeRoutine(at index: Int) {

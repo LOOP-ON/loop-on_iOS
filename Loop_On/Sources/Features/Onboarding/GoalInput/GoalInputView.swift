@@ -8,6 +8,7 @@ import SwiftUI
 
 struct GoalInputView: View {
     @Environment(NavigationRouter.self) private var router
+    @Environment(SessionStore.self) private var session
     @StateObject private var viewModel: GoalInputViewModel
     @FocusState private var isFieldFocused: Bool
 
@@ -38,8 +39,31 @@ struct GoalInputView: View {
                     .padding(.bottom, 34)
             }
         }
+        .onAppear {
+            // 화면이 나타날 때 세션의 닉네임을 ViewModel에 동기화
+            viewModel.updateNickname(session.currentUserNickname)
+            
+            // 만약 닉네임이 비어있다면 한 번 더 조회를 요청할 수 있습니다.
+            if session.currentUserNickname.isEmpty {
+                session.fetchUserProfile()
+            }
+        }
+        // 세션 정보가 업데이트되면 ViewModel도 자동으로 업데이트되도록 설정
+        .onChange(of: session.currentUserNickname) { _, newValue in
+            viewModel.updateNickname(newValue)
+        }
         .onTapGesture {
             isFieldFocused = false
+        }
+        .alert("안내", isPresented: Binding(
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
+        )) {
+            Button("확인", role: .cancel) {
+                viewModel.errorMessage = nil
+            }
+        } message: {
+            Text(viewModel.errorMessage ?? "")
         }
     }
 
@@ -106,13 +130,19 @@ struct GoalInputView: View {
     // MARK: - 4. 하단 CTA 영역
     private var nextButtonView: some View {
         Button {
-            // Step2 목표 입력 -> 목표 생성 API 호출
-            viewModel.submitGoal()
-            let trimmedGoal = viewModel.goalText.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedGoal.isEmpty {
-                router.push(.app(.insightSelect(goalText: trimmedGoal, category: viewModel.category)))
+            // 목표 입력 -> 목표 생성 API 호출
+            viewModel.proceedToNextStep { success in
+                if success {
+                    let trimmedGoal = viewModel.goalText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    // 모든 API 성공 시 다음 화면으로 이동
+                    router.push(.app(.insightSelect(
+                        goalText: trimmedGoal,
+                        category: viewModel.category,
+                        insights: viewModel.recommendedInsights,
+                        journeyId: viewModel.journeyId ?? 0
+                    )))
+                }
             }
-            // TODO: 목표 입력 저장 성공 후 다음 화면으로 이동
         } label: {
             Text("다음으로")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
@@ -135,10 +165,14 @@ struct GoalInputView: View {
 
 #Preview("iPhone 15 Pro") {
     GoalInputView(category: "SKILL")
+        .environment(NavigationRouter())
+        .environment(SessionStore())
 }
 
 #Preview("iPhone 16 Pro Max") {
     GoalInputView(category: "ROUTINE")
+        .environment(NavigationRouter())
+        .environment(SessionStore())
 }
 
 

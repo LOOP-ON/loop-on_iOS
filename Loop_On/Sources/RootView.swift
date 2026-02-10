@@ -19,9 +19,10 @@ struct RootView: View {
         NavigationStack(path: $router.path) {
             // 시작 화면 분기 (Splash 다음에 여기로 들어옴)
             Group {
-                if session.hasLoggedInBefore {
+                if session.hasValidToken && session.isOnboardingCompleted {
 //                    HomeView()
                     RootTabView()
+                        .environmentObject(HomeViewModel())
                 } else {
                     AuthView()
                     // RootTabView() 회원가입 api 연동 기간 동안 잠시 주석 처리
@@ -44,8 +45,8 @@ struct RootView: View {
                 case .app(.home):
                     HomeView()
                 
-                case .app(.routineCoach):
-                    RoutineCoachView()
+                case let .app(.routineCoach(routines, journeyId)):
+                    RoutineCoachView(routines: routines, journeyId: journeyId)
                         .toolbar(.hidden, for: .tabBar)
                         .navigationBarBackButtonHidden(true)
                         .ignoresSafeArea(.all)
@@ -68,12 +69,17 @@ struct RootView: View {
 
                 case .app(.goalSelect):
                     GoalSelectView()
+                        .navigationBarBackButtonHidden(true)
+                
+                case .app(.onBoarding):
+                    IntroView()
+                        .navigationBarBackButtonHidden(true)
 
                 case let .app(.goalInput(category)):
                     GoalInputView(category: category)
 
-                case let .app(.insightSelect(goalText, category)):
-                    InsightSelectView(goalText: goalText, category: category)
+                case let .app(.insightSelect(goalText, category, insights, journeyId)):
+                    InsightSelectView(goalText: goalText, category: category, insights: insights, journeyId: journeyId)
 
                 case let .app(.detail(title)):
                     // DetailView(title: title)   임시로 Text(title)로 대체

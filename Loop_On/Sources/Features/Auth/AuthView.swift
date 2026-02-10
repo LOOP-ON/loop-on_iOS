@@ -64,13 +64,26 @@ struct AuthView: View {
                 .padding(.bottom, 12)   // 홈 인디케이터 위 여유
                 .background(Color("background"))
             }
+//        .onChange(of: viewModel.isLoggedIn) { _, loggedIn in
+//            guard loggedIn else { return }
+//
+//            // 이력 저장
+//            session.markLoggedIn()
+//
+//            // 탭바 루트로 복귀
+//            router.reset()
+//        }
         .onChange(of: viewModel.isLoggedIn) { _, loggedIn in
             guard loggedIn else { return }
-            print("📍 [AuthView] isLoggedIn=true → session.markLoggedIn() + router.reset()")
-            // 이력 저장
             session.markLoggedIn()
-            // 탭바 루트로 복귀 (RootView가 session.hasLoggedInBefore로 홈 표시)
-            router.reset()
+
+            if session.isOnboardingCompleted {
+                // 온보딩을 이미 했다면 스택 비우고 홈으로 (RootView가 RootTabView로 교체함)
+                router.reset()
+            } else {
+                // 온보딩 전이라면 온보딩 시작 화면으로 이동
+                router.push(.app(.onBoarding))
+            }
         }
     }
 }

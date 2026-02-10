@@ -13,6 +13,10 @@ enum OnboardingAPI {
     case createJourneyGoal(request: JourneyGoalRequest)
     // 인사이트 선택 결과 저장/루프 생성 요청
     case createLoop(request: InsightSelectRequest)
+    // 추천 루프 생성 API 케이스 추가
+    case generateLoops(request: LoopRecommendationRequest)
+    // 11번 api (루틴 생성)
+    case createRoutines(request: RoutineCreateRequest)
 }
 
 extension OnboardingAPI: TargetType {
@@ -30,12 +34,16 @@ extension OnboardingAPI: TargetType {
         case .createLoop:
             // TODO: 인사이트 선택 API 경로 확정 후 수정
             return "/api/coach/insights"
+        case .generateLoops:
+            return "/api/goals/loops"
+        case .createRoutines:
+            return "/api/routines"
         }
     }
 
     var method: Moya.Method {
         switch self {
-        case .createJourneyGoal, .createLoop:
+        case .createJourneyGoal, .generateLoops, .createLoop, .createRoutines:
             return .post
         }
     }
@@ -46,10 +54,19 @@ extension OnboardingAPI: TargetType {
             return .requestJSONEncodable(request)
         case let .createLoop(request):
             return .requestJSONEncodable(request)
+        case let .generateLoops(request):
+            return .requestJSONEncodable(request)
+        case let .createRoutines(request):
+            return .requestJSONEncodable(request)
         }
     }
 
+    /// 인증이 필요한 API이므로 키체인 accessToken을 Authorization 헤더에 포함
     var headers: [String: String]? {
-        ["Content-Type": "application/json"]
+        var header: [String: String] = ["Content-Type": "application/json"]
+        if let token = KeychainService.shared.loadToken(), !token.isEmpty {
+            header["Authorization"] = "Bearer \(token)"
+        }
+        return header
     }
 }

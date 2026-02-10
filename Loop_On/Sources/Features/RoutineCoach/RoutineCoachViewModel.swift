@@ -9,11 +9,18 @@ import Foundation
 import Combine
 import SwiftUI
 
-struct RoutineCoach: Identifiable {
-    let id = UUID()
+struct RoutineCoach: Identifiable, Hashable, Codable {
+    var id = UUID()
     var index: Int
     var name: String
     var alarmTime: Date
+
+    init(index: Int, name: String, alarmTime: Date) {
+        self.id = UUID()
+        self.index = index
+        self.name = name
+        self.alarmTime = alarmTime
+    }
 }
 
 class RoutineCoachViewModel: ObservableObject {
@@ -24,6 +31,7 @@ class RoutineCoachViewModel: ObservableObject {
     @Published var selectedRoutineIndex: Int? // 현재 수정 중인 루틴의 인덱스
     @Published var tempSelectionDate = Date() // 피커에서 임시로 선택 중인 시간
     @Published var isEditing: Bool = false // 편집 모드 상태
+    @Published var isRegenerating: Bool = false // 재생성 모드 상태
     
     
     // 이 값들은 이전 단계에서 받아왔거나 설정된 값이라고 가정
@@ -36,34 +44,57 @@ class RoutineCoachViewModel: ObservableObject {
     @Published var newRoutineName = ""
     private var editingIndex: Int?
     
-    init() {
-        // 초기 더미 데이터 세팅 (이미지와 동일하게 3개)
-        self.routines = [
-            RoutineCoach(index: 1, name: "루틴 이름", alarmTime: Date()),
-            RoutineCoach(index: 2, name: "루틴 이름", alarmTime: Date()),
-            RoutineCoach(index: 3, name: "루틴 이름", alarmTime: Date()),
-            RoutineCoach(index: 4, name: "루틴 이름", alarmTime: Date()),
-        ]
+    private let networkManager = DefaultNetworkManager<OnboardingAPI>()
+    
+    init(initialRoutines: [RoutineCoach]) {
+        if initialRoutines.isEmpty {
+            // 데이터가 없을 경우에만 더미 데이터 사용
+            self.routines = [
+                RoutineCoach(index: 1, name: "루틴 이름", alarmTime: Date()),
+                RoutineCoach(index: 2, name: "루틴 이름", alarmTime: Date()),
+                RoutineCoach(index: 3, name: "루틴 이름", alarmTime: Date())
+            ]
+        } else {
+            self.routines = initialRoutines
+        }
     }
     
+    // 루틴 다시 생성 버튼 클릭 시
     func regenerateRoutines() {
-        // 루틴 다시 생성 로직
-        print("루틴 다시 생성")
+        isRegenerating = true
+        // 필요 시 여기서 새로운 루틴 데이터를 서버나 로컬에서 받아오는 로직 추가
+        print("재생성 모드 진입")
+    }
+        
+    // 재생성 '확인' 버튼 클릭 시
+    func confirmRegeneration() {
+        isRegenerating = false
+        // 확정된 루틴 데이터를 서버에 저장하거나 상태를 고정하는 로직
+        print("재생성 루틴 확정")
     }
     
     func editRoutinesDirectly() {
-        isEditing = true
+        self.isEditing = true
     }
 
     func finishEditing() {
-        isEditing = false
+        print("DEBUG: 완료 버튼이 눌렸습니다!")
+        
+        self.isEditing = false
         // 여기서 변경된 내용을 서버에 저장하는 API를 호출.
+        print("DEBUG: isEditing 상태가 \(self.isEditing)으로 변경되었습니다.")
     }
         
     func deleteRoutine(at index: Int) {
         routines.remove(at: index)
         // 삭제 후 인덱스 재정렬 로직.
         reorderRoutines()
+    }
+    
+    func regenerateSingleRoutine(at index: Int) {
+        // 해당 루틴의 데이터를 랜덤하게 변경하거나 서버에서 새로 받아옴
+        print("DEBUG: \(index + 1)번 루틴 재생성 요청")
+        // routines[index].name = "새로 생성된 루틴"
     }
     
     // MARK: - 루틴 삭제 및 자동 재정렬 (API 연동시 사용)
@@ -103,86 +134,44 @@ class RoutineCoachViewModel: ObservableObject {
         }
     }
     
-//    func startJourney() {
-//        // 여정 떠나기 로직
-//        isLoading = true
-//                
-//        // 서버 통신을 시뮬레이션. (API 없이 로직 구현)
-//        Task {
-//            // 실제 서버에 다녀오는 것처럼 1.5초간 대기
-//            try? await Task.sleep(nanoseconds: 3_000_000_000)
-//            
-//            // 작업이 끝난 후 메인 스레드에서 로딩을 해제합니다.
-//            await MainActor.run {
-//                withAnimation {
-//                    self.isLoading = false
-//                }
-//                print("여정 시작 데이터 처리 완료!")
-//                // 여기서 다음 화면으로 넘어가는 로직을 실행
-//            }
-//        }
-        
-        // 로딩 시작
-//        isLoading = true
-//                
-//        // 서버 통신 및 데이터 처리 (비동기)
-//        Task {
-//            do {
-//                // 가상의 서버 통신 시간 (예: 2초)
-//                try await Task.sleep(nanoseconds: 2_000_000_000)
-//                
-//                // 성공 시 로딩 종료 및 다음 화면 이동 로직
-//                await MainActor.run {
-//                    isLoading = false
-//                    print("여정 시작 성공")
-//                    // 네비게이션 로직 등을 여기에 추가
-//                }
-//            } catch {
-//                await MainActor.run {
-//                    isLoading = false
-//                    print("여정 시작 실패")
-//                }
-//            }
-//        }
-//    }
-    
     func startJourney() {
-            isLoading = true
-            
-            Task {
-                do {
-                    // 서버에 저장할 데이터 패키징
-                    let journeyData: [String: Any] = [
-                        "loop_id": loop_id,
-                        "goal_text": goal_text,
-                        "selected_insights": selected_insights,
-                        "routines": routines.map { [
-                            "index": $0.index,
-                            "name": $0.name,
-                            "alarm_time": formatDateForServer($0.alarmTime)
-                        ]}
-                    ]
-                    
-                    print("서버로 전송할 데이터: \(journeyData)")
-                    
-                    // 가상 API 통신 (실제 API 명세서 나오면 이 부분을 교체)
-                    try await saveJourneyToServer(data: journeyData)
-                    
-                    // 성공 시 메인 스레드에서 화면 전환 트리거
-                    await MainActor.run {
-                        withAnimation {
-                            self.isLoading = false
-                            self.isJourneyStarted = true // HomeView 이동 신호
-                        }
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.isLoading = false
-                        // 에러 처리 로직 (Alert 등)
-                    }
+        isLoading = true
+        
+        // 현재 화면에 표시된 routines 데이터를 API 형식으로 변환
+        let routineRequests = routines.map { routine in
+            RoutineContentRequest(
+                content: routine.name,
+                notificationTime: formatDateForServer(routine.alarmTime)
+            )
+        }
+        
+        // 요청 객체 생성 (전달받은 journeyId가 필요함)
+        // ViewModel init 시 journeyId를 함께 받도록 수정되어 있어야 합니다.
+        let request = RoutineCreateRequest(
+            journeyId: self.loop_id, // 저장된 journeyId 사용
+            routines: routineRequests
+        )
+
+        // 실제 API 호출
+        networkManager.request(
+            target: .createRoutines(request: request),
+            decodingType: RoutineCreateResponse.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success(let response):
+                    print("루틴 서버 저장 성공: \(response.message)")
+                    self.isLoading = false
+                    self.isJourneyStarted = true // HomeView로 이동
+                case .failure(let error):
+                    print("루틴 저장 실패: \(error.localizedDescription)")
+                    self.isLoading = false
+                    // 에러 처리 알럿 로직 추가 가능
                 }
             }
         }
+    }
     
     // API 통신 시뮬레이션
     private func saveJourneyToServer(data: [String: Any]) async throws {
