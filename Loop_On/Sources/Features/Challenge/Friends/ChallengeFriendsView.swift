@@ -30,18 +30,34 @@ struct ChallengeFriendsView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        if viewModel.filteredFriends.isEmpty {
-                            emptyFriendsState(message: viewModel.loadFriendsErrorMessage)
-                                .padding(.top, 24)
+                        if viewModel.isShowingSearchResults {
+                            if viewModel.searchResults.isEmpty {
+                                emptySearchState(message: viewModel.searchErrorMessage)
+                                    .padding(.top, 24)
+                            } else {
+                                ForEach(viewModel.searchResults) { result in
+                                    ChallengeFriendSearchRow(
+                                        result: result,
+                                        onRequest: { userId in
+                                            viewModel.sendFriendRequest(userId: userId)
+                                        }
+                                    )
+                                }
+                            }
                         } else {
-                            ForEach(viewModel.filteredFriends) { friend in
-                                ChallengeFriendRow(
-                                    friend: friend,
-                                    onDelete: { friendId in
-                                        pendingDeleteFriend = viewModel.friends.first { $0.id == friendId }
-                                        isShowingDeleteAlert = true
-                                    }
-                                )
+                            if viewModel.filteredFriends.isEmpty {
+                                emptyFriendsState(message: viewModel.loadFriendsErrorMessage)
+                                    .padding(.top, 24)
+                            } else {
+                                ForEach(viewModel.filteredFriends) { friend in
+                                    ChallengeFriendRow(
+                                        friend: friend,
+                                        onDelete: { friendId in
+                                            pendingDeleteFriend = viewModel.friends.first { $0.id == friendId }
+                                            isShowingDeleteAlert = true
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -72,10 +88,23 @@ struct ChallengeFriendsView: View {
                 pendingDeleteFriend = nil
             }
         }
-        .tint(Color(.primaryColor55))
+        .tint(Color(.primaryColorVarient65))
+        .alert(
+            "안내",
+            isPresented: $viewModel.isShowingSearchAlert
+        ) {
+            Button("확인") {}
+        } message: {
+            Text(viewModel.searchAlertMessage ?? "")
+        }
         .onAppear {
             if shouldLoadOnAppear {
                 viewModel.loadFriendsIfNeeded()
+            }
+        }
+        .onChange(of: viewModel.searchText) { _, newValue in
+            if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                viewModel.clearSearchResults()
             }
         }
     }
@@ -87,9 +116,18 @@ private extension ChallengeFriendsView {
             TextField("검색", text: $viewModel.searchText)
                 .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
                 .foregroundStyle(Color.black)
+                .submitLabel(.search)
+                .onSubmit {
+                    viewModel.searchFriends()
+                }
 
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(Color.gray)
+            Button {
+                viewModel.searchFriends()
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(Color.gray)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -155,6 +193,22 @@ private extension ChallengeFriendsView {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
     }
+
+    func emptySearchState(message: String?) -> some View {
+        let title = message == nil ? "검색 결과가 없어요" : "목록을 불러오지 못했어요"
+        let detail = message ?? "다른 키워드로 다시 검색해 보세요."
+        return VStack(spacing: 8) {
+            Text(title)
+                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
+                .foregroundStyle(Color("5-Text"))
+
+            Text(detail)
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                .foregroundStyle(Color.gray)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+    }
 }
 
 private struct ChallengeFriendRow: View {
@@ -199,6 +253,51 @@ private struct ChallengeFriendRow: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+private struct ChallengeFriendSearchRow: View {
+    let result: ChallengeFriendSearchResult
+    var onRequest: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Color.gray.opacity(0.2))
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .foregroundStyle(Color.white)
+                )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(result.nickname)
+                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
+                    .foregroundStyle(Color("5-Text"))
+
+                Text(result.bio)
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                    .foregroundStyle(Color.gray)
+            }
+
+            Spacer()
+
+            Button {
+                onRequest(result.id)
+            } label: {
+                Text(result.isRequestSent ? "신청됨" : "신청")
+                    .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 12))
+                    .foregroundStyle(Color.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(.primaryColorVarient65))
+                    )
+            }
+            .buttonStyle(.plain)
         }
         .padding(.vertical, 6)
     }
