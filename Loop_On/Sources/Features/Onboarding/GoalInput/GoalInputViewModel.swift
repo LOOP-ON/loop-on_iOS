@@ -32,7 +32,8 @@ final class GoalInputViewModel: ObservableObject {
     func updateGoalText(_ newValue: String) {
         goalText = newValue.count > maxLength ? String(newValue.prefix(maxLength)) : newValue
     }
-
+    
+    // 9번 API에서 여정 시작 - (/api/journeys/goals)
     func submitGoal(completion: @escaping (Bool) -> Void) {
         let trimmedGoal = goalText.trimmingCharacters(in: .whitespacesAndNewlines)
         isSaving = true
@@ -56,7 +57,8 @@ final class GoalInputViewModel: ObservableObject {
             }
         }
     }
-
+    
+    // 12번 API - 입력한 목표를 기반으로 AI가 인사이트 5개 생성해준거 받아오는 api
     func generateRecommendedLoops(completion: @escaping (Bool) -> Void) {
         let trimmedGoal = goalText.trimmingCharacters(in: .whitespacesAndNewlines)
         isSaving = true

@@ -38,12 +38,22 @@ struct GoalInputView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 34)
             }
+            .disabled(viewModel.isSaving)
+            if viewModel.isSaving {
+                CommonLoadingView(
+                    message: "AI가 목표를 분석하여\n인사이트를 생성하고 있어요",
+                    lottieFileName: "Loading 51 _ Monoplane"
+                )
+                .transition(.opacity) // 부드러운 전환 효과
+                .zIndex(1) // 다른 요소보다 항상 위에 있도록 설정
+            }
         }
+        .animation(.default, value: viewModel.isSaving)
         .onAppear {
             // 화면이 나타날 때 세션의 닉네임을 ViewModel에 동기화
             viewModel.updateNickname(session.currentUserNickname)
             
-            // 만약 닉네임이 비어있다면 한 번 더 조회를 요청할 수 있습니다.
+            // 만약 닉네임이 비어있다면 한 번 더 조회를 요청
             if session.currentUserNickname.isEmpty {
                 session.fetchUserProfile()
             }

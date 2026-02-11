@@ -46,7 +46,7 @@ struct RoutineCoachView: View {
                     Text("여정을 떠날 계획을 세워볼까요?")
                         .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
                     
-                    Text("두 번째 여정의 루틴을 생성했어요")
+                    Text("\(viewModel.loop_id)번째 여정의 루틴을 생성했어요")
                         .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
                         .padding(.top, 30)
                 }

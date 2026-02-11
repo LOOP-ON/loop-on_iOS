@@ -35,7 +35,7 @@ class RoutineCoachViewModel: ObservableObject {
     
     
     // 이 값들은 이전 단계에서 받아왔거나 설정된 값이라고 가정
-    var loop_id: Int = 2 // 예: "두 번째 여정" -> 2
+    @Published var loop_id: Int = 2 // 예: "두 번째 여정" -> 2
     var goal_text: String = "건강한 생활 습관 만들기"
     var selected_insights: [String] = ["수면 개선", "식단 관리"]
     
