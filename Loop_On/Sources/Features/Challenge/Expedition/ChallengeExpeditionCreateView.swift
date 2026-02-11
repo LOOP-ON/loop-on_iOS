@@ -34,7 +34,6 @@ struct ChallengeExpeditionCreateView: View {
                         }
 
                         categorySection
-                        photoSection
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 12)
@@ -94,6 +93,10 @@ private extension ChallengeExpeditionCreateView {
                         viewModel.createName = String(newValue.prefix(15))
                     }
                 }
+            Text("\(viewModel.createName.count)/15자")
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 11))
+                .foregroundStyle(Color.gray)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -156,6 +159,10 @@ private extension ChallengeExpeditionCreateView {
                         viewModel.password = digitsOnly
                     }
                 }
+            Text("\(viewModel.password.count)/8자")
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 11))
+                .foregroundStyle(Color.gray)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -177,23 +184,6 @@ private extension ChallengeExpeditionCreateView {
                         viewModel.toggleCreateCategory(category)
                     }
             }
-        }
-    }
-
-    var photoSection: some View {
-        HStack {
-            Spacer()
-            Button("사진 추가") {
-                // TODO: API 연결 시 탐험대 사진 추가 처리
-            }
-            .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 12))
-            .foregroundStyle(Color.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.primaryColorVarient65))
-            )
         }
     }
 
