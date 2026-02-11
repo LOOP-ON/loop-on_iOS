@@ -32,7 +32,8 @@ enum AuthAPI {
     /// - NOTE: multipart field name은 서버 명세에 따라 조정 필요 (현재 "file")
     case uploadProfileImage(data: Data, fileName: String, mimeType: String)
     /// 로그아웃. 서버 연동 후 엔드포인트 연결 시 사용. 로그아웃 시 KeychainService.deleteToken()은 SessionStore에서 호출됨.
-    case logout
+    /// - parameter refreshToken: 서버 명세상 `refresh_token` 파라미터로 전달됩니다.
+    case logout(refreshToken: String)
     // 토큰 재발 (서버 명세 후 추가)
 }
 
@@ -59,7 +60,8 @@ extension AuthAPI: TargetType {
         case .uploadProfileImage:
             return "/api/users/upload-profile-image"
         case .logout:
-            return "/auth/logout"
+            // 서버 명세: /api/auth/logout
+            return "/api/auth/logout"
         }
     }
 
@@ -97,8 +99,12 @@ extension AuthAPI: TargetType {
                 mimeType: mimeType
             )
             return .uploadMultipart([form])
-        case .logout:
-            return .requestPlain
+        case let .logout(refreshToken):
+            // 서버 명세: body 또는 form 으로 `refresh_token` 전달
+            return .requestParameters(
+                parameters: ["refresh_token": refreshToken],
+                encoding: JSONEncoding.default
+            )
         }
     }
 

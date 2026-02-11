@@ -12,6 +12,7 @@ struct ChallengeCardView: View {
     @Binding var card: ChallengeCard
     var onLikeTap: ((Int, Bool) -> Void)?
     var onEdit: ((Int) -> Void)?
+    /// 삭제 확정 시 호출되는 콜백 (팝업에서 최종 확정 후 호출)
     var onDelete: ((Int) -> Void)?
     var onCommentTap: ((Int, @escaping ([ChallengeComment]) -> Void) -> Void)?
     /// (challengeId, page, completion(추가 댓글, hasMore))
@@ -136,15 +137,6 @@ struct ChallengeCardView: View {
                     .padding(.top, 28)
             }
         }
-        .overlay {
-            if isShowingMenu {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        isShowingMenu = false
-                    }
-            }
-        }
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
@@ -243,8 +235,8 @@ struct ChallengeCardView: View {
                 .background(Color.gray.opacity(0.2))
 
             Button {
+                // 메뉴를 닫고 상위 뷰에 삭제 요청 전달 (팝업은 상위 뷰에서 처리)
                 isShowingMenu = false
-                // TODO: API 연결 시 게시물 삭제 처리 (card.id)
                 onDelete?(card.challengeId)
             } label: {
                 HStack(spacing: 12) {
@@ -307,4 +299,5 @@ struct ChallengeCardView: View {
     }
     .padding()
     .background(Color(.systemGroupedBackground))
+    .environment(NavigationRouter())
 }

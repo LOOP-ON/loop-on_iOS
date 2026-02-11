@@ -110,10 +110,15 @@ struct PersonalProfileView: View {
             get: { feedDetailSelectedIndex != nil },
             set: { if !$0 { feedDetailSelectedIndex = nil } }
         )) {
-            if let index = feedDetailSelectedIndex, index < viewModel.myChallengeItems.count {
+            if
+                let index = feedDetailSelectedIndex,
+                index < viewModel.myChallengeItems.count,
+                let user = viewModel.user
+            {
+                let item = viewModel.myChallengeItems[index]
                 PersonalFeedDetailView(
-                    items: viewModel.myChallengeItems,
-                    selectedIndex: index,
+                    nickname: user.name,
+                    selectedChallengeId: item.challengeId,
                     onClose: { feedDetailSelectedIndex = nil }
                 )
             }

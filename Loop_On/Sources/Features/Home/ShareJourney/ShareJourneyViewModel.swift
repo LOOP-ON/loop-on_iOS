@@ -13,6 +13,8 @@ import PhotosUI
 class ShareJourneyViewModel: ObservableObject {
     // UI와 바인딩될 데이터들
     @Published var photos: [UIImage] = []
+    /// 수정 모드에서 로드한 이미지의 원본 URL (photos와 1:1, 새로 추가한 사진은 빈 문자열)
+    @Published var photoOriginURLs: [String] = []
     @Published var selectedItems: [PhotosPickerItem] = [] {
         didSet {
             if !selectedItems.isEmpty {
@@ -32,7 +34,16 @@ class ShareJourneyViewModel: ObservableObject {
     var journeyId: Int = 0
     var expeditionId: Int = 0
 
+    /// 수정 모드: 값이 있으면 기존 챌린지 로드 후 수정 API 호출
+    var editChallengeId: Int?
+    @Published var isLoadingDetail: Bool = false
+    @Published var loadDetailError: String?
+
     private let challengeNetworkManager = DefaultNetworkManager<ChallengeAPI>()
+
+    init(editChallengeId: Int? = nil) {
+        self.editChallengeId = editChallengeId
+    }
 
     private func handleSelectedItems() {
         let group = DispatchGroup()
@@ -49,6 +60,7 @@ class ShareJourneyViewModel: ObservableObject {
                     if let data = data, let image = UIImage(data: data) {
                         DispatchQueue.main.async {
                             self.photos.append(image)
+                            self.photoOriginURLs.append("") // 새로 추가한 사진
                         }
                     }
                 case .failure(let error):
@@ -62,7 +74,11 @@ class ShareJourneyViewModel: ObservableObject {
     }
     
     func removePhoto(at index: Int) {
+        guard index < photos.count else { return }
         photos.remove(at: index)
+        if index < photoOriginURLs.count {
+            photoOriginURLs.remove(at: index)
+        }
     }
     
     // 해시태그 선택
@@ -108,7 +124,7 @@ class ShareJourneyViewModel: ObservableObject {
         newHashtagInput = ""
     }
     
-    // POST /api/challenges 연동
+    // POST /api/challenges 또는 PUT /api/challenges/{id} 연동
     func uploadChallenge() {
         let hashtagList = Array(selectedHashtags)
         let dto = CreateChallengeRequestDTO(
@@ -119,19 +135,37 @@ class ShareJourneyViewModel: ObservableObject {
         )
         let imageDatas = photos.compactMap { $0.jpegData(compressionQuality: 0.8) }
 
-        print("[챌린지 업로드] 요청 — journeyId: \(journeyId), expeditionId: \(expeditionId), content: \"\(caption)\", hashtags: \(hashtagList), 이미지 수: \(imageDatas.count)")
-
-        challengeNetworkManager.request(
-            target: .createChallenge(request: dto, imageDatas: imageDatas),
-            decodingType: CreateChallengeDataDTO.self
-        ) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let data):
-                    print("[챌린지 업로드] 성공 — challengeId: \(data.challengeId)")
-                    self?.dismiss?()
-                case .failure(let error):
-                    print("[챌린지 업로드] 실패: \(error)")
+        if let id = editChallengeId {
+            let (updateDto, newImageDatas) = buildUpdateRequest()
+            print("[챌린지 수정] 요청 — challengeId: \(id), content: \"\(caption)\", hashtags: \(updateDto.hashtagList), remain: \(updateDto.remainImages.count), new: \(newImageDatas.count)")
+            challengeNetworkManager.request(
+                target: .updateChallenge(challengeId: id, request: updateDto, imageDatas: newImageDatas),
+                decodingType: CreateChallengeDataDTO.self
+            ) { [weak self] result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success:
+                        print("[챌린지 수정] 성공")
+                        self?.dismiss?()
+                    case .failure(let error):
+                        print("[챌린지 수정] 실패: \(error)")
+                    }
+                }
+            }
+        } else {
+            print("[챌린지 업로드] 요청 — journeyId: \(journeyId), expeditionId: \(expeditionId), content: \"\(caption)\", hashtags: \(hashtagList), 이미지 수: \(imageDatas.count)")
+            challengeNetworkManager.request(
+                target: .createChallenge(request: dto, imageDatas: imageDatas),
+                decodingType: CreateChallengeDataDTO.self
+            ) { [weak self] result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let data):
+                        print("[챌린지 업로드] 성공 — challengeId: \(data.challengeId)")
+                        self?.dismiss?()
+                    case .failure(let error):
+                        print("[챌린지 업로드] 실패: \(error)")
+                    }
                 }
             }
         }
@@ -139,4 +173,98 @@ class ShareJourneyViewModel: ObservableObject {
 
     /// 업로드 성공 시 화면 닫기용 (ShareJourneyView에서 설정)
     var dismiss: (() -> Void)?
+
+    /// 수정 모드일 때 기존 챌린지 상세 로드
+    func loadChallengeDetailIfNeeded() {
+        guard let id = editChallengeId else { return }
+        isLoadingDetail = true
+        loadDetailError = nil
+        challengeNetworkManager.request(
+            target: .getChallengeDetail(challengeId: id),
+            decodingType: ChallengeDetailDataDTO.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoadingDetail = false
+                switch result {
+                case .success(let dto):
+                    self?.applyDetail(dto)
+                case .failure(let error):
+                    self?.loadDetailError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func applyDetail(_ dto: ChallengeDetailDataDTO) {
+        caption = dto.content
+        let tags = dto.hashtagList.map { $0.hasPrefix("#") ? String($0.dropFirst()) : $0 }
+        hashtags = tags
+        selectedHashtags = Set(tags)
+        expeditionId = dto.expeditionId
+        expeditionSetting = dto.expeditionId == 0 ? "없음" : "탐험대 \(dto.expeditionId)"
+        loadImages(from: dto.imageList)
+    }
+
+    private func loadImages(from urls: [String]) {
+        photos = []
+        photoOriginURLs = []
+        guard !urls.isEmpty else { return }
+        let group = DispatchGroup()
+        var results: [Int: UIImage] = [:]
+        let lock = NSLock()
+        for (index, urlString) in urls.enumerated() {
+            guard let url = URL(string: urlString) else { continue }
+            group.enter()
+            URLSession.shared.dataTask(with: url) { data, _, _ in
+                if let data = data, let image = UIImage(data: data) {
+                    lock.lock()
+                    results[index] = image
+                    lock.unlock()
+                }
+                group.leave()
+            }.resume()
+        }
+        group.notify(queue: .main) { [weak self] in
+            guard let self = self else { return }
+            let ordered = (0..<urls.count).compactMap { results[$0] }
+            self.photos = ordered
+            self.photoOriginURLs = (0..<urls.count).compactMap { i in results[i].map { _ in urls[i] } }
+        }
+    }
+
+    /// 수정 시 PATCH 요청용 DTO와 새 이미지 데이터 생성
+    private func buildUpdateRequest() -> (UpdateChallengeRequestDTO, [Data]) {
+        var remainImages: [String] = []
+        var remainImagesSequence: [Int] = []
+        var newImagesSequence: [Int] = []
+        var newImageDatas: [Data] = []
+        for (i, url) in photoOriginURLs.enumerated() {
+            if !url.isEmpty {
+                remainImages.append(url)
+                remainImagesSequence.append(i)
+            } else {
+                newImagesSequence.append(i)
+                if let data = photos[safe: i]?.jpegData(compressionQuality: 0.8) {
+                    newImageDatas.append(data)
+                }
+            }
+        }
+        let hashtagList = Array(selectedHashtags)
+        let dto = UpdateChallengeRequestDTO(
+            newImagesSequence: newImagesSequence,
+            remainImages: remainImages,
+            remainImagesSequence: remainImagesSequence,
+            hashtagList: hashtagList,
+            content: caption,
+            journeyId: journeyId,
+            expeditionId: expeditionId
+        )
+        return (dto, newImageDatas)
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
 }

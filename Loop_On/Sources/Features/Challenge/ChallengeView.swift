@@ -19,6 +19,11 @@ struct ChallengeView: View {
     @State private var hasLoadedStoredTab = false
     @StateObject private var friendsViewModel = ChallengeFriendsViewModel()
     @State private var isShowingShareJourney = false
+    /// 수정 모드로 ShareJourney 열 때 사용 (nil이면 새로 올리기)
+    @State private var editChallengeId: Int? = nil
+    /// 여정 광장 피드에서 삭제 팝업을 띄우기 위한 타겟 ID와 실제 삭제 실행 클로저
+    @State private var deleteTargetId: Int? = nil
+    @State private var deleteAction: ((Int) -> Void)? = nil
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -37,7 +42,17 @@ struct ChallengeView: View {
                     .padding(.top, 16)
 
                 TabView(selection: $selectedTopTab) {
-                    ChallengePlazaView(onOpenOtherProfile: onOpenOtherProfile)
+                    ChallengePlazaView(
+                        onOpenOtherProfile: onOpenOtherProfile,
+                        onRequestDelete: { id, performDelete in
+                            deleteTargetId = id
+                            deleteAction = performDelete
+                        },
+                        onEdit: { id in
+                            editChallengeId = id
+                            isShowingShareJourney = true
+                        }
+                    )
                         .tag(ChallengeTopTab.plaza)
 
                     ChallengeFriendsView(viewModel: friendsViewModel)
@@ -51,6 +66,7 @@ struct ChallengeView: View {
 
             if selectedTopTab == .plaza {
                 Button {
+                    editChallengeId = nil
                     isShowingShareJourney = true
                 } label: {
                     Image(systemName: "plus")
@@ -94,8 +110,8 @@ struct ChallengeView: View {
             }
             .presentationBackground(.clear)
         }
-        .fullScreenCover(isPresented: $isShowingShareJourney) {
-            ShareJourneyView()
+        .fullScreenCover(isPresented: $isShowingShareJourney, onDismiss: { editChallengeId = nil }) {
+            ShareJourneyView(editChallengeId: editChallengeId)
         }
         .onAppear {
             if !hasLoadedStoredTab {
@@ -112,6 +128,97 @@ struct ChallengeView: View {
                 selectedTopTab = tab
             }
         }
+        // 게시물 삭제 확인 팝업: 전체 화면(세이프에어리어·탭바 포함) 덮고, 팝업은 화면 정중앙
+        .fullScreenCover(isPresented: Binding(
+            get: { deleteTargetId != nil },
+            set: { if !$0 { deleteTargetId = nil; deleteAction = nil } }
+        )) {
+            deleteConfirmFullScreen
+        }
+    }
+}
+
+// MARK: - Delete Confirm Popup (Challenge Tab) — 전체 화면 + 정중앙
+
+extension ChallengeView {
+    private var deleteConfirmFullScreen: some View {
+        ZStack {
+            // 회색 오버레이: 노치·상태바·하단 탭바·홈인디케이터까지 전부 덮음
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    deleteTargetId = nil
+                    deleteAction = nil
+                }
+
+            if let targetId = deleteTargetId {
+                // 팝업 카드: 전체 화면 기준 가로·세로 정중앙
+                VStack(spacing: 16) {
+                    Text("정말로 게시물을 삭제하시겠습니까?")
+                        .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 17))
+                        .foregroundStyle(Color("5-Text"))
+
+                    Text("삭제 시 게시물이 영구적으로 삭제되며, 복구할 수 없으며, 다시 되돌릴 수 없습니다.")
+                        .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                        .foregroundStyle(Color("45-Text"))
+                        .multilineTextAlignment(.center)
+
+                    // 텍스트와 버튼 영역을 시각적으로 구분하는 상단 구분선 (카드 양끝까지)
+                    Rectangle()
+                        .fill(Color(.systemGray5))
+                        .frame(height: 1)
+                        .padding(.top, 4)
+                        // VStack 전체에 걸린 .padding(.horizontal, 24)를 상쇄해서 팝업 안쪽 양끝까지 라인 확장
+                        .padding(.horizontal, -24)
+
+                    HStack(spacing: 8) {
+                        Button {
+                            deleteTargetId = nil
+                            deleteAction = nil
+                        } label: {
+                            Text("취소")
+                                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
+                                .foregroundStyle(Color("5-Text"))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Color("100"))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .stroke(Color(.systemGray4), lineWidth: 1)
+                                )
+                        }
+
+                        Button {
+                            if let action = deleteAction {
+                                action(targetId)
+                            }
+                            deleteTargetId = nil
+                            deleteAction = nil
+                        } label: {
+                            Text("삭제")
+                                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color(red: 0.95, green: 0.45, blue: 0.35))
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color.white)
+                )
+                .padding(.horizontal, 32)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .presentationBackground(.clear)
     }
 }
 

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ChallengeExpeditionDetailView: View {
     let expeditionName: String
+    private let networkManager = DefaultNetworkManager<ChallengeAPI>()
     @State private var cards: [ChallengeCard] = ChallengeCard.samplePlaza
     @State private var isShowingMemberList = false
     @State private var isOwner = true
@@ -16,6 +17,8 @@ struct ChallengeExpeditionDetailView: View {
     @State private var isShowingLeaveAlert = false
     @State private var currentMemberCount = 18
     @State private var maxMemberCount = 50
+    /// 게시물 삭제 확인 팝업용 타겟 ID (탐험대 상세 피드)
+    @State private var deleteTargetId: Int? = nil
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -34,7 +37,12 @@ struct ChallengeExpeditionDetailView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         ForEach($cards) { $card in
-                            ChallengeCardView(card: $card)
+                            ChallengeCardView(
+                                card: $card,
+                                onDelete: { id in
+                                    deleteTargetId = id
+                                }
+                            )
                         }
                     }
                     .padding(.horizontal, 20)
@@ -100,6 +108,13 @@ struct ChallengeExpeditionDetailView: View {
             }
         } message: {
             Text(leaveAlertMessage)
+        }
+        // 게시물 삭제 확인: 전체 화면(세이프에어리어·탭바 포함) 덮고, 팝업은 화면 정중앙
+        .fullScreenCover(isPresented: Binding(
+            get: { deleteTargetId != nil },
+            set: { if !$0 { deleteTargetId = nil } }
+        )) {
+            deleteConfirmFullScreen
         }
     }
 }
@@ -194,6 +209,92 @@ private extension ChallengeExpeditionDetailView {
 
     var memberCountText: String {
         "\(currentMemberCount)/\(maxMemberCount)"
+    }
+}
+
+// MARK: - Delete Confirm Popup (Expedition Detail) — 전체 화면 + 정중앙
+
+extension ChallengeExpeditionDetailView {
+    private var deleteConfirmFullScreen: some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    deleteTargetId = nil
+                }
+
+            if let targetId = deleteTargetId {
+                VStack(spacing: 16) {
+                    Text("정말로 게시물을 삭제하시겠습니까?")
+                        .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 17))
+                        .foregroundStyle(Color("5-Text"))
+
+                    Text("삭제 시 게시물이 영구적으로 삭제되며, 복구할 수 없으며, 다시 되돌릴 수 없습니다.")
+                        .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                        .foregroundStyle(Color("45-Text"))
+                        .multilineTextAlignment(.center)
+
+                    // 텍스트와 버튼 영역을 시각적으로 구분하는 상단 구분선 (카드 양끝까지)
+                    Rectangle()
+                        .fill(Color(.systemGray5))
+                        .frame(height: 1)
+                        .padding(.top, 4)
+                        // VStack 전체에 걸린 .padding(.horizontal, 24)를 상쇄해서 팝업 안쪽 양끝까지 라인 확장
+                        .padding(.horizontal, -24)
+
+                    HStack(spacing: 8) {
+                        Button {
+                            deleteTargetId = nil
+                        } label: {
+                            Text("취소")
+                                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
+                                .foregroundStyle(Color("5-Text"))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Color("100"))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .stroke(Color(.systemGray4), lineWidth: 1)
+                                )
+                        }
+
+                        Button {
+                            networkManager.requestStatusCode(target: ChallengeAPI.deleteChallenge(challengeId: targetId)) { result in
+                                DispatchQueue.main.async {
+                                    switch result {
+                                    case .success:
+                                        cards.removeAll { $0.challengeId == targetId }
+                                    case .failure:
+                                        break
+                                    }
+                                    deleteTargetId = nil
+                                }
+                            }
+                        } label: {
+                            Text("삭제")
+                                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color(red: 0.95, green: 0.45, blue: 0.35))
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color.white)
+                )
+                .padding(.horizontal, 32)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .presentationBackground(.clear)
     }
 }
 

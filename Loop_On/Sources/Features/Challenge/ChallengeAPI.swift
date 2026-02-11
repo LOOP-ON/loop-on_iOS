@@ -27,6 +27,17 @@ struct CreateChallengeRequestDTO: Encodable {
     let expeditionId: Int
 }
 
+/// PATCH /api/challenges/{challengeId} 요청 바디 (multipart의 requestDto)
+struct UpdateChallengeRequestDTO: Encodable {
+    let newImagesSequence: [Int]
+    let remainImages: [String]
+    let remainImagesSequence: [Int]
+    let hashtagList: [String]
+    let content: String
+    let journeyId: Int
+    let expeditionId: Int
+}
+
 // MARK: - Response DTOs
 
 /// 개인 챌린지 목록 응답의 한 항목
@@ -103,8 +114,12 @@ private let feedSortLatest = ["createdAt,desc"]
 enum ChallengeAPI {
     /// 내가 올린 챌린지 목록 (페이지)
     case getMyChallenges(page: Int, size: Int, sort: [String]?)
+    /// 특정 닉네임 사용자의 챌린지 피드 상세 (페이지)
+    case getUserChallengeDetails(nickname: String, page: Int, size: Int, sort: [String]?)
     /// 챌린지 업로드 (여정 공유하기) - multipart: requestDto + imageFiles
     case createChallenge(request: CreateChallengeRequestDTO, imageDatas: [Data])
+    /// 챌린지 수정 - PATCH /api/challenges/{challengeId}, multipart: requestDto + imageFiles
+    case updateChallenge(challengeId: Int, request: UpdateChallengeRequestDTO, imageDatas: [Data])
     /// 챌린지 업로드 상세조회
     case getChallengeDetail(challengeId: Int)
     /// 챌린지 피드 조회 (트렌딩 + 친구, 1:3 비율용) - GET /api/challenges
@@ -117,6 +132,8 @@ enum ChallengeAPI {
     case postComment(challengeId: Int, request: CommentPostRequestDTO)
     /// 댓글 삭제 - DELETE /api/challenges/{challengeId}/comments/{commentId}
     case deleteComment(challengeId: Int, commentId: Int)
+    /// 게시물(챌린지) 삭제 - DELETE /api/challenges/{challengeId}
+    case deleteChallenge(challengeId: Int)
     /// 댓글 좋아요/취소 - POST /api/challenges/comment/{commentId}/like, body: { isLiked }
     case likeComment(commentId: Int, request: ChallengeLikeRequestDTO)
 }
@@ -133,9 +150,11 @@ extension ChallengeAPI: TargetType {
         switch self {
         case .getMyChallenges:
             return "/api/challenges/users/me"
+        case let .getUserChallengeDetails(nickname, _, _, _):
+            return "/api/challenges/users/\(nickname)/details"
         case .createChallenge, .getChallengeFeed:
             return "/api/challenges"
-        case let .getChallengeDetail(challengeId):
+        case let .updateChallenge(challengeId, _, _), let .getChallengeDetail(challengeId):
             return "/api/challenges/\(challengeId)"
         case let .likeChallenge(challengeId, _):
             return "/api/challenges/\(challengeId)/like"
@@ -143,6 +162,8 @@ extension ChallengeAPI: TargetType {
             return "/api/challenges/\(challengeId)/comments"
         case let .deleteComment(challengeId, commentId):
             return "/api/challenges/\(challengeId)/comments/\(commentId)"
+        case let .deleteChallenge(challengeId):
+            return "/api/challenges/\(challengeId)"
         case let .likeComment(commentId, _):
             return "/api/challenges/comment/\(commentId)/like"
         }
@@ -150,18 +171,20 @@ extension ChallengeAPI: TargetType {
 
     var method: Moya.Method {
         switch self {
-        case .getMyChallenges, .getChallengeDetail, .getChallengeFeed, .getChallengeComments:
+        case .getMyChallenges, .getUserChallengeDetails, .getChallengeDetail, .getChallengeFeed, .getChallengeComments:
             return .get
         case .createChallenge, .likeChallenge, .likeComment, .postComment:
             return .post
-        case .deleteComment:
+        case .updateChallenge:
+            return .patch
+        case .deleteComment, .deleteChallenge:
             return .delete
         }
     }
 
     var task: Task {
         switch self {
-        case .getChallengeDetail, .deleteComment:
+        case .getChallengeDetail, .deleteComment, .deleteChallenge:
             return .requestPlain
         case let .getChallengeComments(_, page, size, sort):
             var params: [String: Any] = [
@@ -202,7 +225,39 @@ extension ChallengeAPI: TargetType {
                 parameters: params,
                 encoding: URLEncoding.queryString
             )
+        case let .getUserChallengeDetails(_, page, size, sort):
+            var params: [String: Any] = [
+                "page": page,
+                "size": size
+            ]
+            if let sort = sort, !sort.isEmpty {
+                params["sort"] = sort.joined(separator: ",")
+            }
+            return .requestParameters(
+                parameters: params,
+                encoding: URLEncoding.queryString
+            )
         case let .createChallenge(request, imageDatas):
+            let encoder = JSONEncoder()
+            encoder.keyEncodingStrategy = .useDefaultKeys
+            var parts: [MultipartFormData] = []
+            if let requestData = try? encoder.encode(request) {
+                parts.append(MultipartFormData(
+                    provider: .data(requestData),
+                    name: "requestDto",
+                    mimeType: "application/json"
+                ))
+            }
+            for (index, data) in imageDatas.enumerated() {
+                parts.append(MultipartFormData(
+                    provider: .data(data),
+                    name: "imageFiles",
+                    fileName: "image_\(index).jpg",
+                    mimeType: "image/jpeg"
+                ))
+            }
+            return .uploadMultipart(parts)
+        case let .updateChallenge(_, request, imageDatas):
             let encoder = JSONEncoder()
             encoder.keyEncodingStrategy = .useDefaultKeys
             var parts: [MultipartFormData] = []
@@ -227,7 +282,7 @@ extension ChallengeAPI: TargetType {
 
     var headers: [String: String]? {
         switch self {
-        case .createChallenge:
+        case .createChallenge, .updateChallenge:
             return nil
         default:
             return ["Content-Type": "application/json"]

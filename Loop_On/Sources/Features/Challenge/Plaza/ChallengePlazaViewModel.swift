@@ -156,8 +156,17 @@ final class ChallengePlazaViewModel: ObservableObject {
     }
 
     func didTapDelete(id: Int) {
-        cards.removeAll { $0.challengeId == id }
-        // TODO: API 연결 시 게시물 삭제 처리 (id)
+        let target = ChallengeAPI.deleteChallenge(challengeId: id)
+        networkManager.requestStatusCode(target: target) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self?.cards.removeAll { $0.challengeId == id }
+                case .failure:
+                    break // 실패 시 UI는 유지 (필요 시 loadError 등으로 피드백 가능)
+                }
+            }
+        }
     }
 
     /// 댓글 목록 조회 (비동기). 캐시 있으면 즉시 completion, 없으면 API 호출 후 completion.
