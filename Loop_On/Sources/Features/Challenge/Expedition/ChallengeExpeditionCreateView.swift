@@ -148,6 +148,14 @@ private extension ChallengeExpeditionCreateView {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemGray6))
                 )
+                .onChange(of: viewModel.password) { _, newValue in
+                    let digitsOnly = newValue.filter { $0.isNumber }
+                    if digitsOnly.count > 8 {
+                        viewModel.password = String(digitsOnly.prefix(8))
+                    } else if digitsOnly != newValue {
+                        viewModel.password = digitsOnly
+                    }
+                }
         }
     }
 
@@ -206,7 +214,7 @@ private extension ChallengeExpeditionCreateView {
             .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
             .foregroundStyle(viewModel.isCreateValid ? Color(.primaryColorVarient65) : Color.gray.opacity(0.5))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .disabled(!viewModel.isCreateValid)
+            .disabled(!viewModel.isCreateValid || viewModel.isCreatingExpedition)
         }
     }
 
