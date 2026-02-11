@@ -75,11 +75,13 @@ struct ChallengeView: View {
 
                 ChallengeFriendRequestSheet(
                     requests: friendsViewModel.friendRequests,
+                    isLoadingMore: friendsViewModel.isLoadingFriendRequests,
                     onAccept: friendsViewModel.acceptRequest,
                     onReject: friendsViewModel.rejectRequest,
                     onAcceptAll: friendsViewModel.acceptAllRequests,
                     onRejectAll: friendsViewModel.rejectAllRequests,
-                    onClose: friendsViewModel.closeRequestSheet
+                    onClose: friendsViewModel.closeRequestSheet,
+                    onRequestRowAppear: friendsViewModel.loadMoreFriendRequestsIfNeeded
                 )
                 .frame(maxWidth: 320, maxHeight: 540)
                 .padding(.horizontal, 24)
