@@ -8,26 +8,45 @@
 import Foundation
 
 // MARK: - Server DTO (Data Transfer Object)
-// 서버로부터 받을 원본 데이터 구조
 struct HomeDataResponseDTO: Codable {
-    let loopId: Int
-    let title: String
-    let currentDay: Int
-    let totalJourney: Int
-    let completedJourney: Int
-    let todayRoutine: Int    // 오늘 목표 루틴 개수 (기초값 3)
-    var todayRoutineCount: Int // 오늘 실제 완료한 루틴 개수
-    var yesterdayRoutineCount: Int // 어제 완료한 루틴 개수
+    let result: String
+    let code: String
+    let message: String
+    let data: HomeDataDetail
+    let timestamp: String
+}
+
+struct HomeDataDetail: Codable {
+    let journey: JourneyDTO
+    let todayProgress: ProgressDTO
     let routines: [RoutineDTO]
+    let isNotReady: Bool
+    let targetDate: String
+}
+
+struct JourneyDTO: Codable {
+    let journeyId: Int
+    let journeyOrder: Int // n번째 여정
+    let journeyDate: Int  // n일차 여정
+    let journeyCategory: String
+    let goal: String
+}
+
+struct ProgressDTO: Codable {
+    let completedCount: Int
+    let totalCount: Int
 }
 
 struct RoutineDTO: Codable {
-    let id: Int
-    let title: String
-    var alarmTime: String
-    let isCompleted: Bool
-    var isDelayed: Bool
-    var delayReason: String
+    let routineId: Int
+    let routineProgressId: Int
+    let content: String           // 기존 title 역할
+    let notificationTime: String  // 기존 alarmTime 역할
+    let status: String            // "IN_PROGRESS", "COMPLETED" 등
+    
+    // 상태 문자열을 바탕으로 한 편의 속성
+    var isCompleted: Bool { status == "COMPLETED" }
+    var isDelayed: Bool { status == "DELAYED" } // 서버 상태값에 따라 조정 필요
 }
 
 // MARK: - Domain Model

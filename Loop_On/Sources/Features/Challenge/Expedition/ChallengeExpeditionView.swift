@@ -8,8 +8,12 @@
 import SwiftUI
 
 struct ChallengeExpeditionView: View {
-    @StateObject private var viewModel = ChallengeExpeditionViewModel()
-  
+    @ObservedObject var viewModel: ChallengeExpeditionViewModel
+
+    init(viewModel: ChallengeExpeditionViewModel = ChallengeExpeditionViewModel()) {
+        self.viewModel = viewModel
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             searchBar
@@ -22,9 +26,13 @@ struct ChallengeExpeditionView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    sectionHeader("내 탐험대")
-
-                    expeditionList(viewModel.myExpeditions)
+                    if viewModel.isShowingSearchResults {
+                        sectionHeader("탐험대 리스트")
+                        searchResultSection
+                    } else {
+                        sectionHeader("내 탐험대")
+                        myExpeditionSection
+                    }
 
                     Divider()
                         .background(Color.gray.opacity(0.2))
@@ -38,6 +46,13 @@ struct ChallengeExpeditionView: View {
                 .padding(.bottom, 24)
             }
             .scrollIndicators(.hidden)
+            .refreshable {
+                if viewModel.isShowingSearchResults {
+                    viewModel.searchExpeditions()
+                } else {
+                    viewModel.refreshMyExpeditions()
+                }
+            }
 
             createButton
                 .padding(.horizontal, 20)
@@ -57,6 +72,16 @@ struct ChallengeExpeditionView: View {
             Button("확인") {
                 viewModel.closeCreateSuccessAlert()
             }
+        }
+        .alert(
+            "탐험대 생성 실패",
+            isPresented: $viewModel.isShowingCreateErrorAlert
+        ) {
+            Button("확인") {
+                viewModel.closeCreateErrorAlert()
+            }
+        } message: {
+            Text(viewModel.createErrorMessage ?? "잠시 후 다시 시도해 주세요.")
         }
         .alert(
             viewModel.deleteAlertTitle,
@@ -106,6 +131,11 @@ struct ChallengeExpeditionView: View {
             }
         }
         .tint(Color(.primaryColor55))
+        .onChange(of: viewModel.searchText) { _, newValue in
+            if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                viewModel.clearSearchResults()
+            }
+        }
     }
 }
 
@@ -114,11 +144,72 @@ struct ChallengeExpeditionView: View {
 }
 
 private extension ChallengeExpeditionView {
+    @ViewBuilder
+    var searchResultSection: some View {
+        if viewModel.isSearching {
+            HStack {
+                Spacer()
+                ProgressView()
+                Spacer()
+            }
+            .padding(.vertical, 16)
+        } else if !viewModel.searchResults.isEmpty {
+            expeditionList(viewModel.searchResults)
+        } else {
+            let message = viewModel.searchErrorMessage ?? "다른 키워드로 다시 검색해 보세요."
+            Text(message)
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 13))
+                .foregroundStyle(Color("25-Text"))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+        }
+    }
+
+    @ViewBuilder
+    var myExpeditionSection: some View {
+        if viewModel.isLoadingMyExpeditions && viewModel.myExpeditions.isEmpty {
+            HStack {
+                Spacer()
+                ProgressView()
+                Spacer()
+            }
+            .padding(.vertical, 16)
+        } else if let message = viewModel.loadMyExpeditionsErrorMessage,
+                  viewModel.myExpeditions.isEmpty {
+            VStack(spacing: 8) {
+                Text(message)
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 13))
+                    .foregroundStyle(Color("25-Text"))
+                    .multilineTextAlignment(.center)
+                Button("다시 시도") {
+                    viewModel.refreshMyExpeditions()
+                }
+                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 13))
+                .foregroundStyle(Color(.primaryColorVarient65))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+        } else if viewModel.myExpeditions.isEmpty {
+            Text("참여 중인 탐험대가 없습니다.")
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 13))
+                .foregroundStyle(Color("25-Text"))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 4)
+        } else {
+            expeditionList(viewModel.myExpeditions)
+        }
+    }
+
     var searchBar: some View {
         HStack(spacing: 8) {
             TextField("검색", text: $viewModel.searchText)
                 .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
                 .foregroundStyle(Color.black)
+                .submitLabel(.search)
+                .onSubmit {
+                    viewModel.searchExpeditions()
+                }
 
             if !viewModel.searchText.isEmpty {
                 Button(action: viewModel.clearSearch) {
@@ -128,8 +219,13 @@ private extension ChallengeExpeditionView {
                 .buttonStyle(.plain)
             }
 
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(Color.gray)
+            Button {
+                viewModel.searchExpeditions()
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(Color.gray)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -176,13 +272,13 @@ private extension ChallengeExpeditionView {
 
     func expeditionList(_ expeditions: [ChallengeExpedition]) -> some View {
         VStack(spacing: 0) {
-            ForEach(expeditions.indices, id: \.self) { index in
+            ForEach(expeditions) { expedition in
                 ChallengeExpeditionRow(
-                    expedition: expeditions[index],
+                    expedition: expedition,
                     onRowTap: {
                         // TODO: 라우팅 연결 (탐험대 상세 화면 이동)
                     },
-                    onActionTap: { viewModel.handleAction(expeditions[index]) }
+                    onActionTap: { viewModel.handleAction(expedition) }
                 )
             }
         }
@@ -209,14 +305,6 @@ private struct ChallengeExpeditionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(Color.gray.opacity(0.2))
-                .frame(width: 44, height: 44)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .foregroundStyle(Color.white)
-                )
-
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text(expedition.name)

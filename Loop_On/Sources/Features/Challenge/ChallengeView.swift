@@ -18,6 +18,7 @@ struct ChallengeView: View {
     @State private var selectedTopTab: ChallengeTopTab = .plaza
     @State private var hasLoadedStoredTab = false
     @StateObject private var friendsViewModel = ChallengeFriendsViewModel()
+    @StateObject private var expeditionViewModel = ChallengeExpeditionViewModel()
     @State private var isShowingShareJourney = false
     /// 수정 모드로 ShareJourney 열 때 사용 (nil이면 새로 올리기)
     @State private var editChallengeId: Int? = nil
@@ -58,7 +59,7 @@ struct ChallengeView: View {
                     ChallengeFriendsView(viewModel: friendsViewModel)
                         .tag(ChallengeTopTab.friend)
 
-                    ChallengeExpeditionView()
+                    ChallengeExpeditionView(viewModel: expeditionViewModel)
                         .tag(ChallengeTopTab.expedition)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
@@ -94,11 +95,13 @@ struct ChallengeView: View {
 
                 ChallengeFriendRequestSheet(
                     requests: friendsViewModel.friendRequests,
+                    isLoadingMore: friendsViewModel.isLoadingFriendRequests,
                     onAccept: friendsViewModel.acceptRequest,
                     onReject: friendsViewModel.rejectRequest,
                     onAcceptAll: friendsViewModel.acceptAllRequests,
                     onRejectAll: friendsViewModel.rejectAllRequests,
-                    onClose: friendsViewModel.closeRequestSheet
+                    onClose: friendsViewModel.closeRequestSheet,
+                    onRequestRowAppear: friendsViewModel.loadMoreFriendRequestsIfNeeded
                 )
                 .frame(maxWidth: 320, maxHeight: 540)
                 .padding(.horizontal, 24)
@@ -117,10 +120,16 @@ struct ChallengeView: View {
             if !hasLoadedStoredTab {
                 selectedTopTab = ChallengeTopTab(rawValue: selectedTopTabRawValue) ?? .plaza
                 hasLoadedStoredTab = true
+                if selectedTopTab == .expedition {
+                    expeditionViewModel.loadMyExpeditionsIfNeeded()
+                }
             }
         }
         .onChange(of: selectedTopTab) { _, newValue in
             selectedTopTabRawValue = newValue.rawValue
+            if newValue == .expedition {
+                expeditionViewModel.loadMyExpeditionsIfNeeded()
+            }
         }
         .onChange(of: selectedTopTabRawValue) { _, newValue in
             let tab = ChallengeTopTab(rawValue: newValue) ?? .plaza

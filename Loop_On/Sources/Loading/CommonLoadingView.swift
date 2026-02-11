@@ -43,6 +43,6 @@ struct CommonLoadingView: View {
 
 #Preview{
     CommonLoadingView(
-        message: "2번째 여정을 생성중입니다", lottieFileName: "Loading 51 _ Monoplane"
+        message: "2번째 여정을 생성중입니다", lottieFileName: "TriPriend"
     )
 }

@@ -69,8 +69,10 @@ public enum NetworkError: Error {
     case networkError(message: String)
     /// JSON 디코딩에 실패했을 때.
     case decodingError(underlyingError: DecodingError)
-    /// 서버가 에러 응답을 반환했을 때 (상태 코드 기반). serverCode는 서버의 code 값(예: "A001") 선택.
-    case serverError(statusCode: Int, message: String, serverCode: String? = nil)
+    /// 서버가 에러 응답을 반환했을 때 (상태 코드 기반).
+    case serverError(statusCode: Int, message: String)
+    /// 인증이 만료되었거나 유효하지 않아 재로그인이 필요한 상태.
+    case unauthorized
     /// 원인을 특정할 수 없는 기타 오류.
     case unknown
 }
@@ -89,15 +91,14 @@ extension NetworkError: LocalizedError {
         case .decodingError(let err):
             return "디코딩 오류: \(err.localizedDescription)"
             
-        case .serverError(let statusCode, let msg, let serverCode):
-            if let serverCode = serverCode {
-                return "[\(serverCode)] \(msg)"
-            }
-            return "서버 오류 \(statusCode): \(msg)"
+        case .serverError(let code, let msg):
+            return "서버 오류 \(code): \(msg)"
+            
+        case .unauthorized:
+            return "로그인이 필요합니다."
             
         case .unknown:
             return "알 수 없는 오류가 발생했습니다."
         }
     }
 }
-

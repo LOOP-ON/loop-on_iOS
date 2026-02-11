@@ -12,6 +12,7 @@ enum ProfileAPI {
     case createProfile(profile: ProfileDTO)
     case updateProfile(profile: ProfileDTO)
     case getProfile
+    case getMe
 }
 
 extension ProfileAPI: TargetType {
@@ -21,6 +22,8 @@ extension ProfileAPI: TargetType {
         switch self {
         case .createProfile, .updateProfile, .getProfile:
             return "/profile"
+        case .getMe:
+            return "/api/users/me"
         }
     }
     
@@ -32,6 +35,8 @@ extension ProfileAPI: TargetType {
             return .put
         case .getProfile:
             return .get
+        case .getMe:
+            return .get
         }
     }
     
@@ -41,10 +46,24 @@ extension ProfileAPI: TargetType {
             return .requestJSONEncodable(profile)
         case .getProfile:
             return .requestPlain
+        case .getMe:
+            return .requestParameters(
+                parameters: ["page": 0, "size": 10, "sort": "createdAt,desc"],
+                encoding: URLEncoding.queryString
+            )
         }
     }
     
     var headers: [String: String]? {
-        ["Content-Type": "application/json"]
+        var header = ["Content-Type": "application/json"]
+            
+        if let token = KeychainService.shared.loadToken() {
+            header["Authorization"] = "Bearer \(token)"
+            print("DEBUG: ProfileAPI - 인증 헤더 추가됨")
+        } else {
+            print("DEBUG: ProfileAPI - 헤더에 넣을 토큰이 없습니다.")
+        }
+            
+        return header
     }
 }

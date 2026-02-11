@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct RoutineCoachView: View {
-    @StateObject private var viewModel = RoutineCoachViewModel()
+    @StateObject private var viewModel: RoutineCoachViewModel
     @EnvironmentObject var homeViewModel: HomeViewModel
     
     // 브랜드 컬러 정의
@@ -22,6 +22,12 @@ struct RoutineCoachView: View {
     // 스크롤 상태
     @State private var scrollOffset: CGFloat = 0        // 현재 스크롤 위치(y, 아래로 갈수록 +)
     @State private var contentHeight: CGFloat = 0       // 전체 콘텐츠 높이
+    
+    init(routines: [RoutineCoach], journeyId: Int) {
+        let vm = RoutineCoachViewModel(initialRoutines: routines)
+        vm.loop_id = journeyId // ViewModel의 loop_id에 전달받은 ID 할당
+        _viewModel = StateObject(wrappedValue: vm)
+    }
     
     var body: some View {
         ZStack {
@@ -40,7 +46,7 @@ struct RoutineCoachView: View {
                     Text("여정을 떠날 계획을 세워볼까요?")
                         .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
                     
-                    Text("두 번째 여정의 루틴을 생성했어요")
+                    Text("\(viewModel.loop_id)번째 여정의 루틴을 생성했어요")
                         .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
                         .padding(.top, 30)
                 }
@@ -55,6 +61,7 @@ struct RoutineCoachView: View {
                                     pointColor: pointColor,
                                     isEditing: viewModel.isEditing,
                                     totalCount: viewModel.routines.count,
+                                    isRegenerating: viewModel.isRegenerating,
                                     onTimeTap: {
                                         viewModel.openTimePicker(for: index)
                                     },
@@ -63,6 +70,9 @@ struct RoutineCoachView: View {
                                     },
                                     onEditName: {
                                         viewModel.prepareEditName(for: index)
+                                    },
+                                    onRegenerate: {
+                                        viewModel.regenerateSingleRoutine(at: index)
                                     }
                                 )
                             }
@@ -94,22 +104,29 @@ struct RoutineCoachView: View {
                 // 하단 버튼 섹션
                 VStack(spacing: 16) {
                     HStack(spacing: 12) {
-                        Button(action: viewModel.regenerateRoutines) {
-                            Text("루틴 다시 생성")
+                        Button(action: {
+                            if viewModel.isRegenerating {
+                                viewModel.confirmRegeneration()
+                            } else {
+                                viewModel.regenerateRoutines()
+                            }
+                        }) {
+                            Text(viewModel.isRegenerating ? "확인" : "루틴 다시 생성")
                                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))
-                                .frame(width: 106, height: 33)
-                                .padding(.vertical, 3)
+                                .padding(.horizontal, 15)
+                                .frame(height: 33)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(viewModel.isEditing ? Color("85") : pointColor)
                                 )
                                 .foregroundStyle(.white)
                         }
-                        .disabled(viewModel.isEditing) // 수정 중엔 비활성화
+                        .disabled(viewModel.isEditing)
                         
                         Spacer()
                         
                         Button(action: {
+                            print("DEBUG: View에서 버튼 클릭 감지됨. 현재 isEditing: \(viewModel.isEditing)")
                             if viewModel.isEditing {
                                 viewModel.finishEditing()
                             } else {
@@ -118,13 +135,15 @@ struct RoutineCoachView: View {
                         }) {
                             Text(viewModel.isEditing ? "완료" : "루틴 직접 수정")
                                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))
-                                .frame(width: 106, height: 33)
+                                .padding(.horizontal, 15)
+                                .frame(height: 33)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(pointColor)
+                                        .fill(viewModel.isRegenerating ? Color("85") : pointColor)
                                 )
                                 .foregroundStyle(.white)
                         }
+                        .disabled(viewModel.isRegenerating)
                     }
                     
                     Spacer()
@@ -136,12 +155,12 @@ struct RoutineCoachView: View {
                             .padding(.vertical, 18)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(viewModel.isEditing ? Color("85") : pointColor)
+                                    .fill(viewModel.isEditing || viewModel.isRegenerating ? Color("85") : pointColor)
                             )
                             .foregroundStyle(.white)
                             .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 5)
                     }
-                    .disabled(viewModel.isEditing) // 수정 중엔 비활성화
+                    .disabled(viewModel.isEditing || viewModel.isRegenerating) // 수정 중엔 비활성화
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
@@ -150,12 +169,12 @@ struct RoutineCoachView: View {
             // MARK: - 공통 로딩 뷰 배치
             // viewModel의 isLoading 상태에 따라 화면에 나타남.
             if viewModel.isLoading {
-                    CommonLoadingView(
-                        message: "2박 3일 여정으로 떠나고 있습니다",
-                        lottieFileName: "Loading 51 _ Monoplane"
-                    )
-                    .transition(.opacity)
-                    .zIndex(1)
+                CommonLoadingView(
+                    message: "2박 3일 여정으로 떠나고 있습니다",
+                    lottieFileName: "Loading 51 _ Monoplane"
+                )
+                .transition(.opacity)
+                .zIndex(1)
             }
         }
         // 여정 시작 성공 시 HomeView로 이동
@@ -234,6 +253,7 @@ extension RoutineCoachView {
 
 // MARK: - Preview
 #Preview{
-    RoutineCoachView()
+    RoutineCoachView(routines: [], journeyId: 1)
+            .environmentObject(HomeViewModel())
 }
 

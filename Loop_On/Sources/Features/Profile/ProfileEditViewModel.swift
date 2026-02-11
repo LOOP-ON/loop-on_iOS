@@ -68,7 +68,7 @@ final class ProfileEditViewModel: ObservableObject {
                 case .success:
                     self.duplicationCheckResult = .available
                 case .failure(let error):
-                    if case let .serverError(statusCode, _, _) = error, statusCode == 409 {
+                    if case let .serverError(statusCode, _) = error, statusCode == 409 {
                         self.duplicationCheckResult = .duplicated
                     } else {
                         self.duplicationCheckResult = .idle

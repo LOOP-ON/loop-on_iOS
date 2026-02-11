@@ -9,6 +9,7 @@ import SwiftUI
 
 struct GoalSelectView: View {
     @Environment(NavigationRouter.self) private var router
+    @Environment(SessionStore.self) private var session
     @StateObject private var viewModel = GoalSelectViewModel()
     
     var body: some View {
@@ -34,6 +35,19 @@ struct GoalSelectView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 34)
             }
+        }
+        .onAppear {
+            // 화면이 나타날 때 세션의 닉네임을 ViewModel에 동기화
+            viewModel.updateNickname(session.currentUserNickname)
+            
+            // 만약 닉네임이 비어있다면 한 번 더 조회를 요청할 수 있습니다.
+            if session.currentUserNickname.isEmpty {
+                session.fetchUserProfile()
+            }
+        }
+        // 세션 정보가 업데이트되면 ViewModel도 자동으로 업데이트되도록 설정
+        .onChange(of: session.currentUserNickname) { _, newValue in
+            viewModel.updateNickname(newValue)
         }
     }
     
@@ -157,4 +171,5 @@ private struct GoalCardView: View {
 #Preview("iPhone 15 Pro") {
     GoalSelectView()
         .environment(NavigationRouter())
+        .environment(SessionStore())
 }

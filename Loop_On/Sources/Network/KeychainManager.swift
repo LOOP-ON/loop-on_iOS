@@ -26,17 +26,27 @@ final class KeychainService {
     func saveToken(_ token: String) -> OSStatus {
         guard let data = token.data(using: .utf8) else { return errSecParam }
 
-        let query: [String: Any] = [
+        let baseQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: account,
-            kSecAttrService as String: service,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrService as String: service
         ]
 
         // 기존 항목이 있으면 삭제 후 추가 (덮어쓰기)
-        SecItemDelete(query as CFDictionary)
-        return SecItemAdd(query as CFDictionary, nil)
+        SecItemDelete(baseQuery as CFDictionary)
+        var saveQuery = baseQuery
+            saveQuery[kSecValueData as String] = data
+            saveQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+
+            let status = SecItemAdd(saveQuery as CFDictionary, nil)
+                
+            if status == errSecSuccess {
+                print("DEBUG: 키체인 토큰 저장 성공")
+            } else {
+                print("DEBUG: 키체인 저장 실패 - 에러 코드: \(status)")
+            }
+                
+        return status
     }
 
     /// 저장된 accessToken 반환. 없으면 nil.
