@@ -37,7 +37,8 @@ class RoutineCoachViewModel: ObservableObject {
     // 이 값들은 이전 단계에서 받아왔거나 설정된 값이라고 가정
     @Published var loop_id: Int = 2 // 예: "두 번째 여정" -> 2
     var goal_text: String = "건강한 생활 습관 만들기"
-    var selected_insights: [String] = ["수면 개선", "식단 관리"]
+    var category: String = "ROUTINE"
+    var selected_insights: [String] = []
     
     // 루틴 이름 수정 관련 변수
     @Published var isShowingNameEditor = false
@@ -101,15 +102,15 @@ class RoutineCoachViewModel: ObservableObject {
 //        func deleteRoutine(at index: Int) {
 //            let targetID = routines[index].id
 //            let backupRoutines = routines // 실패 시 복구를 위한 스냅샷 저장
-//            
+//
 //            withAnimation(.spring()) {
 //                // 해당 루틴 삭제
 //                self.routines.remove(at: index)
-//                
+//
 //                // 루틴 번호 재정렬
 //                self.reorderRoutines()
 //            }
-//            
+//
 //            // 서버 반영 (비동기)
 //            Task {
 //                do {
@@ -145,10 +146,13 @@ class RoutineCoachViewModel: ObservableObject {
             )
         }
         
-        // 요청 객체 생성 (전달받은 journeyId가 필요함)
-        // ViewModel init 시 journeyId를 함께 받도록 수정되어 있어야 합니다.
+        let selectedLoop = selected_insights.first ?? (routines.first?.name ?? "")
+
+        // 요청 객체 생성
         let request = RoutineCreateRequest(
-            journeyId: self.loop_id, // 저장된 journeyId 사용
+            goal: goal_text,
+            category: category,
+            selectedLoop: selectedLoop,
             routines: routineRequests
         )
 
@@ -161,7 +165,7 @@ class RoutineCoachViewModel: ObservableObject {
             Task { @MainActor in
                 switch result {
                 case .success(let response):
-                    print("루틴 서버 저장 성공: \(response.message)")
+                    print("루틴 서버 저장 성공, journeyId: \(response.data.journeyId)")
                     self.isLoading = false
                     self.isJourneyStarted = true // HomeView로 이동
                 case .failure(let error):
@@ -216,15 +220,15 @@ class RoutineCoachViewModel: ObservableObject {
     // MARK: - 이름 수정 서버 반영
 //        func updateRoutineName() {
 //            guard let index = editingIndex, !newRoutineName.isEmpty else { return }
-//            
+//
 //            let oldName = routines[index].name // 실패 시 복구를 위한 백업
 //            let targetID = routines[index].id
 //            let updatedName = newRoutineName
-//            
+//
 //            // UI를 먼저 업데이트 (사용자 경험 개선)
 //            routines[index].name = updatedName
 //            isShowingNameEditor = false
-//            
+//
 //            // 서버 API 호출
 //            Task {
 //                do {
@@ -245,12 +249,12 @@ class RoutineCoachViewModel: ObservableObject {
 //        func deleteRoutine(at index: Int) {
 //            let targetID = routines[index].id
 //            let backupRoutines = routines // 실패 시 복구용 백업
-//            
+//
 //            // UI 선반영
 //            withAnimation {
 //                self.routines.remove(at: index)
 //            }
-//            
+//
 //            Task {
 //                do {
 //                    try await requestDeleteRoutineToServer(routineID: targetID)

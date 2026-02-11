@@ -141,15 +141,16 @@ struct GoalInputView: View {
     private var nextButtonView: some View {
         Button {
             // 목표 입력 -> 목표 생성 API 호출
-            viewModel.proceedToNextStep { success in
+            viewModel.fetchGoalRecommendations { success in
                 if success {
                     let trimmedGoal = viewModel.goalText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    // 모든 API 성공 시 다음 화면으로 이동
+                            
+                    // 응답받은 추천 인사이트들을 가지고 다음 화면으로 이동
                     router.push(.app(.insightSelect(
                         goalText: trimmedGoal,
                         category: viewModel.category,
                         insights: viewModel.recommendedInsights,
-                        journeyId: viewModel.journeyId ?? 0
+                        journeyId: viewModel.journeyId ?? 0 // 통합 API에서 ID를 안 줄 경우 기본값 처리
                     )))
                 }
             }

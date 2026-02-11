@@ -33,6 +33,34 @@ final class GoalInputViewModel: ObservableObject {
         goalText = newValue.count > maxLength ? String(newValue.prefix(maxLength)) : newValue
     }
     
+    // MARK: - 통합된 API 호출 (9번/12번 통합)
+    func fetchGoalRecommendations(completion: @escaping (Bool) -> Void) {
+        let trimmedGoal = goalText.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.isSaving = true
+        self.errorMessage = nil
+            
+        let request = JourneyGoalRequest(goal: trimmedGoal, category: category)
+
+        networkManager.request(
+            target: .createJourneyGoal(request: request), // /api/journeys/goals
+            decodingType: UnifiedGoalResponse.self // 위에서 정의한 새 DTO
+        ) { [weak self] result in
+            guard let self = self else { return }
+            _Concurrency.Task { @MainActor in
+                self.isSaving = false
+                switch result {
+                case .success(let response):
+                    // API 명세에 따라 recommendations 추출
+                    self.recommendedInsights = response.data.recommendations
+                    completion(true)
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                    completion(false)
+                }
+            }
+        }
+    }
+    
     // 9번 API에서 여정 시작 - (/api/journeys/goals)
     func submitGoal(completion: @escaping (Bool) -> Void) {
         let trimmedGoal = goalText.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -75,6 +75,7 @@ let project = Project(
     ],
     additionalFiles: [
         "Loop_On/Sources/Secret.xcconfig",
-	"Loop_On/Sources/Loading/Loading 51 _ Monoplane.json"
+	"Loop_On/Sources/Loading/Loading 51 _ Monoplane.json",
+	"Loop_On/Sources/Loading/TriPriend.json"
     ]
 )

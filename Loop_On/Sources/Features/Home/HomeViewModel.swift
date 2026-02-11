@@ -107,12 +107,13 @@ class HomeViewModel: ObservableObject {
     }
         
     private func updateUI(with data: HomeDataDetail) {
+        // 목표 타이틀 업데이트
         self.goalTitle = data.journey.goal
             
-        // 기존 JourneyInfo 모델에 맞춰 매핑
+        // 여정 정보 매핑 (journeyOrder와 journeyDate 활용)
         self.journeyInfo = JourneyInfo(
-            loopId: data.journey.journeyId,
-            currentDay: 1, // 필요 시 계산 로직 추가
+            loopId: data.journey.journeyOrder,      // n번째 여정
+            currentDay: data.journey.journeyDate,   // n일차 여정
             totalJourney: data.todayProgress.totalCount,
             completedJourney: data.todayProgress.completedCount,
             todayRoutine: data.routines.count,
@@ -123,16 +124,16 @@ class HomeViewModel: ObservableObject {
         // 루틴 리스트 매핑
         self.routines = data.routines.map { dto in
             RoutineModel(
-                id: dto.id,
-                title: dto.title,
-                time: "\(dto.alarmTime) 알림 예정",
-                isCompleted: dto.isCompleted,
-                isDelayed: dto.isDelayed,
-                delayReason: dto.delayReason
+                id: dto.routineId,
+                title: dto.content,
+                time: "\(dto.notificationTime) 알림 예정",
+                isCompleted: dto.status == "COMPLETED",
+                isDelayed: dto.status == "DELAYED",
+                delayReason: "" // 필요 시 서버에서 확장하여 받아야 함
             )
         }
             
-        // 미완료 루틴 처리 로직 실행
+        // 상태 체크
         checkUncompletedRoutines()
     }
     
@@ -250,18 +251,26 @@ class HomeViewModel: ObservableObject {
     private func fetchTodayRoutines() {
         self.isLoading = true
             
-        // 실제 API 통신 시점 시뮬레이션
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            guard let self = self else { return }
+            
             // 서버에서 새로 받아온 오늘의 루틴 리스트
             let todayRoutines = [
-                RoutineDTO(id: 201, title: "물 한 컵 마시기 (오늘)", alarmTime: "08:00", isCompleted: false, isDelayed: false, delayReason: ""),
-                RoutineDTO(id: 202, title: "점심 산책하기 (오늘)", alarmTime: "13:00", isCompleted: false, isDelayed: false, delayReason: ""),
-                RoutineDTO(id: 203, title: "독서 30분 하기 (오늘)", alarmTime: "22:00", isCompleted: false, isDelayed: false, delayReason: "")
+                RoutineDTO(routineId: 201, routineProgressId: 10, content: "물 한 컵 마시기 (오늘)", notificationTime: "08:00", status: "IN_PROGRESS"),
+                RoutineDTO(routineId: 202, routineProgressId: 11, content: "점심 산책하기 (오늘)", notificationTime: "13:00", status: "IN_PROGRESS"),
+                RoutineDTO(routineId: 203, routineProgressId: 12, content: "독서 30분 하기 (오늘)", notificationTime: "22:00", status: "IN_PROGRESS")
             ]
                 
             // 리스트 업데이트
-            self.routines = todayRoutines.map {
-                RoutineModel(id: $0.id, title: $0.title, time: "\($0.alarmTime) 알림 예정", isCompleted: $0.isCompleted, isDelayed: $0.isDelayed, delayReason: $0.delayReason)
+            self.routines = todayRoutines.map { dto in
+                RoutineModel(
+                    id: dto.routineId,
+                    title: dto.content,
+                    time: "\(dto.notificationTime) 알림 예정",
+                    isCompleted: dto.isCompleted,
+                    isDelayed: dto.isDelayed,
+                    delayReason: ""
+                )
             }
                 
             // 오늘 진행도 초기화

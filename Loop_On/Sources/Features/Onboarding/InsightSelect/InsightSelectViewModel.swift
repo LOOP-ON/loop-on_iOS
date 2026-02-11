@@ -28,6 +28,7 @@ final class InsightSelectViewModel: ObservableObject {
     // API: Step2에서 전달된 목표/카테고리 (TODO: 실제 값 주입)
     @Published var goalText: String = ""
     @Published var selectedCategory: String = ""
+    let journeyId: Int
 
     @Published var insights: [InsightItem] = [
         .init(title: "생활 리듬 바꾸기"),
@@ -41,21 +42,20 @@ final class InsightSelectViewModel: ObservableObject {
     @Published var isCreatingLoop: Bool = false
     @Published var errorMessage: String?
     
-    @Published var journeyId: Int
 
     init(goalText: String, selectedCategory: String, insights: [String], journeyId: Int) {
-        self.goalText = goalText
-        self.selectedCategory = selectedCategory
-        self.journeyId = journeyId
-        
-        if !goalText.isEmpty {
-            self.goalTitle = goalText
+            self.goalText = goalText
+            self.selectedCategory = selectedCategory
+            self.journeyId = journeyId
+            
+            if !goalText.isEmpty {
+                self.goalTitle = goalText
+            }
+            
+            if !insights.isEmpty {
+                self.insights = insights.map { InsightItem(title: $0) }
+            }
         }
-        
-        if !insights.isEmpty {
-            self.insights = insights.map { InsightItem(title: $0) }
-        }
-    }
 
     /// 스펙: 0개도 허용할 경우 항상 활성
     var canCreateLoop: Bool { true }
@@ -81,17 +81,21 @@ final class InsightSelectViewModel: ObservableObject {
     }
     
     func createLoop() {
-        // 선택된 인사이트들을 RoutineCoach 배열로 즉시 변환 (API 호출 X)
-        let newRoutines = selected.enumerated().map { index, item in
+        let selectedItems = Array(selected).prefix(3)
+            
+        let newRoutines = selectedItems.enumerated().map { index, item in
             RoutineCoach(
                 index: index + 1,
-                name: item.title, // 선택한 인사이트 내용이 이름으로 들어감
-                alarmTime: convertToDate("09:00") // 기본 알림 시간 설정
+                name: item.title,
+                alarmTime: convertToDate("09:00")
             )
         }
-        
-        // 생성된 루틴과 함께 journeyId도 다음 화면(RoutineCoach)까지 전달
-        self.router?.push(.app(.routineCoach(routines: newRoutines, journeyId: self.journeyId)))
+            
+        // Router를 통해 데이터를 RoutineCoach로 전달
+        self.router?.push(.app(.routineCoach(
+            routines: newRoutines,
+            journeyId: self.journeyId
+        )))
     }
     
 //    func createLoop() {
@@ -137,5 +141,3 @@ final class InsightSelectViewModel: ObservableObject {
 //        }
 //    }
 }
-
-

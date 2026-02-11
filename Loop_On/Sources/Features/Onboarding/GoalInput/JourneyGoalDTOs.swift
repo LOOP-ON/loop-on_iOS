@@ -1,5 +1,19 @@
 import Foundation
 
+//
+// 수정된 api 로직에서 사용할거
+struct UnifiedGoalResponse: Decodable {
+    let result: String
+    let message: String
+    let data: GoalRecommendationData
+}
+
+struct GoalRecommendationData: Decodable {
+    let recommendations: [String]
+}
+//
+//
+
 struct JourneyGoalRequest: Encodable {
     let goal: String
     let category: String
