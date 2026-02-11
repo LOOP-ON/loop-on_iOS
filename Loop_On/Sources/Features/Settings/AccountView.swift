@@ -48,9 +48,11 @@ struct AccountView: View {
                         .padding(.top, 20)
                         .padding(.bottom, 10)
                     AccountCardRow(title: "로그아웃", trailing: nil, isDestructive: false, showsChevron: false) {
-                            session.logout()
+                        session.logout { _ in
+                            // 서버 로그아웃 성공/실패와 관계 없이 클라이언트 세션은 초기화되었으므로 루트로 이동
                             router.reset()
                         }
+                    }
                     AccountCardRow(title: "계정 탈퇴", trailing: nil, isDestructive: true, showsChevron: false) {
                         // TODO: 계정 탈퇴
                     }

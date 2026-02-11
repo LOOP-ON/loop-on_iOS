@@ -11,35 +11,48 @@ import SwiftUI
 // 슬라이드 방식으로 부드럽게 넘어가는 스타일
 struct RootTabView: View {
     @State private var selectedTab: TabItem = .home
+    /// 타인 프로필 오버레이: 설정 시 이전 화면 위에 타인뷰를 올리고, 그 위에 탭바가 항상 보이게 함
+    @State private var overlayUserId: Int? = nil
     @EnvironmentObject var homeViewModel: HomeViewModel
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             Color(.systemGroupedBackground)
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // 상단 컨텐츠 영역: TabView를 사용하여 슬라이드 애니메이션 구현
-                TabView(selection: $selectedTab) {
-                    HomeView()
-                        .tag(TabItem.home)
+            // 1) 탭 컨텐츠 (이전 화면)
+            TabView(selection: $selectedTab) {
+                HomeView()
+                    .tag(TabItem.home)
 
-                    HistoryView()
-                        .tag(TabItem.history)
+                HistoryView()
+                    .tag(TabItem.history)
 
-                    ChallengeView()
-                        .tag(TabItem.challenge)
+                ChallengeView(onOpenOtherProfile: { overlayUserId = $0 })
+                    .tag(TabItem.challenge)
 
-                    PersonalProfileView()
-                        .tag(TabItem.profile)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                PersonalProfileView()
+                    .tag(TabItem.profile)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // 하단 탭바 영역
+            // 2) 타인뷰 오버레이 (이전 화면 위에 올림)
+            if overlayUserId != nil {
+                PersonalProfileView(isOwnProfile: false, onClose: { overlayUserId = nil })
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+
+            // 3) 하단 탭바를 맨 위에 유지 (타인뷰 위에도 항상 표시)
+            VStack {
+                Spacer()
                 HomeBottomTabView(selectedTab: $selectedTab)
             }
+            .zIndex(2)
             .onChange(of: selectedTab) { oldValue, newValue in
+                // 타인뷰 오버레이 중에 다른 탭을 누르면 오버레이 닫고 해당 탭으로 이동
+                overlayUserId = nil
                 // #region agent log
                 let payload: [String: Any] = [
                     "sessionId": "debug-session",

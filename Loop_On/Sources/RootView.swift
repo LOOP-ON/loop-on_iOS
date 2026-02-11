@@ -87,8 +87,10 @@ struct RootView: View {
                     Text(title)
 
                 case let .app(.profile(userID)):
-                    PersonalProfileView()
+                    // 타인 프로필: 뒤로가기는 커스텀 헤더, 하단 탭바 유지
+                    PersonalProfileView(isOwnProfile: false)
                         .navigationBarBackButtonHidden(true)
+                        .toolbar(.visible, for: .tabBar)
                 }
             }
         }

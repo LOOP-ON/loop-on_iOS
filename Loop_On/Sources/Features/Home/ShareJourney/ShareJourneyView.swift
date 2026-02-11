@@ -10,17 +10,25 @@ import SwiftUI
 import PhotosUI
 
 struct ShareJourneyView: View {
-    @StateObject private var viewModel = ShareJourneyViewModel()
+    /// 수정 모드일 때 기존 챌린지 ID (nil이면 새로 올리기)
+    private let editChallengeId: Int?
+    @StateObject private var viewModel: ShareJourneyViewModel
     @Environment(\.dismiss) private var dismiss
-    
+
+    init(editChallengeId: Int? = nil) {
+        self.editChallengeId = editChallengeId
+        _viewModel = StateObject(wrappedValue: ShareJourneyViewModel(editChallengeId: editChallengeId))
+    }
+
+    private var isEditMode: Bool { editChallengeId != nil }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 Color(red: 0.98, green: 0.98, blue: 0.98)
                     .ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
-                    // 컨텐츠 영역
                     ScrollView {
                         VStack(alignment: .leading, spacing: 12) {
                             photoSection
@@ -30,27 +38,31 @@ struct ShareJourneyView: View {
                             visibilitySection
                         }
                     }
-                    
-                    // 챌린지 업로드 버튼
+
                     fixedBottomButton
+                }
+                if viewModel.isLoadingDetail {
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                    ProgressView()
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .onAppear {
+                viewModel.dismiss = { dismiss() }
+                viewModel.loadChallengeDetailIfNeeded()
+            }
             .toolbar {
-                // 왼쪽 뒤로 가기 화살표 버튼
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        dismiss()
-                    }) {
+                    Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
                             .foregroundStyle(Color.black)
                             .font(.system(size: 18, weight: .medium))
                     }
                 }
-                
                 ToolbarItem(placement: .principal) {
-                    Text("여정 공유하기")
+                    Text(isEditMode ? "챌린지 수정" : "여정 공유하기")
                         .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
                         .foregroundStyle(Color.black)
                 }
@@ -154,13 +166,11 @@ struct ShareJourneyView: View {
                     .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            // 5개 이상이면 버튼을 시각적으로 비활성화 처리
                             .fill(viewModel.hashtags.count >= 5 ? Color.gray.opacity(0.4) : Color(.primaryColorVarient65))
                     )
                     .foregroundColor(.white)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
-            // 버튼 자체 비활성화 로직
             .disabled(viewModel.hashtags.count >= 5)
         }
         .padding(.horizontal, 20)
@@ -182,7 +192,7 @@ struct ShareJourneyView: View {
                 TextEditor(text: $viewModel.caption)
                     .frame(minHeight: 100)
                     .padding(10)
-                    .scrollContentBackground(.hidden) // 배경색 커스텀을 위해 필수
+                    .scrollContentBackground(.hidden)
                     .background(Color.white)
                     .cornerRadius(12)
                     .overlay(
@@ -195,7 +205,7 @@ struct ShareJourneyView: View {
                         .foregroundStyle(Color.gray.opacity(0.5))
                         .padding(.top, 18)
                         .padding(.leading, 16)
-                        .allowsHitTesting(false) // 텍스트 입력 방해 금지
+                        .allowsHitTesting(false)
                 }
             }
         }

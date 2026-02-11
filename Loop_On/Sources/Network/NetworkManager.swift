@@ -74,7 +74,7 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
         do {
             // AuthViewModel에 정의된 BaseResponse 구조로 먼저 읽음
             let baseResponse = try JSONDecoder().decode(BaseResponse<T>.self, from: response.data)
-
+            
             if baseResponse.result == "SUCCESS" {
                 if let resultData = baseResponse.data {
                     return .success(resultData)

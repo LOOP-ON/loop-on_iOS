@@ -117,10 +117,14 @@ struct ProfileEditPopupView: View {
                             .fill(Color("background"))
                     )
                     .overlay(alignment: .trailing) {
-                        // 중복확인 성공 시 체크 표시
+                        // 중복확인 결과: 사용 가능 → 체크, 중복 → 엑스, 확인 중 → 로딩
                         if viewModel.duplicationCheckResult == .available {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(Color("StatusGreen"))
+                                .padding(.trailing, 14)
+                        } else if viewModel.duplicationCheckResult == .duplicated {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(Color("StatusRed"))
                                 .padding(.trailing, 14)
                         } else if viewModel.duplicationCheckResult == .checking {
                             ProgressView()

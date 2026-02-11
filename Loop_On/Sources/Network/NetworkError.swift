@@ -93,7 +93,7 @@ extension NetworkError: LocalizedError {
             
         case .serverError(let code, let msg):
             return "서버 오류 \(code): \(msg)"
-
+            
         case .unauthorized:
             return "로그인이 필요합니다."
             

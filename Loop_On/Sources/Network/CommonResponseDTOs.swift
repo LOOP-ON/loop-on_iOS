@@ -17,6 +17,7 @@ public struct ApiResponse<T: Decodable>: Decodable {
     public let code: String       // 서버에서 정의한 상태 코드 (예: "SUCCESS", "USER_NOT_FOUND")
     public let message: String    // 상태 메시지
     public let data: T?         // 실제 응답 데이터 (없을 수도 있음)
+    public let timestamp: String? // 선택 (예: "2026-02-09T03:27:36.865Z")
 }
 
 // MARK: - 에러 응답 파싱용 구조체

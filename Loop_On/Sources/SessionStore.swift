@@ -51,17 +51,47 @@ final class SessionStore {
         self.isOnboardingCompleted = true
     }
 
-    func logout() {
-        KeychainService.shared.deleteToken()
-        self.isLoggedIn = false
-        self.isOnboardingCompleted = false
-        self.hasValidatedSessionAtLaunch = false
+    /// 서버 로그아웃 API를 호출한 뒤 로컬 세션을 정리합니다.
+    /// - Note: refresh 토큰이 별도 저장되어 있지 않아 현재는 accessToken을 `refresh_token`으로 전달합니다.
+    func logout(completion: ((Bool) -> Void)? = nil) {
+        let accessToken = KeychainService.shared.loadToken()
+
+        // 내부 정리 로직
+        let clearSession: (Bool) -> Void = { [weak self] success in
+            guard let self else { return }
+            KeychainService.shared.deleteToken()
+            self.hasLoggedInBefore = false
+            self.isLoggedIn = false
+            self.isOnboardingCompleted = false
+            self.hasValidatedSessionAtLaunch = false
+            completion?(success)
+        }
+
+        guard let token = accessToken, !token.isEmpty else {
+            // 토큰이 없으면 서버 호출 없이 바로 로그아웃 처리
+            clearSession(true)
+            return
+        }
+
+        let networkManager = DefaultNetworkManager<AuthAPI>()
+        networkManager.request(
+            target: .logout(refreshToken: token),
+            decodingType: String.self
+        ) { result in
+            // 성공/실패 여부와 관계 없이 로컬 세션은 정리
+            switch result {
+            case .success:
+                clearSession(true)
+            case .failure:
+                clearSession(false)
+            }
+        }
     }
     
-    // 서버에서 프로필 정보를 가져오는 함수 추가
+    // 서버에서 프로필 정보를 가져오는 함수
     func fetchUserProfile() {
         if let token = KeychainService.shared.loadToken() {
-                print("DEBUG: 토큰 확인됨 - \(token.prefix(10))...")
+            print("DEBUG: 토큰 확인됨 - \(token.prefix(10))...")
         } else {
             print("DEBUG: 토큰이 없습니다! 로그인이 필요합니다.")
             return
