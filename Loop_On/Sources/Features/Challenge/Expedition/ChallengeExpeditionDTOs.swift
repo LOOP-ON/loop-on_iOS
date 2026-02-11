@@ -15,6 +15,16 @@ struct CreateExpeditionRequest: Encodable {
     let password: String?
 }
 
+struct JoinExpeditionRequest: Encodable {
+    let expeditionId: Int
+    let expeditionVisibility: String
+    let password: String?
+}
+
+struct JoinExpeditionResponseDTO: Decodable {
+    let expeditionUserId: Int?
+}
+
 struct CreateExpeditionResponseDTO: Decodable {
     let expeditionId: Int
 }
@@ -50,6 +60,8 @@ struct ChallengeExpeditionListItemDTO: Decodable {
     let capacity: Int
     let visibility: String
     let isJoined: Bool
+    let isAdmin: Bool
+    let canJoin: Bool
 
     enum CodingKeys: String, CodingKey {
         case expeditionId
@@ -69,6 +81,8 @@ struct ChallengeExpeditionListItemDTO: Decodable {
         case visibilitySnake = "visibility_type"
         case visibility
         case isJoined
+        case isAdmin
+        case canJoin
     }
 
     init(from decoder: Decoder) throws {
@@ -95,6 +109,8 @@ struct ChallengeExpeditionListItemDTO: Decodable {
             ?? (try? c.decode(String.self, forKey: .visibilitySnake))
             ?? "PUBLIC"
         isJoined = (try? c.decode(Bool.self, forKey: .isJoined)) ?? false
+        isAdmin = (try? c.decode(Bool.self, forKey: .isAdmin)) ?? false
+        canJoin = (try? c.decode(Bool.self, forKey: .canJoin)) ?? true
     }
 }
 
@@ -120,7 +136,8 @@ extension ChallengeExpedition {
         self.leaderName = dto.admin
         self.isPrivate = dto.visibility.uppercased() != "PUBLIC"
         self.isMember = true
-        self.isOwner = false
+        self.isOwner = dto.isAdmin
+        self.canJoin = false
     }
 
     init(dto: ChallengeExpeditionListItemDTO, isMember: Bool) {
@@ -131,12 +148,13 @@ extension ChallengeExpedition {
         self.leaderName = dto.admin
         self.isPrivate = dto.visibility.uppercased() != "PUBLIC"
         self.isMember = isMember
-        self.isOwner = false
+        self.isOwner = dto.isAdmin
+        self.canJoin = dto.canJoin
     }
 
     private static func categoryText(from raw: String) -> String {
         switch raw.uppercased() {
-        case "SKILL":
+        case "SKILL", "GROWTH":
             return "역량 강화"
         case "ROUTINE", "LIFE_ROUTINE", "LIFE":
             return "생활 루틴"

@@ -121,6 +121,17 @@ private extension ChallengeFriendsView {
                     viewModel.searchFriends()
                 }
 
+            if !viewModel.searchText.isEmpty {
+                Button {
+                    viewModel.searchText = ""
+                    viewModel.clearSearchResults()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Color.gray.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+            }
+
             Button {
                 viewModel.searchFriends()
             } label: {
