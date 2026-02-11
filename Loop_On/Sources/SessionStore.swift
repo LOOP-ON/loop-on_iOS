@@ -13,6 +13,7 @@ final class SessionStore {
     private let key = "hasLoggedInBefore"
     private let keyOnboarding = "isOnboardingCompleted"
     private let networkManager = DefaultNetworkManager<ProfileAPI>() // 프로필 API 매니저
+    private var hasValidatedSessionAtLaunch = false
     
     var isLoggedIn: Bool = false
     var currentUserNickname: String = "" // 닉네임을 담을 변수
@@ -38,6 +39,13 @@ final class SessionStore {
         self.isLoggedIn = true
         fetchUserProfile() // 로그인 성공 시 프로필 정보 가져오기
     }
+
+    func validateSessionAtLaunchIfNeeded() {
+        guard hasValidToken else { return }
+        guard !hasValidatedSessionAtLaunch else { return }
+        hasValidatedSessionAtLaunch = true
+        fetchUserProfile()
+    }
     
     func completeOnboarding() {
         self.isOnboardingCompleted = true
@@ -47,6 +55,7 @@ final class SessionStore {
         KeychainService.shared.deleteToken()
         self.isLoggedIn = false
         self.isOnboardingCompleted = false
+        self.hasValidatedSessionAtLaunch = false
     }
     
     // 서버에서 프로필 정보를 가져오는 함수 추가
@@ -67,6 +76,11 @@ final class SessionStore {
                 }
             case .failure(let error):
                 print("DEBUG: 프로필 조회 실패 - \(error.localizedDescription)")
+                if case .unauthorized = error {
+                    DispatchQueue.main.async {
+                        self?.logout()
+                    }
+                }
             }
         }
     }

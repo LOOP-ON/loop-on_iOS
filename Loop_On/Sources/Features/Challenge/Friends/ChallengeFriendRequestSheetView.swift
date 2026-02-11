@@ -9,11 +9,13 @@ import SwiftUI
 
 struct ChallengeFriendRequestSheet: View {
     let requests: [ChallengeFriendRequest]
+    let isLoadingMore: Bool
     var onAccept: (Int) -> Void
     var onReject: (Int) -> Void
     var onAcceptAll: () -> Void
     var onRejectAll: () -> Void
     var onClose: () -> Void
+    var onRequestRowAppear: (Int) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,11 +36,20 @@ struct ChallengeFriendRequestSheet: View {
                                 onAccept: onAccept,
                                 onReject: onReject
                             )
+                            .onAppear {
+                                onRequestRowAppear(request.id)
+                            }
 
                             if index < requests.count - 1 {
                                 Divider()
                                     .background(Color.gray.opacity(0.15))
                             }
+                        }
+
+                        if isLoadingMore {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
                         }
                     }
                     .padding(.bottom, 8)
@@ -183,11 +194,13 @@ private struct ChallengeRequestChipStyle: ButtonStyle {
 #Preview {
     ChallengeFriendRequestSheet(
         requests: ChallengeFriendRequest.sampleRequests,
+        isLoadingMore: false,
         onAccept: { _ in },
         onReject: { _ in },
         onAcceptAll: {},
         onRejectAll: {},
-        onClose: {}
+        onClose: {},
+        onRequestRowAppear: { _ in }
     )
     .frame(maxWidth: 320, maxHeight: 540)
     .padding(24)

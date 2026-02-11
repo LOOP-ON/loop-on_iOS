@@ -8,6 +8,9 @@
 import Foundation
 
 final class ChallengeExpeditionViewModel: ObservableObject {
+    private let networkManager: DefaultNetworkManager<ExpeditionAPI>
+    private var hasLoadedMyExpeditions = false
+
     @Published var searchText: String = ""
     @Published var selectedCategories: Set<String> = []
     @Published var isShowingCreateModal = false
@@ -22,24 +25,32 @@ final class ChallengeExpeditionViewModel: ObservableObject {
     @Published var isPublicExpedition: Bool = true
     @Published var password: String = ""
     @Published var selectedCreateCategories: Set<String> = []
+    @Published var isLoadingMyExpeditions: Bool = false
+    @Published var loadMyExpeditionsErrorMessage: String?
+    @Published var isCreatingExpedition: Bool = false
+    @Published var createErrorMessage: String?
+    @Published var isShowingCreateErrorAlert: Bool = false
 
     let categories = ["역량 강화", "생활 루틴", "내면 관리"]
 
     private var allMyExpeditions: [ChallengeExpedition]
     private var allRecommendedExpeditions: [ChallengeExpedition]
-    private var pendingDeleteExpeditionID: UUID?
+    private var pendingDeleteExpeditionID: Int?
     private var pendingDeleteExpeditionName: String = ""
-    private var pendingLeaveExpeditionID: UUID?
+    private var pendingLeaveExpeditionID: Int?
     private var pendingLeaveExpeditionName: String = ""
-    private var pendingJoinExpeditionID: UUID?
+    private var pendingJoinExpeditionID: Int?
     private var pendingJoinExpeditionName: String = ""
+    private var lastCreatedExpeditionName: String = ""
 
     init(
-        myExpeditions: [ChallengeExpedition] = ChallengeExpedition.sampleMyExpeditions,
-        recommendedExpeditions: [ChallengeExpedition] = ChallengeExpedition.sampleRecommendedExpeditions
+        myExpeditions: [ChallengeExpedition] = [],
+        recommendedExpeditions: [ChallengeExpedition] = ChallengeExpedition.sampleRecommendedExpeditions,
+        networkManager: DefaultNetworkManager<ExpeditionAPI> = DefaultNetworkManager<ExpeditionAPI>()
     ) {
         self.allMyExpeditions = myExpeditions
         self.allRecommendedExpeditions = recommendedExpeditions
+        self.networkManager = networkManager
     }
 
     var myExpeditions: [ChallengeExpedition] {
@@ -62,6 +73,43 @@ final class ChallengeExpeditionViewModel: ObservableObject {
         searchText = ""
     }
 
+    func loadMyExpeditionsIfNeeded() {
+        guard !hasLoadedMyExpeditions else { return }
+        loadMyExpeditions()
+    }
+
+    func refreshMyExpeditions() {
+        hasLoadedMyExpeditions = false
+        loadMyExpeditions()
+    }
+
+    func loadMyExpeditions() {
+        isLoadingMyExpeditions = true
+        loadMyExpeditionsErrorMessage = nil
+        print("✅ [Expedition] loadMyExpeditions start: GET /api/expeditions")
+
+        networkManager.request(
+            target: .getMyExpeditions,
+            decodingType: ChallengeMyExpeditionListDTO.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                self.isLoadingMyExpeditions = false
+                self.hasLoadedMyExpeditions = true
+
+                switch result {
+                case .success(let dto):
+                    self.loadMyExpeditionsErrorMessage = nil
+                    self.allMyExpeditions = dto.expeditionGetResponses.map { ChallengeExpedition(dto: $0) }
+                    print("✅ [Expedition] loadMyExpeditions success: count=\(self.allMyExpeditions.count)")
+                case .failure(let error):
+                    print("❌ [Expedition] loadMyExpeditions failed: \(error)")
+                    self.loadMyExpeditionsErrorMessage = "탐험대 목록을 불러오지 못했어요.\n네트워크 상태를 확인해 주세요."
+                }
+            }
+        }
+    }
+
     func handleAction(_ expedition: ChallengeExpedition) {
         if expedition.isMember {
             if expedition.isOwner {
@@ -79,9 +127,45 @@ final class ChallengeExpeditionViewModel: ObservableObject {
     }
 
     func createExpedition() {
-        // TODO: API 연결 시 탐험대 생성 처리 (createName, createMemberCount, isPublicExpedition, password, selectedCreateCategories)
-        isShowingCreateModal = false
-        isShowingCreateSuccessAlert = true
+        guard isCreateValid else { return }
+
+        let trimmedName = createName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        let categoryDisplayName = categories.first(where: { selectedCreateCategories.contains($0) }) ?? "역량 강화"
+        let categoryCode = ChallengeExpedition.categoryCode(from: categoryDisplayName)
+
+        let request = CreateExpeditionRequest(
+            title: trimmedName,
+            capacity: createMemberCount,
+            visibility: isPublicExpedition ? "PUBLIC" : "PRIVATE",
+            category: categoryCode,
+            password: isPublicExpedition ? nil : trimmedPassword
+        )
+
+        isCreatingExpedition = true
+        print("✅ [Expedition] createExpedition start: POST /api/expeditions")
+        networkManager.request(
+            target: .createExpedition(request: request),
+            decodingType: CreateExpeditionResponseDTO.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                self.isCreatingExpedition = false
+                switch result {
+                case .success(let data):
+                    print("✅ [Expedition] createExpedition success: expeditionId=\(data.expeditionId)")
+                    self.lastCreatedExpeditionName = trimmedName
+                    self.isShowingCreateModal = false
+                    self.isShowingCreateSuccessAlert = true
+                    self.resetCreateInputs()
+                    self.refreshMyExpeditions()
+                case .failure(let error):
+                    print("❌ [Expedition] createExpedition failed: \(error)")
+                    self.createErrorMessage = "탐험대를 생성하지 못했어요.\n입력값 또는 네트워크 상태를 확인해 주세요."
+                    self.isShowingCreateErrorAlert = true
+                }
+            }
+        }
     }
 
     func requestDelete(_ expedition: ChallengeExpedition) {
@@ -160,10 +244,15 @@ final class ChallengeExpeditionViewModel: ObservableObject {
 
     func closeCreateSuccessAlert() {
         isShowingCreateSuccessAlert = false
+        lastCreatedExpeditionName = ""
+    }
+
+    func closeCreateErrorAlert() {
+        isShowingCreateErrorAlert = false
     }
 
     var createSuccessMessage: String {
-        let name = createName.isEmpty ? "탐험대" : createName
+        let name = lastCreatedExpeditionName.isEmpty ? "탐험대" : lastCreatedExpeditionName
         return "'\(name)' 탐험대가 생성되었습니다."
     }
 
@@ -202,7 +291,7 @@ final class ChallengeExpeditionViewModel: ObservableObject {
         if selectedCreateCategories.contains(category) {
             selectedCreateCategories.remove(category)
         } else {
-            selectedCreateCategories.insert(category)
+            selectedCreateCategories = [category]
         }
     }
 
@@ -220,6 +309,14 @@ final class ChallengeExpeditionViewModel: ObservableObject {
         let trimmed = password.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (4...8).contains(trimmed.count) else { return false }
         return trimmed.allSatisfy { $0.isNumber }
+    }
+
+    private func resetCreateInputs() {
+        createName = ""
+        createMemberCount = 10
+        isPublicExpedition = true
+        password = ""
+        selectedCreateCategories = []
     }
 
     private func filterExpeditions(_ list: [ChallengeExpedition]) -> [ChallengeExpedition] {

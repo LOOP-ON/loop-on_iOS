@@ -10,6 +10,8 @@ import Foundation
 final class ChallengeFriendsViewModel: ObservableObject {
     private let networkManager: DefaultNetworkManager<FriendsAPI>
     private var hasLoadedFriends = false
+    private let friendRequestPageSize = 10
+    private var currentFriendRequestPage = 0
 
     @Published var friends: [ChallengeFriend]
     @Published var searchText: String = ""
@@ -25,6 +27,8 @@ final class ChallengeFriendsViewModel: ObservableObject {
     @Published var isShowingSearchAlert: Bool = false
     @Published var searchAlertMessage: String?
     @Published var pendingRequestCount: Int = 0
+    @Published var isLoadingFriendRequests: Bool = false
+    @Published var hasMoreFriendRequests: Bool = true
 
     init(
         friends: [ChallengeFriend] = [],
@@ -108,7 +112,8 @@ final class ChallengeFriendsViewModel: ObservableObject {
     }
 
     func openRequestList() {
-        loadFriendRequests(openSheet: true)
+        resetFriendRequestPagination()
+        loadFriendRequestsPage(openSheet: true)
     }
 
     func clearSearchResults() {
@@ -197,7 +202,8 @@ final class ChallengeFriendsViewModel: ObservableObject {
                 switch result {
                 case .success:
                     self.friendRequests.removeAll { $0.id == id }
-                    self.updatePendingCountFromList()
+                    self.pendingRequestCount = max(self.pendingRequestCount - 1, 0)
+                    self.updatePendingState()
                 case .failure(let error):
                     // TODO: API 연결 시 친구 요청 수락 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] acceptFriendRequest failed: \(error)")
@@ -216,7 +222,8 @@ final class ChallengeFriendsViewModel: ObservableObject {
                 switch result {
                 case .success:
                     self.friendRequests.removeAll { $0.id == id }
-                    self.updatePendingCountFromList()
+                    self.pendingRequestCount = max(self.pendingRequestCount - 1, 0)
+                    self.updatePendingState()
                 case .failure(let error):
                     // TODO: API 연결 시 친구 요청 거절 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] rejectFriendRequest failed: \(error)")
@@ -235,7 +242,9 @@ final class ChallengeFriendsViewModel: ObservableObject {
                 switch result {
                 case .success:
                     self.friendRequests.removeAll()
-                    self.updatePendingCountFromList()
+                    self.pendingRequestCount = 0
+                    self.hasMoreFriendRequests = false
+                    self.updatePendingState()
                 case .failure(let error):
                     // TODO: API 연결 시 친구 요청 전체 수락 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] acceptAllFriendRequests failed: \(error)")
@@ -254,7 +263,9 @@ final class ChallengeFriendsViewModel: ObservableObject {
                 switch result {
                 case .success:
                     self.friendRequests.removeAll()
-                    self.updatePendingCountFromList()
+                    self.pendingRequestCount = 0
+                    self.hasMoreFriendRequests = false
+                    self.updatePendingState()
                 case .failure(let error):
                     // TODO: API 연결 시 친구 요청 전체 거절 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] rejectAllFriendRequests failed: \(error)")
@@ -267,26 +278,43 @@ final class ChallengeFriendsViewModel: ObservableObject {
         isShowingRequestSheet = false
     }
 
-    func loadFriendRequests(openSheet: Bool = false) {
+    func loadMoreFriendRequestsIfNeeded(currentRequestId: Int) {
+        guard currentRequestId == friendRequests.last?.id else { return }
+        loadFriendRequestsPage()
+    }
+
+    func loadFriendRequestsPage(openSheet: Bool = false) {
+        guard !isLoadingFriendRequests else { return }
+        guard hasMoreFriendRequests || currentFriendRequestPage == 0 else { return }
+
+        isLoadingFriendRequests = true
         networkManager.request(
-            target: .getFriendRequests(page: 0, size: 20),
+            target: .getFriendRequests(page: currentFriendRequestPage, size: friendRequestPageSize),
             decodingType: ChallengeFriendRequestPageDTO.self
         ) { [weak self] result in
             guard let self else { return }
             Task { @MainActor in
+                self.isLoadingFriendRequests = false
                 switch result {
                 case .success(let page):
-                    self.friendRequests = page.content.map { ChallengeFriendRequest(dto: $0) }
-                    self.pendingRequestCount = self.friendRequests.count
+                    let mapped = page.content.map { ChallengeFriendRequest(dto: $0) }
+                    if self.currentFriendRequestPage == 0 {
+                        self.friendRequests = mapped
+                    } else {
+                        self.friendRequests.append(contentsOf: mapped)
+                    }
+
+                    self.pendingRequestCount = page.totalElements
+                    self.hasMoreFriendRequests = !page.isLast
+                    if !page.isLast {
+                        self.currentFriendRequestPage += 1
+                    }
                     self.updatePendingState()
                     if openSheet {
                         self.isShowingRequestSheet = true
                     }
                 case .failure(let error):
                     print("❌ [Friends] loadFriendRequests failed: \(error)")
-                    self.friendRequests = []
-                    self.pendingRequestCount = 0
-                    self.updatePendingState()
                     if openSheet {
                         self.isShowingRequestSheet = true
                     }
@@ -315,9 +343,10 @@ final class ChallengeFriendsViewModel: ObservableObject {
         }
     }
 
-    private func updatePendingCountFromList() {
-        pendingRequestCount = friendRequests.count
-        updatePendingState()
+    private func resetFriendRequestPagination() {
+        currentFriendRequestPage = 0
+        hasMoreFriendRequests = true
+        friendRequests = []
     }
 
     private func updatePendingState() {

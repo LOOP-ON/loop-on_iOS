@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ChallengeExpedition: Identifiable {
-    let id = UUID()
+    let id: Int
     let name: String
     let category: String
     let progressText: String
@@ -34,6 +34,7 @@ extension ChallengeExpedition {
 extension ChallengeExpedition {
     static let sampleMyExpeditions: [ChallengeExpedition] = [
         ChallengeExpedition(
+            id: 1,
             name: "갓생 루틴 공유방",
             category: "생활 루틴",
             progressText: "8/10",
@@ -43,6 +44,7 @@ extension ChallengeExpedition {
             isOwner: true
         ),
         ChallengeExpedition(
+            id: 2,
             name: "SQLD 자격증 준비방",
             category: "역량 강화",
             progressText: "35/50",
@@ -55,6 +57,7 @@ extension ChallengeExpedition {
 
     static let sampleRecommendedExpeditions: [ChallengeExpedition] = [
         ChallengeExpedition(
+            id: 101,
             name: "하루 세 질문",
             category: "내면 관리",
             progressText: "13/25",
@@ -64,6 +67,7 @@ extension ChallengeExpedition {
             isOwner: false
         ),
         ChallengeExpedition(
+            id: 102,
             name: "GTQi 자격증 준비방",
             category: "역량 강화",
             progressText: "3/15",
@@ -73,6 +77,7 @@ extension ChallengeExpedition {
             isOwner: false
         ),
         ChallengeExpedition(
+            id: 103,
             name: "취준생 공부방",
             category: "역량 강화",
             progressText: "35/50",
@@ -82,6 +87,7 @@ extension ChallengeExpedition {
             isOwner: false
         ),
         ChallengeExpedition(
+            id: 104,
             name: "하루 독서 챌린지",
             category: "생활 루틴",
             progressText: "12/20",
@@ -91,6 +97,7 @@ extension ChallengeExpedition {
             isOwner: false
         ),
         ChallengeExpedition(
+            id: 105,
             name: "감정 일기 모임",
             category: "내면 관리",
             progressText: "7/18",
