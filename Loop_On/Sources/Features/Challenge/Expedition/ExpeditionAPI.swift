@@ -15,6 +15,12 @@ enum ExpeditionAPI {
     case searchExpeditions(keyword: String, categories: [Bool], page: Int, size: Int)
     // 탐험대 생성 (POST /api/expeditions)
     case createExpedition(request: CreateExpeditionRequest)
+    // 탐험대 가입 (POST /api/expeditions/join)
+    case joinExpedition(request: JoinExpeditionRequest)
+    // 탐험대 삭제 (DELETE /api/expeditions/{expeditionId})
+    case deleteExpedition(expeditionId: Int)
+    // 탐험대 탈퇴 (DELETE /api/expeditions/{expeditionId}/withdraw)
+    case withdrawExpedition(expeditionId: Int)
 }
 
 extension ExpeditionAPI: TargetType {
@@ -33,6 +39,12 @@ extension ExpeditionAPI: TargetType {
             return "/api/expeditions/search"
         case .createExpedition:
             return "/api/expeditions"
+        case .joinExpedition:
+            return "/api/expeditions/join"
+        case let .deleteExpedition(expeditionId):
+            return "/api/expeditions/\(expeditionId)"
+        case let .withdrawExpedition(expeditionId):
+            return "/api/expeditions/\(expeditionId)/withdraw"
         }
     }
 
@@ -44,6 +56,12 @@ extension ExpeditionAPI: TargetType {
             return .get
         case .createExpedition:
             return .post
+        case .joinExpedition:
+            return .post
+        case .deleteExpedition:
+            return .delete
+        case .withdrawExpedition:
+            return .delete
         }
     }
 
@@ -67,6 +85,12 @@ extension ExpeditionAPI: TargetType {
             )
         case let .createExpedition(request):
             return .requestJSONEncodable(request)
+        case let .joinExpedition(request):
+            return .requestJSONEncodable(request)
+        case .deleteExpedition:
+            return .requestPlain
+        case .withdrawExpedition:
+            return .requestPlain
         }
     }
 

@@ -33,13 +33,6 @@ struct ChallengeExpeditionView: View {
                         sectionHeader("내 탐험대")
                         myExpeditionSection
                     }
-
-                    Divider()
-                        .background(Color.gray.opacity(0.2))
-
-                    sectionHeader("추천 탐험대")
-
-                    expeditionList(viewModel.recommendedExpeditions)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
@@ -74,7 +67,17 @@ struct ChallengeExpeditionView: View {
             }
         }
         .alert(
-            "탐험대 생성 실패",
+            viewModel.joinResultTitle,
+            isPresented: $viewModel.isShowingJoinResultAlert
+        ) {
+            Button("확인") {
+                viewModel.closeJoinResultAlert()
+            }
+        } message: {
+            Text(viewModel.joinResultMessage ?? "")
+        }
+        .alert(
+            viewModel.createErrorTitle,
             isPresented: $viewModel.isShowingCreateErrorAlert
         ) {
             Button("확인") {
@@ -154,7 +157,7 @@ private extension ChallengeExpeditionView {
             }
             .padding(.vertical, 16)
         } else if !viewModel.searchResults.isEmpty {
-            expeditionList(viewModel.searchResults)
+            expeditionList(viewModel.searchResults, isSearchMode: true)
         } else {
             let message = viewModel.searchErrorMessage ?? "다른 키워드로 다시 검색해 보세요."
             Text(message)
@@ -270,11 +273,12 @@ private extension ChallengeExpeditionView {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    func expeditionList(_ expeditions: [ChallengeExpedition]) -> some View {
+    func expeditionList(_ expeditions: [ChallengeExpedition], isSearchMode: Bool = false) -> some View {
         VStack(spacing: 0) {
             ForEach(expeditions) { expedition in
                 ChallengeExpeditionRow(
                     expedition: expedition,
+                    isSearchMode: isSearchMode,
                     onRowTap: {
                         // TODO: 라우팅 연결 (탐험대 상세 화면 이동)
                     },
@@ -300,6 +304,7 @@ private extension ChallengeExpeditionView {
 
 private struct ChallengeExpeditionRow: View {
     let expedition: ChallengeExpedition
+    let isSearchMode: Bool
     var onRowTap: () -> Void
     var onActionTap: () -> Void
 
@@ -329,23 +334,47 @@ private struct ChallengeExpeditionRow: View {
 
             Spacer()
 
-            Button(action: onActionTap) {
-                Text(expedition.actionTitle)
-                    .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 12))
-                    .foregroundStyle(Color.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(expedition.actionColor)
-                    )
+            if shouldShowActionButton {
+                Button(action: onActionTap) {
+                    Text(actionTitle)
+                        .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 12))
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(expedition.actionColor)
+                        )
+                }
+                .buttonStyle(.plain)
+            } else if isSearchMode {
+                Text(expedition.isMember ? "참여중" : "가입 불가")
+                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 12))
+                    .foregroundStyle(Color.gray)
+            } else if !expedition.isMember {
+                Text("가입 불가")
+                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 12))
+                    .foregroundStyle(Color.gray)
             }
-            .buttonStyle(.plain)
         }
         .contentShape(Rectangle())
         .onTapGesture {
             onRowTap()
         }
         .padding(.vertical, 12)
+    }
+
+    private var shouldShowActionButton: Bool {
+        if isSearchMode {
+            return !expedition.isMember && expedition.canJoin
+        }
+        return expedition.shouldShowActionButton
+    }
+
+    private var actionTitle: String {
+        if isSearchMode {
+            return "가입"
+        }
+        return expedition.actionTitle
     }
 }

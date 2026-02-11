@@ -24,6 +24,9 @@ final class ChallengeExpeditionViewModel: ObservableObject {
     @Published var isShowingLeaveAlert = false
     @Published var isShowingJoinPrivateAlert = false
     @Published var joinPassword: String = ""
+    @Published var joinResultTitle: String = "탐험대 가입"
+    @Published var joinResultMessage: String?
+    @Published var isShowingJoinResultAlert: Bool = false
     @Published var createName: String = ""
     @Published var createMemberCount: Int = 10
     @Published var isPublicExpedition: Bool = true
@@ -32,6 +35,7 @@ final class ChallengeExpeditionViewModel: ObservableObject {
     @Published var isLoadingMyExpeditions: Bool = false
     @Published var loadMyExpeditionsErrorMessage: String?
     @Published var isCreatingExpedition: Bool = false
+    @Published var createErrorTitle: String = "탐험대 오류"
     @Published var createErrorMessage: String?
     @Published var isShowingCreateErrorAlert: Bool = false
 
@@ -45,6 +49,8 @@ final class ChallengeExpeditionViewModel: ObservableObject {
     private var pendingLeaveExpeditionName: String = ""
     private var pendingJoinExpeditionID: Int?
     private var pendingJoinExpeditionName: String = ""
+    private var pendingJoinIsPrivate: Bool = false
+    private var isJoiningExpedition: Bool = false
     private var lastCreatedExpeditionName: String = ""
 
     init(
@@ -116,6 +122,10 @@ final class ChallengeExpeditionViewModel: ObservableObject {
                 self.isSearching = false
                 switch result {
                 case .success(let page):
+                    print("✅ [Expedition] searchExpeditions success: count=\(page.content.count)")
+                    page.content.forEach { item in
+                        print("  - id=\(item.expeditionId), title=\(item.title), category=\(item.category), admin=\(item.admin), currentMembers=\(item.currentMembers), capacity=\(item.capacity), visibility=\(item.visibility), isJoined=\(item.isJoined)")
+                    }
                     self.searchResults = page.content.map {
                         ChallengeExpedition(dto: $0, isMember: $0.isJoined)
                     }
@@ -176,7 +186,12 @@ final class ChallengeExpeditionViewModel: ObservableObject {
             if expedition.isPrivate {
                 requestJoinPrivate(expedition)
             } else {
-                // TODO: API 연결 시 탐험대 가입 처리 (expedition.id)
+                joinExpedition(
+                    expeditionId: expedition.id,
+                    expeditionName: expedition.name,
+                    isPrivate: false,
+                    password: nil
+                )
             }
         }
     }
@@ -217,6 +232,7 @@ final class ChallengeExpeditionViewModel: ObservableObject {
                     self.refreshMyExpeditions()
                 case .failure(let error):
                     print("❌ [Expedition] createExpedition failed: \(error)")
+                    self.createErrorTitle = "탐험대 생성 실패"
                     self.createErrorMessage = "탐험대를 생성하지 못했어요.\n입력값 또는 네트워크 상태를 확인해 주세요."
                     self.isShowingCreateErrorAlert = true
                 }
@@ -231,13 +247,36 @@ final class ChallengeExpeditionViewModel: ObservableObject {
     }
 
     func confirmDelete() {
-        // TODO: API 연결 시 탐험대 삭제 처리 (pendingDeleteExpeditionID)
-        if let id = pendingDeleteExpeditionID {
-            allMyExpeditions.removeAll { $0.id == id }
+        guard let id = pendingDeleteExpeditionID else {
+            pendingDeleteExpeditionName = ""
+            isShowingDeleteAlert = false
+            return
         }
-        pendingDeleteExpeditionID = nil
-        pendingDeleteExpeditionName = ""
-        isShowingDeleteAlert = false
+
+        print("✅ [Expedition] deleteExpedition start: DELETE /api/expeditions/\(id)")
+        networkManager.requestStatusCode(
+            target: .deleteExpedition(expeditionId: id)
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    print("✅ [Expedition] deleteExpedition success: expeditionId=\(id)")
+                    self.allMyExpeditions.removeAll { $0.id == id }
+                    self.pendingDeleteExpeditionID = nil
+                    self.pendingDeleteExpeditionName = ""
+                    self.isShowingDeleteAlert = false
+                case .failure(let error):
+                    print("❌ [Expedition] deleteExpedition failed: \(error)")
+                    self.pendingDeleteExpeditionID = nil
+                    self.pendingDeleteExpeditionName = ""
+                    self.isShowingDeleteAlert = false
+                    self.createErrorTitle = "탐험대 삭제 실패"
+                    self.createErrorMessage = "탐험대 삭제에 실패했어요.\n잠시 후 다시 시도해 주세요."
+                    self.isShowingCreateErrorAlert = true
+                }
+            }
+        }
     }
 
     func cancelDelete() {
@@ -253,13 +292,37 @@ final class ChallengeExpeditionViewModel: ObservableObject {
     }
 
     func confirmLeave() {
-        // TODO: API 연결 시 탐험대 탈퇴 처리 (pendingLeaveExpeditionID)
-        if let id = pendingLeaveExpeditionID {
-            allMyExpeditions.removeAll { $0.id == id }
+        guard let id = pendingLeaveExpeditionID else {
+            pendingLeaveExpeditionName = ""
+            isShowingLeaveAlert = false
+            return
         }
-        pendingLeaveExpeditionID = nil
-        pendingLeaveExpeditionName = ""
-        isShowingLeaveAlert = false
+
+        print("✅ [Expedition] withdrawExpedition start: DELETE /api/expeditions/\(id)/withdraw")
+        networkManager.request(
+            target: .withdrawExpedition(expeditionId: id),
+            decodingType: CreateExpeditionResponseDTO.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    print("✅ [Expedition] withdrawExpedition success: expeditionId=\(id)")
+                    self.allMyExpeditions.removeAll { $0.id == id }
+                    self.pendingLeaveExpeditionID = nil
+                    self.pendingLeaveExpeditionName = ""
+                    self.isShowingLeaveAlert = false
+                case .failure(let error):
+                    print("❌ [Expedition] withdrawExpedition failed: \(error)")
+                    self.pendingLeaveExpeditionID = nil
+                    self.pendingLeaveExpeditionName = ""
+                    self.isShowingLeaveAlert = false
+                    self.createErrorTitle = "탐험대 탈퇴 실패"
+                    self.createErrorMessage = "탐험대 탈퇴에 실패했어요.\n잠시 후 다시 시도해 주세요."
+                    self.isShowingCreateErrorAlert = true
+                }
+            }
+        }
     }
 
     func cancelLeave() {
@@ -271,21 +334,32 @@ final class ChallengeExpeditionViewModel: ObservableObject {
     func requestJoinPrivate(_ expedition: ChallengeExpedition) {
         pendingJoinExpeditionID = expedition.id
         pendingJoinExpeditionName = expedition.name
+        pendingJoinIsPrivate = true
         joinPassword = ""
         isShowingJoinPrivateAlert = true
     }
 
     func confirmJoinPrivate() {
-        // TODO: API 연결 시 비공개 탐험대 비밀번호 검증 요청 (pendingJoinExpeditionID, joinPassword)
-        pendingJoinExpeditionID = nil
-        pendingJoinExpeditionName = ""
-        joinPassword = ""
+        guard let id = pendingJoinExpeditionID else {
+            joinPassword = ""
+            isShowingJoinPrivateAlert = false
+            return
+        }
+        let name = pendingJoinExpeditionName
+        let password = joinPassword.trimmingCharacters(in: .whitespacesAndNewlines)
         isShowingJoinPrivateAlert = false
+        joinExpedition(
+            expeditionId: id,
+            expeditionName: name,
+            isPrivate: pendingJoinIsPrivate,
+            password: password
+        )
     }
 
     func cancelJoinPrivate() {
         pendingJoinExpeditionID = nil
         pendingJoinExpeditionName = ""
+        pendingJoinIsPrivate = false
         joinPassword = ""
         isShowingJoinPrivateAlert = false
     }
@@ -306,6 +380,13 @@ final class ChallengeExpeditionViewModel: ObservableObject {
 
     func closeCreateErrorAlert() {
         isShowingCreateErrorAlert = false
+        createErrorTitle = "탐험대 오류"
+    }
+
+    func closeJoinResultAlert() {
+        isShowingJoinResultAlert = false
+        joinResultTitle = "탐험대 가입"
+        joinResultMessage = nil
     }
 
     var createSuccessMessage: String {
@@ -386,6 +467,73 @@ final class ChallengeExpeditionViewModel: ObservableObject {
 - category: \(request.category)
 - password: \(passwordLog)
 """)
+    }
+
+    private func joinExpedition(expeditionId: Int, expeditionName: String, isPrivate: Bool, password: String?) {
+        guard !isJoiningExpedition else { return }
+        let request = JoinExpeditionRequest(
+            expeditionId: expeditionId,
+            expeditionVisibility: isPrivate ? "PRIVATE" : "PUBLIC",
+            password: isPrivate ? password : nil
+        )
+        let passwordLog = request.password == nil ? "nil" : "********"
+        print("""
+✅ [Expedition] joinExpedition payload
+- expeditionId: \(request.expeditionId)
+- expeditionVisibility: \(request.expeditionVisibility)
+- password: \(passwordLog)
+""")
+        print("✅ [Expedition] joinExpedition start: POST /api/expeditions/join")
+        isJoiningExpedition = true
+
+        networkManager.request(
+            target: .joinExpedition(request: request),
+            decodingType: JoinExpeditionResponseDTO.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                self.isJoiningExpedition = false
+                self.pendingJoinExpeditionID = nil
+                self.pendingJoinExpeditionName = ""
+                self.pendingJoinIsPrivate = false
+                self.joinPassword = ""
+
+                switch result {
+                case .success:
+                    print("✅ [Expedition] joinExpedition success: expeditionId=\(expeditionId)")
+                    self.joinResultTitle = "가입 완료"
+                    self.joinResultMessage = "'\(expeditionName)' 탐험대에 가입되었습니다."
+                    self.isShowingJoinResultAlert = true
+                    self.refreshMyExpeditions()
+                    if self.isShowingSearchResults {
+                        self.searchExpeditions()
+                    }
+                case .failure(let error):
+                    print("❌ [Expedition] joinExpedition failed: \(error)")
+                    let (title, message) = self.joinFailureAlert(expeditionName: expeditionName, error: error)
+                    self.joinResultTitle = title
+                    self.joinResultMessage = message
+                    self.isShowingJoinResultAlert = true
+                }
+            }
+        }
+    }
+
+    private func joinFailureAlert(expeditionName: String, error: NetworkError) -> (String, String) {
+        if case let .serverError(_, rawMessage) = error {
+            let message = rawMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+            if message.contains("비밀번호") || message.contains("암호") {
+                return ("잘못된 암호입니다.", "비공개 탐험대에 가입하기 위해 올바른 암호를 입력해주세요.")
+            }
+            if message.contains("정원") || message.contains("가득") {
+                return ("탐험대에 가입할 수 없습니다.", "'\(expeditionName)' 탐험대의 정원이 가득 차 가입할 수 없습니다.")
+            }
+            if message.contains("최대") || message.contains("가입할 수 없습니다") {
+                return ("탐험대에 가입할 수 없습니다.", message)
+            }
+            return ("탐험대 가입 실패", message.isEmpty ? "잠시 후 다시 시도해 주세요." : message)
+        }
+        return ("탐험대 가입 실패", "잠시 후 다시 시도해 주세요.")
     }
 
     private func categoriesForSearchQuery() -> [Bool] {

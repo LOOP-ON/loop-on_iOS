@@ -16,6 +16,7 @@ struct ChallengeExpedition: Identifiable {
     let isPrivate: Bool
     let isMember: Bool
     let isOwner: Bool
+    let canJoin: Bool
 }
 
 extension ChallengeExpedition {
@@ -29,6 +30,11 @@ extension ChallengeExpedition {
     var actionColor: Color {
         return Color(.primaryColorVarient65)
     }
+
+    var shouldShowActionButton: Bool {
+        if isMember { return true }
+        return canJoin
+    }
 }
 
 extension ChallengeExpedition {
@@ -41,7 +47,8 @@ extension ChallengeExpedition {
             leaderName: "서리",
             isPrivate: true,
             isMember: true,
-            isOwner: true
+            isOwner: true,
+            canJoin: false
         ),
         ChallengeExpedition(
             id: 2,
@@ -51,7 +58,8 @@ extension ChallengeExpedition {
             leaderName: "쥬디",
             isPrivate: false,
             isMember: true,
-            isOwner: false
+            isOwner: false,
+            canJoin: false
         )
     ]
 
@@ -64,7 +72,8 @@ extension ChallengeExpedition {
             leaderName: "키미",
             isPrivate: true,
             isMember: false,
-            isOwner: false
+            isOwner: false,
+            canJoin: true
         ),
         ChallengeExpedition(
             id: 102,
@@ -74,7 +83,8 @@ extension ChallengeExpedition {
             leaderName: "써니",
             isPrivate: false,
             isMember: false,
-            isOwner: false
+            isOwner: false,
+            canJoin: true
         ),
         ChallengeExpedition(
             id: 103,
@@ -84,7 +94,8 @@ extension ChallengeExpedition {
             leaderName: "핀",
             isPrivate: true,
             isMember: false,
-            isOwner: false
+            isOwner: false,
+            canJoin: true
         ),
         ChallengeExpedition(
             id: 104,
@@ -94,7 +105,8 @@ extension ChallengeExpedition {
             leaderName: "레오",
             isPrivate: false,
             isMember: false,
-            isOwner: false
+            isOwner: false,
+            canJoin: true
         ),
         ChallengeExpedition(
             id: 105,
@@ -104,7 +116,8 @@ extension ChallengeExpedition {
             leaderName: "루비",
             isPrivate: false,
             isMember: false,
-            isOwner: false
+            isOwner: false,
+            canJoin: true
         )
     ]
 }
