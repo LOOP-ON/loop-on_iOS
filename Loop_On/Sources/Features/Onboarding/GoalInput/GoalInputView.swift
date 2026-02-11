@@ -42,7 +42,7 @@ struct GoalInputView: View {
             if viewModel.isSaving {
                 CommonLoadingView(
                     message: "AI가 목표를 분석하여\n인사이트를 생성하고 있어요",
-                    lottieFileName: "Loading 51 _ Monoplane"
+                    lottieFileName: "TriPriend"
                 )
                 .transition(.opacity) // 부드러운 전환 효과
                 .zIndex(1) // 다른 요소보다 항상 위에 있도록 설정
@@ -149,8 +149,7 @@ struct GoalInputView: View {
                     router.push(.app(.insightSelect(
                         goalText: trimmedGoal,
                         category: viewModel.category,
-                        insights: viewModel.recommendedInsights,
-                        journeyId: viewModel.journeyId ?? 0 // 통합 API에서 ID를 안 줄 경우 기본값 처리
+                        insights: viewModel.recommendedInsights
                     )))
                 }
             }

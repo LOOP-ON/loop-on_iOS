@@ -11,7 +11,7 @@ import AVFoundation
 
 struct HomeView: View {
     @Environment(NavigationRouter.self) var router
-    @StateObject private var viewModel = HomeViewModel()
+    @EnvironmentObject var viewModel: HomeViewModel
     
     // 카메라 권한 Alert은 View에서 관리하는 것이 SwiftUI 관례에 적합
     @State private var isShowingPermissionAlert = false
@@ -32,8 +32,8 @@ struct HomeView: View {
                             .padding(.top, 16)
                         
                         JourneyProgressCardView(
-                            completed: info.completedJourney,
-                            total: info.totalJourney
+                            completed: info.todayRoutineCount,
+                            total: info.todayRoutine
                         )
                         .padding(.horizontal, 20)
                         .padding(.top, 8)
@@ -60,6 +60,11 @@ struct HomeView: View {
             Button("확인") { }
         } message: {
             Text("휴대폰 설정 > LOOP:ON > 카메라에서 권한을 허용 해주세요 :)")
+        }
+        .onAppear {
+            if viewModel.journeyInfo == nil || viewModel.routines.isEmpty {
+                viewModel.fetchHomeData()
+            }
         }
     }
 }
@@ -111,7 +116,7 @@ private extension HomeView {
                         
                         onConfirm: {
                             viewModel.selectRoutine(at: index)
-                            viewModel.completeRoutine(at: index)
+                            viewModel.activeFullSheet = .camera
                         },
                         onDelay: {
                             viewModel.selectRoutine(at: index)
@@ -159,10 +164,14 @@ private extension HomeView {
             CameraView(
                 routineTitle: viewModel.selectedRoutine?.title ?? "",
                 routineIndex: viewModel.selectedRoutineIndex,
+                progressId: viewModel.selectedRoutine?.routineProgressId ?? 0,
                 isPresented: Binding(
                     get: { viewModel.activeFullSheet == .camera },
                     set: { if !$0 { viewModel.activeFullSheet = nil } }
-                )
+                ),
+                onCertificationSuccess: {
+                    viewModel.completeSelectedRoutine()
+                }
             )
         case .finishJourney:
             CommonPopupView(
@@ -202,7 +211,9 @@ private extension HomeView {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                             router.push(.app(.routineCoach(
                                 routines: viewModel.routinesForCoaching,
-                                journeyId: viewModel.journeyInfo?.loopId ?? 0
+                                goal: viewModel.goalTitle,
+                                category: "ROUTINE",
+                                selectedInsights: viewModel.routinesForCoaching.map(\.name)
                             )))
                             viewModel.resetJourneyStatus()
                         }
@@ -225,6 +236,8 @@ private extension HomeView {
             DelayPopupView(
                 index: viewModel.selectedRoutineIndex,
                 title: viewModel.selectedRoutine?.title ?? "",
+                journeyId: viewModel.journeyInfo?.journeyId ?? 0,
+                progressId: viewModel.selectedRoutine?.routineProgressId ?? 0,
                 isPresented: Binding(
                     get: { viewModel.activeFullSheet == .delay },
                     set: { if !$0 { viewModel.activeFullSheet = nil } }
@@ -267,6 +280,8 @@ private extension HomeView {
             DelayPopupView(
                 index: viewModel.selectedRoutineIndex,
                 title: viewModel.selectedRoutine?.title ?? "",
+                journeyId: viewModel.journeyInfo?.journeyId ?? 0,
+                progressId: viewModel.selectedRoutine?.routineProgressId ?? 0,
                 isPresented: Binding(
                     get: { viewModel.activeFullSheet == .viewDelay },
                     set: { if !$0 { viewModel.activeFullSheet = nil } }

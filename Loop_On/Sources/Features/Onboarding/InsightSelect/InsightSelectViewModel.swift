@@ -28,7 +28,6 @@ final class InsightSelectViewModel: ObservableObject {
     // API: Step2에서 전달된 목표/카테고리 (TODO: 실제 값 주입)
     @Published var goalText: String = ""
     @Published var selectedCategory: String = ""
-    let journeyId: Int
 
     @Published var insights: [InsightItem] = [
         .init(title: "생활 리듬 바꾸기"),
@@ -43,19 +42,18 @@ final class InsightSelectViewModel: ObservableObject {
     @Published var errorMessage: String?
     
 
-    init(goalText: String, selectedCategory: String, insights: [String], journeyId: Int) {
-            self.goalText = goalText
-            self.selectedCategory = selectedCategory
-            self.journeyId = journeyId
+    init(goalText: String, selectedCategory: String, insights: [String]) {
+        self.goalText = goalText
+        self.selectedCategory = selectedCategory
             
-            if !goalText.isEmpty {
-                self.goalTitle = goalText
-            }
-            
-            if !insights.isEmpty {
-                self.insights = insights.map { InsightItem(title: $0) }
-            }
+        if !goalText.isEmpty {
+            self.goalTitle = goalText
         }
+            
+        if !insights.isEmpty {
+            self.insights = insights.map { InsightItem(title: $0) }
+        }
+    }
 
     /// 스펙: 0개도 허용할 경우 항상 활성
     var canCreateLoop: Bool { true }
@@ -94,7 +92,9 @@ final class InsightSelectViewModel: ObservableObject {
         // Router를 통해 데이터를 RoutineCoach로 전달
         self.router?.push(.app(.routineCoach(
             routines: newRoutines,
-            journeyId: self.journeyId
+            goal: self.goalText,
+            category: self.selectedCategory,
+            selectedInsights: selectedItems.map(\.title)
         )))
     }
     

@@ -11,6 +11,7 @@ import SwiftUI
 struct PhotoConfirmView: View {
     let image: UIImage
     let routineTitle: String
+    var isSubmitting: Bool = false
 
     var onRetake: () -> Void
     var onConfirm: () -> Void
@@ -72,16 +73,27 @@ struct PhotoConfirmView: View {
                             .background(Color(.primaryColorVarient65).opacity(0.6))
                             .cornerRadius(12)
                     }
+                    .disabled(isSubmitting)
 
                     Button(action: onConfirm) {
-                        Text("인증 완료하기")
-                            .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
-                            .foregroundStyle(Color.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(Color(.primaryColorVarient65))
-                            .cornerRadius(12)
+                        if isSubmitting {
+                            ProgressView()
+                                .tint(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(Color(.primaryColorVarient65))
+                                .cornerRadius(12)
+                        } else {
+                            Text("인증 완료하기")
+                                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(Color(.primaryColorVarient65))
+                                .cornerRadius(12)
+                        }
                     }
+                    .disabled(isSubmitting)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 40)
@@ -106,4 +118,3 @@ struct PhotoConfirmView: View {
         }
     )
 }
-

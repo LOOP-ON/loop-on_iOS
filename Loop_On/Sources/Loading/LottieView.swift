@@ -15,8 +15,10 @@ struct LottieView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
+        let normalizedName = normalizeAnimationName(filename)
+        let animation = LottieAnimation.named(normalizedName)
 
-        let animationView = LottieAnimationView(name: filename)
+        let animationView = LottieAnimationView(animation: animation)
         animationView.contentMode = .scaleAspectFit
         animationView.loopMode = loopMode
         animationView.play()
@@ -33,4 +35,12 @@ struct LottieView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {}
+
+    private func normalizeAnimationName(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.lowercased().hasSuffix(".json") {
+            return String(trimmed.dropLast(5))
+        }
+        return trimmed
+    }
 }
