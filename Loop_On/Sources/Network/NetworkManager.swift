@@ -45,8 +45,19 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
                 if (200...299).contains(response.statusCode) {
                     completion(.success(()))
                 } else {
+                    if response.statusCode == 401 {
+                        self.notifyAuthenticationRequired()
+                        completion(.failure(.unauthorized))
+                        return
+                    }
                     let base = try? JSONDecoder().decode(BaseResponse<EmptyData>.self, from: response.data)
-                    completion(.failure(.serverError(statusCode: response.statusCode, message: base?.message ?? "서버 오류")))
+                    let message = base?.message ?? "서버 오류"
+                    if self.isAuthenticationRequired(message: message) {
+                        self.notifyAuthenticationRequired()
+                        completion(.failure(.unauthorized))
+                        return
+                    }
+                    completion(.failure(.serverError(statusCode: response.statusCode, message: message)))
                 }
             case .failure(let error):
                 completion(.failure(self.handleNetworkError(error)))
@@ -55,6 +66,11 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
     }
 
     private func handleResponse<T: Decodable>(_ response: Response, decodingType: T.Type) -> Result<T, NetworkError> {
+        if response.statusCode == 401 {
+            notifyAuthenticationRequired()
+            return .failure(.unauthorized)
+        }
+
         do {
             // AuthViewModel에 정의된 BaseResponse 구조로 먼저 읽음
             let baseResponse = try JSONDecoder().decode(BaseResponse<T>.self, from: response.data)
@@ -65,7 +81,12 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
                 }
                 return .failure(.serverError(statusCode: response.statusCode, message: "데이터가 없습니다."))
             } else {
-                return .failure(.serverError(statusCode: response.statusCode, message: baseResponse.message ?? "서버 오류"))
+                let message = baseResponse.message ?? "서버 오류"
+                if response.statusCode == 401 || isAuthenticationRequired(message: message) {
+                    notifyAuthenticationRequired()
+                    return .failure(.unauthorized)
+                }
+                return .failure(.serverError(statusCode: response.statusCode, message: message))
             }
         } catch let error as DecodingError {
             return .failure(.decodingError(underlyingError: error))
@@ -83,6 +104,19 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
         case NSURLErrorNotConnectedToInternet: return .networkError(message: "인터넷 연결 없음")
         case NSURLErrorTimedOut: return .networkError(message: "요청 시간 초과")
         default: return .networkError(message: "네트워크 오류 발생")
+        }
+    }
+
+    private func isAuthenticationRequired(message: String) -> Bool {
+        let normalized = message.replacingOccurrences(of: " ", with: "")
+        return normalized.contains("로그인이필요") ||
+            normalized.localizedCaseInsensitiveContains("unauthorized") ||
+            normalized.localizedCaseInsensitiveContains("forbidden")
+    }
+
+    private func notifyAuthenticationRequired() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .authenticationRequired, object: nil)
         }
     }
 }

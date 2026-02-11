@@ -5,6 +5,7 @@
 //  Created by 이경민 on 1/1/26.
 //
 import SwiftUI
+import Combine
 
 struct RootView: View {
     @Environment(NavigationRouter.self) private var router
@@ -91,8 +92,14 @@ struct RootView: View {
                 }
             }
         }
+        .onAppear {
+            session.validateSessionAtLaunchIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .authenticationRequired)) { _ in
+            session.logout()
+            router.reset()
+        }
         .environment(signUpFlowStore)
         .environmentObject(homeViewModel)
     }
 }
-
