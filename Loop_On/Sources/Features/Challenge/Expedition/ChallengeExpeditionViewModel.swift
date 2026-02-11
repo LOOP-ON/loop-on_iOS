@@ -13,6 +13,10 @@ final class ChallengeExpeditionViewModel: ObservableObject {
 
     @Published var searchText: String = ""
     @Published var selectedCategories: Set<String> = []
+    @Published var searchResults: [ChallengeExpedition] = []
+    @Published var hasSearched: Bool = false
+    @Published var isSearching: Bool = false
+    @Published var searchErrorMessage: String?
     @Published var isShowingCreateModal = false
     @Published var isShowingMemberPicker = false
     @Published var isShowingCreateSuccessAlert = false
@@ -61,16 +65,67 @@ final class ChallengeExpeditionViewModel: ObservableObject {
         filterExpeditions(allRecommendedExpeditions)
     }
 
+    var isShowingSearchResults: Bool {
+        let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return hasSearched && !keyword.isEmpty
+    }
+
     func toggleCategory(_ category: String) {
         if selectedCategories.contains(category) {
             selectedCategories.remove(category)
         } else {
             selectedCategories.insert(category)
         }
+
+        if isShowingSearchResults {
+            searchExpeditions()
+        }
     }
 
     func clearSearch() {
         searchText = ""
+        clearSearchResults()
+    }
+
+    func clearSearchResults() {
+        hasSearched = false
+        isSearching = false
+        searchResults = []
+        searchErrorMessage = nil
+    }
+
+    func searchExpeditions() {
+        let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else {
+            clearSearchResults()
+            return
+        }
+
+        hasSearched = true
+        isSearching = true
+        searchErrorMessage = nil
+
+        let categories = categoriesForSearchQuery()
+        print("✅ [Expedition] searchExpeditions start: GET /api/expeditions/search")
+        networkManager.request(
+            target: .searchExpeditions(keyword: keyword, categories: categories, page: 0, size: 20),
+            decodingType: ChallengeExpeditionSearchPageDTO.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                self.isSearching = false
+                switch result {
+                case .success(let page):
+                    self.searchResults = page.content.map {
+                        ChallengeExpedition(dto: $0, isMember: $0.isJoined)
+                    }
+                case .failure(let error):
+                    print("❌ [Expedition] searchExpeditions failed: \(error)")
+                    self.searchResults = []
+                    self.searchErrorMessage = "검색 결과를 불러오지 못했어요.\n네트워크 상태를 확인해 주세요."
+                }
+            }
+        }
     }
 
     func loadMyExpeditionsIfNeeded() {
@@ -143,6 +198,7 @@ final class ChallengeExpeditionViewModel: ObservableObject {
         )
 
         isCreatingExpedition = true
+        logCreateExpeditionRequest(request)
         print("✅ [Expedition] createExpedition start: POST /api/expeditions")
         networkManager.request(
             target: .createExpedition(request: request),
@@ -240,6 +296,7 @@ final class ChallengeExpeditionViewModel: ObservableObject {
 
     func closeCreateModal() {
         isShowingCreateModal = false
+        resetCreateInputs()
     }
 
     func closeCreateSuccessAlert() {
@@ -319,17 +376,31 @@ final class ChallengeExpeditionViewModel: ObservableObject {
         selectedCreateCategories = []
     }
 
-    private func filterExpeditions(_ list: [ChallengeExpedition]) -> [ChallengeExpedition] {
-        let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let filteredByKeyword = keyword.isEmpty
-            ? list
-            : list.filter {
-                $0.name.localizedCaseInsensitiveContains(keyword) ||
-                $0.category.localizedCaseInsensitiveContains(keyword) ||
-                $0.leaderName.localizedCaseInsensitiveContains(keyword)
-            }
+    private func logCreateExpeditionRequest(_ request: CreateExpeditionRequest) {
+        let passwordLog = request.password == nil ? "nil" : "********"
+        print("""
+✅ [Expedition] createExpedition payload
+- title: \(request.title)
+- capacity: \(request.capacity)
+- visibility: \(request.visibility)
+- category: \(request.category)
+- password: \(passwordLog)
+""")
+    }
 
-        guard !selectedCategories.isEmpty else { return filteredByKeyword }
-        return filteredByKeyword.filter { selectedCategories.contains($0.category) }
+    private func categoriesForSearchQuery() -> [Bool] {
+        if selectedCategories.isEmpty {
+            return [true, true, true]
+        }
+        return [
+            selectedCategories.contains("역량 강화"),
+            selectedCategories.contains("생활 루틴"),
+            selectedCategories.contains("내면 관리")
+        ]
+    }
+
+    private func filterExpeditions(_ list: [ChallengeExpedition]) -> [ChallengeExpedition] {
+        guard !selectedCategories.isEmpty else { return list }
+        return list.filter { selectedCategories.contains($0.category) }
     }
 }

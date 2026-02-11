@@ -11,6 +11,8 @@ import Moya
 enum ExpeditionAPI {
     // 내 탐험대 목록 조회 (GET /api/expeditions)
     case getMyExpeditions
+    // 탐험대 검색 (GET /api/expeditions/search)
+    case searchExpeditions(keyword: String, categories: [Bool], page: Int, size: Int)
     // 탐험대 생성 (POST /api/expeditions)
     case createExpedition(request: CreateExpeditionRequest)
 }
@@ -27,6 +29,8 @@ extension ExpeditionAPI: TargetType {
         switch self {
         case .getMyExpeditions:
             return "/api/expeditions"
+        case .searchExpeditions:
+            return "/api/expeditions/search"
         case .createExpedition:
             return "/api/expeditions"
         }
@@ -35,6 +39,8 @@ extension ExpeditionAPI: TargetType {
     var method: Moya.Method {
         switch self {
         case .getMyExpeditions:
+            return .get
+        case .searchExpeditions:
             return .get
         case .createExpedition:
             return .post
@@ -45,6 +51,20 @@ extension ExpeditionAPI: TargetType {
         switch self {
         case .getMyExpeditions:
             return .requestPlain
+        case let .searchExpeditions(keyword, categories, page, size):
+            return .requestParameters(
+                parameters: [
+                    "keyword": keyword,
+                    "categories": categories,
+                    "page": page,
+                    "size": size
+                ],
+                encoding: URLEncoding(
+                    destination: .queryString,
+                    arrayEncoding: .noBrackets,
+                    boolEncoding: .literal
+                )
+            )
         case let .createExpedition(request):
             return .requestJSONEncodable(request)
         }
