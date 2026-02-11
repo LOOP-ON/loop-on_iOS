@@ -23,7 +23,10 @@ final class SessionStore {
     }
     
     var hasValidToken: Bool {
-        KeychainService.shared.loadToken() != nil
+//        KeychainService.shared.loadToken() != nil
+        
+        // 잠시 테스트용으로 로직 바꿈 나중에 이거 지우고 주석해둔거 주석 해제
+        isLoggedIn || KeychainService.shared.loadToken() != nil
     }
     
     var hasLoggedInBefore: Bool {

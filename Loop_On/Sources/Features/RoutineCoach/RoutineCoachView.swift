@@ -23,7 +23,7 @@ struct RoutineCoachView: View {
     @State private var scrollOffset: CGFloat = 0        // 현재 스크롤 위치(y, 아래로 갈수록 +)
     @State private var contentHeight: CGFloat = 0       // 전체 콘텐츠 높이
     
-    init(routines: [RoutineCoach], journeyId: Int) { 
+    init(routines: [RoutineCoach], journeyId: Int) {
         let vm = RoutineCoachViewModel(initialRoutines: routines)
         vm.loop_id = journeyId // ViewModel의 loop_id에 전달받은 ID 할당
         _viewModel = StateObject(wrappedValue: vm)
@@ -46,7 +46,7 @@ struct RoutineCoachView: View {
                     Text("여정을 떠날 계획을 세워볼까요?")
                         .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
                     
-                    Text("두 번째 여정의 루틴을 생성했어요")
+                    Text("\(viewModel.loop_id)번째 여정의 루틴을 생성했어요")
                         .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
                         .padding(.top, 30)
                 }
@@ -169,12 +169,12 @@ struct RoutineCoachView: View {
             // MARK: - 공통 로딩 뷰 배치
             // viewModel의 isLoading 상태에 따라 화면에 나타남.
             if viewModel.isLoading {
-                    CommonLoadingView(
-                        message: "2박 3일 여정으로 떠나고 있습니다",
-                        lottieFileName: "Loading 51 _ Monoplane"
-                    )
-                    .transition(.opacity)
-                    .zIndex(1)
+                CommonLoadingView(
+                    message: "2박 3일 여정으로 떠나고 있습니다",
+                    lottieFileName: "Loading 51 _ Monoplane"
+                )
+                .transition(.opacity)
+                .zIndex(1)
             }
         }
         // 여정 시작 성공 시 HomeView로 이동
