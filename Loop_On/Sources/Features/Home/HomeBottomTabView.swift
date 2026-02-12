@@ -48,7 +48,7 @@ struct HomeBottomTabView: View {
                 Text(title)
                     .font(.system(size: 12))
             }
-            .foregroundColor(selectedTab == tab ? Color(.primaryColor55) : Color.gray)
+            .foregroundStyle(selectedTab == tab ? Color(.primaryColor55) : Color.gray)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)

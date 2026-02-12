@@ -225,6 +225,12 @@ class HomeViewModel: ObservableObject {
         // 모든 루틴이 '완료' 혹은 '미루기' 상태인지 확인
         checkAllRoutinesSettled()
     }
+
+    func updateDelayReason(at index: Int, reason: String) {
+        let realIndex = index - 1
+        guard realIndex >= 0 && realIndex < routines.count else { return }
+        routines[realIndex].delayReason = reason
+    }
     
     private func checkAllRoutinesSettled() {
         let allSettled = routines.allSatisfy { $0.isCompleted || $0.isDelayed }

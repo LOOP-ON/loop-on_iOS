@@ -168,7 +168,7 @@ struct ShareJourneyView: View {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(viewModel.hashtags.count >= 5 ? Color.gray.opacity(0.4) : Color(.primaryColorVarient65))
                     )
-                    .foregroundColor(.white)
+                    .foregroundStyle(Color.white)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
             .disabled(viewModel.hashtags.count >= 5)
@@ -222,7 +222,7 @@ struct ShareJourneyView: View {
                     .foregroundStyle(Color(red: 0.91, green: 0.54, blue: 0.43))
                 Spacer()
                 Text(viewModel.expeditionSetting)
-                    .foregroundColor(.gray)
+                    .foregroundStyle(Color.gray)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14))
                     .foregroundStyle(Color.gray)

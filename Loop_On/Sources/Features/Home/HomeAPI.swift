@@ -11,6 +11,8 @@ import Moya
 enum HomeAPI {
     case fetchCurrentJourney
     case postponeRoutine(journeyId: Int, request: RoutinePostponeRequest)
+    case fetchPostponeReason(progressId: Int)
+    case updatePostponeReason(progressId: Int, request: RoutinePostponeReasonUpdateRequest)
     case certifyRoutine(progressId: Int, imageData: Data, fileName: String, mimeType: String)
     case continueJourney(journeyId: Int)
 }
@@ -26,6 +28,10 @@ extension HomeAPI: TargetType {
             return "/api/journeys/current"
         case let .postponeRoutine(journeyId, _):
             return "/api/journeys/\(journeyId)/routines/postpone"
+        case let .fetchPostponeReason(progressId):
+            return "/api/routines/\(progressId)/postpone-reason"
+        case let .updatePostponeReason(progressId, _):
+            return "/api/routines/\(progressId)/postpone-reason"
         case let .certifyRoutine(progressId, _, _, _):
             return "/api/routines/\(progressId)/certify"
         case let .continueJourney(journeyId):
@@ -35,8 +41,10 @@ extension HomeAPI: TargetType {
     
     var method: Moya.Method {
         switch self {
-        case .fetchCurrentJourney:
+        case .fetchCurrentJourney, .fetchPostponeReason:
             return .get
+        case .updatePostponeReason:
+            return .patch
         case .postponeRoutine, .certifyRoutine, .continueJourney:
             return .post
         }
@@ -47,6 +55,10 @@ extension HomeAPI: TargetType {
         case .fetchCurrentJourney:
             return .requestPlain
         case let .postponeRoutine(_, request):
+            return .requestJSONEncodable(request)
+        case .fetchPostponeReason:
+            return .requestPlain
+        case let .updatePostponeReason(_, request):
             return .requestJSONEncodable(request)
         case let .certifyRoutine(_, imageData, fileName, mimeType):
             let form = MultipartFormData(
@@ -64,7 +76,7 @@ extension HomeAPI: TargetType {
     var headers: [String: String]? {
         var header: [String: String] = [:]
         switch self {
-        case .fetchCurrentJourney, .postponeRoutine, .continueJourney:
+        case .fetchCurrentJourney, .postponeRoutine, .fetchPostponeReason, .updatePostponeReason, .continueJourney:
             header["Content-Type"] = "application/json"
         case .certifyRoutine:
             // Multipart 경계(boundary)는 Moya가 자동 설정하도록 Content-Type 미설정
