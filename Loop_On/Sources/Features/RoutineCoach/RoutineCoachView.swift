@@ -194,7 +194,7 @@ struct RoutineCoachView: View {
             if viewModel.isLoading {
                 CommonLoadingView(
                     message: "2박 3일 여정으로 떠나고 있습니다",
-                    lottieFileName: "Loading 51 _ Monoplane"
+                    lottieFileName: "TriPriend"
                 )
                 .transition(.opacity)
                 .zIndex(1)
@@ -308,5 +308,7 @@ extension RoutineCoachView {
         category: "ROUTINE",
         selectedInsights: []
     )
-            .environmentObject(HomeViewModel())
+    .environmentObject(HomeViewModel())
+    .environment(NavigationRouter())
+    .environment(SessionStore())
 }

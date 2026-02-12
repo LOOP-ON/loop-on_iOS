@@ -170,8 +170,18 @@ struct RootView: View {
                     if case .unauthorized = error {
                         session.logout()
                         router.reset()
+                    } else if case let .serverError(statusCode, _) = error, statusCode == 500 {
+                        session.logout()
+                        router.reset()
                     } else if case let .serverError(statusCode, _) = error, statusCode == 404 {
-                        session.isOnboardingCompleted = false
+                        // 404는 "현재 진행 여정 없음"일 수 있음.
+                        // 로그인 직후에는 온보딩으로, 앱 재실행 자동진입 시에는 세션 정리 후 로그인으로 보낸다.
+                        if session.isLoggedIn {
+                            session.isOnboardingCompleted = false
+                        } else {
+                            session.logout()
+                            router.reset()
+                        }
                     }
                 }
             }

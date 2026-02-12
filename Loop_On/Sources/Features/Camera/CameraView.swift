@@ -114,6 +114,9 @@ struct CameraView: View {
                     // 셔터 버튼
                     Button(action: {
                         guard !isSubmitting else { return }
+                        #if DEBUG
+                        print("CAMERA DEBUG: 셔터 버튼 탭 - takePhotoTrigger=\(takePhotoTrigger + 1)")
+                        #endif
                         takePhotoTrigger += 1
                     }) {
                         Circle()
@@ -163,6 +166,9 @@ struct CameraView: View {
 
     private func updatePreviewIfNeeded() {
         if capturedImage != nil {
+            #if DEBUG
+            print("CAMERA DEBUG: capturedImage 변경 감지 -> 미리보기 전환")
+            #endif
             showPreview = true
         }
     }
