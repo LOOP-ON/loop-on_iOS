@@ -51,6 +51,9 @@ final class SessionStore {
         self.isOnboardingCompleted = true
     }
 
+    /// 다음에 RootTabView가 나타날 때 히스토리 탭을 선택할지 여부 (로그인 후 온보딩 스킵 시 사용)
+    var selectHistoryTabOnNextAppear: Bool = false
+
     /// 서버 로그아웃 API를 호출한 뒤 로컬 세션을 정리합니다.
     /// - Note: refresh 토큰이 별도 저장되어 있지 않아 현재는 accessToken을 `refresh_token`으로 전달합니다.
     func logout(completion: ((Bool) -> Void)? = nil) {

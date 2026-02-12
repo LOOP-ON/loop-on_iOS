@@ -37,13 +37,22 @@ struct HistoryJourneyReportView: View {
         report.goal.isEmpty ? "건강한 생활 만들기" : report.goal
     }
     
+    /// API에서 journeyDay가 있으면 "2월 12일 · 3일차 여정 리포트", 없으면 "2월 12일 여정 리포트"
+    private var reportTitleText: String {
+        let dateStr = dateFormatter.string(from: report.date)
+        if let day = report.journeyDay {
+            return "\(dateStr) · \(day)일차 여정 리포트"
+        }
+        return "\(dateStr) 여정 리포트"
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     // 상단 타이틀 + 여정의 목표 블록 (간격 8)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("\(dateFormatter.string(from: report.date)) 여정 리포트")
+                        Text(reportTitleText)
                             .font(.system(size: 20, weight: .bold))
                             .foregroundStyle(Color("25-Text"))
                             .padding(.top, 16) // 달력과의 간격을 16pt로 설정 (기존보다 총 8pt 감소)
@@ -171,33 +180,32 @@ struct HistoryJourneyReportView: View {
         }
     }
     
-    // MARK: - 성장 추이 그래프용 더미 데이터
-    /// 현재는 API 연동 전이므로, 임의의 6일치 데이터를 사용하되,
-    /// "선택한 날짜"가 마지막 Day로 오도록 구성
-    /// - X축: 총 6개 포인트, 마지막이 선택한 날짜의 Day (Day1/Day2/Day3)
-    /// - Y축: 실행률(0.0 ~ 1.0) = 완료 루틴 수 / 전체 루틴 수(여기서는 3개로 가정)
+    // MARK: - 성장 추이 그래프
+    /// API에서 day1Rate, day2Rate, day3Rate가 있으면 사용하고, 없으면 임시 로직(연중 일자 기반)으로 6포인트 생성
     private var growthData: [GrowthDataPoint] {
+        let rates = [report.day1Rate, report.day2Rate, report.day3Rate].compactMap { $0 }
+        if rates.count >= 2 {
+            // API 데이터: Day1~DayN 실행률을 그대로 사용 (마지막이 현재 보고 있는 날짜)
+            return rates.enumerated().map { offset, rate in
+                GrowthDataPoint(
+                    index: offset,
+                    label: "Day\(offset + 1)",
+                    rate: min(1.0, max(0, rate))
+                )
+            }
+        }
+        // API 미제공 시: 연중 일자 기반 임시 로직
         let calendar = Calendar.current
-        // 연중 몇 번째 날인지 기준으로 Day1/2/3를 순환 결정 (임시 로직)
         let dayOfYear = calendar.ordinality(of: .day, in: .year, for: report.date) ?? 1
-        let selectedDayIndex = (dayOfYear - 1) % 3 // 0 → Day1, 1 → Day2, 2 → Day3
-        
-        // 더미 완료 개수 패턴 (0~3 사이 값 반복)
+        let selectedDayIndex = (dayOfYear - 1) % 3
         let completedPattern = [0, 1, 2, 3]
         let totalRoutinesPerDay = 3.0
-        
-        // 총 6개의 포인트를 생성. index 5가 "선택한 날짜"에 해당.
         return (0..<6).map { offset in
-            // offset: 0~5, 5가 선택 날짜
             let stepsFromSelected = 5 - offset
-            // Day 라벨 인덱스 계산 (0~2 → Day1~3)
             let dayLabelIndex = (selectedDayIndex - stepsFromSelected % 3 + 300) % 3
-            
-            // 더미 완료 개수 (날짜/offset을 섞어서 약간 변화 주기)
             let patternIndex = (dayOfYear + offset) % completedPattern.count
             let completed = completedPattern[patternIndex]
             let rate = Double(completed) / totalRoutinesPerDay
-            
             return GrowthDataPoint(
                 index: offset,
                 label: "Day\(dayLabelIndex + 1)",
@@ -367,6 +375,11 @@ struct HistoryJourneyReportView: View {
                 report: HistoryJourneyReport(
                     date: Date(),
                     goal: "건강한 생활 만들기",
+                    journeyDay: nil,
+                    day1Rate: nil,
+                    day2Rate: nil,
+                    day3Rate: nil,
+                    totalRate: nil,
                     routines: [
                         HistoryRoutineReport(id: 1, name: "루틴 이름", status: .completed),
                         HistoryRoutineReport(id: 2, name: "루틴 이름", status: .postponed),

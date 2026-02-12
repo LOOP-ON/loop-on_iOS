@@ -220,12 +220,31 @@ struct PersonalFeedDetailView: View {
                 }
             }
         }
-        // 게시물 삭제 확인: 전체 화면(세이프에어리어·탭바 포함) 덮고, 팝업은 화면 정중앙
+        // 게시물 삭제 확인: CommonPopupView와 동일한 디자인으로 통일
         .fullScreenCover(isPresented: Binding(
             get: { deleteTargetId != nil },
             set: { if !$0 { deleteTargetId = nil } }
         )) {
-            deleteConfirmFullScreen
+            ZStack {
+                CommonPopupView(
+                    isPresented: Binding(
+                        get: { deleteTargetId != nil },
+                        set: { if !$0 { deleteTargetId = nil } }
+                    ),
+                    title: "정말로 게시물을 삭제하시겠습니까?",
+                    message: "삭제 시 게시물이 영구적으로 삭제되며, 복구할 수 없습니다.",
+                    leftButtonText: "취소",
+                    rightButtonText: "삭제",
+                    leftAction: { deleteTargetId = nil },
+                    rightAction: {
+                        if let id = deleteTargetId {
+                            viewModel.deleteChallenge(challengeId: id) { _ in deleteTargetId = nil }
+                        }
+                    }
+                )
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .presentationBackground(.clear)
         }
     }
 
@@ -255,84 +274,6 @@ struct PersonalFeedDetailView: View {
         .background(Color(.systemGroupedBackground))
     }
 
-}
-
-// MARK: - Delete Confirm Popup (전체 화면 + 정중앙)
-
-extension PersonalFeedDetailView {
-    private var deleteConfirmFullScreen: some View {
-        ZStack {
-            Color.black.opacity(0.35)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    deleteTargetId = nil
-                }
-
-            if let targetId = deleteTargetId {
-                VStack(spacing: 16) {
-                    Text("정말로 게시물을 삭제하시겠습니까?")
-                        .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 17))
-                        .foregroundStyle(Color("5-Text"))
-
-                    Text("삭제 시 게시물이 영구적으로 삭제되며, 복구할 수 없으며, 다시 되돌릴 수 없습니다.")
-                        .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
-                        .foregroundStyle(Color("45-Text"))
-                        .multilineTextAlignment(.center)
-
-                    // 텍스트와 버튼 영역을 시각적으로 구분하는 상단 구분선 (카드 양끝까지)
-                    Rectangle()
-                        .fill(Color(.systemGray5))
-                        .frame(height: 1)
-                        .padding(.top, 4)
-                        // VStack 전체에 걸린 .padding(.horizontal, 24)를 상쇄해서 팝업 안쪽 양끝까지 라인 확장
-                        .padding(.horizontal, -24)
-
-                    HStack(spacing: 8) {
-                        Button {
-                            deleteTargetId = nil
-                        } label: {
-                            Text("취소")
-                                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
-                                .foregroundStyle(Color("5-Text"))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(Color("100"))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .stroke(Color(.systemGray4), lineWidth: 1)
-                                )
-                        }
-
-                        Button {
-                            viewModel.deleteChallenge(challengeId: targetId) { _ in
-                                deleteTargetId = nil
-                            }
-                        } label: {
-                            Text("삭제")
-                                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
-                                .foregroundStyle(Color.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color(red: 0.95, green: 0.45, blue: 0.35))
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color.white)
-                )
-                .padding(.horizontal, 32)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .presentationBackground(.clear)
-    }
 }
 
 #Preview {

@@ -81,8 +81,10 @@ struct AuthView: View {
                 // 온보딩을 이미 했다면 스택 비우고 홈으로 (RootView가 RootTabView로 교체함)
                 router.reset()
             } else {
-                // 온보딩 전이라면 온보딩 시작 화면으로 이동
-                router.push(.app(.onBoarding))
+                // 온보딩 스킵: 완료 처리 후 히스토리 탭으로 진입
+                session.completeOnboarding()
+                session.selectHistoryTabOnNextAppear = true
+                router.reset()
             }
         }
     }

@@ -7,11 +7,83 @@
 
 import Foundation
 import SwiftUI
+import Moya
+
+// MARK: - History API (월별 루틴 수행 개수 / 일일 리포트)
+enum HistoryAPI {
+    case fetchMonthly(year: Int, month: Int)
+    case fetchDailyReport(date: String) // yyyy-MM-dd
+}
+
+extension HistoryAPI: TargetType {
+    var baseURL: URL { URL(string: API.baseURL)! }
+    var path: String {
+        switch self {
+        case .fetchMonthly: return "/api/journeys/monthly"
+        case .fetchDailyReport: return "/api/journeys/daily-report"
+        }
+    }
+    var method: Moya.Method { .get }
+    var task: Task {
+        switch self {
+        case .fetchMonthly(let year, let month):
+            return .requestParameters(
+                parameters: ["year": year, "month": month],
+                encoding: URLEncoding.queryString
+            )
+        case .fetchDailyReport(let date):
+            return .requestParameters(
+                parameters: ["date": date],
+                encoding: URLEncoding.queryString
+            )
+        }
+    }
+    var headers: [String: String]? {
+        [
+            "Content-Type": "application/json",
+            "Authorization": "Bearer \(UserDefaults.standard.string(forKey: "accessToken") ?? "")"
+        ]
+    }
+}
+
+/// GET /api/journeys/monthly 응답의 data 배열 요소
+struct MonthlyJourneyItemDTO: Decodable {
+    let date: String
+    let completedCount: Int
+}
+
+/// GET /api/journeys/daily-report 응답의 data
+/// - journeyDay: 해당 날짜가 여정의 몇 일차인지 (1, 2, 3, …). 백엔드에서 내려주면 제목/그래프에 사용
+struct DailyReportDataDTO: Decodable {
+    let journeyId: Int
+    let goal: String
+    let journeyDay: Int?      // 여정 N일차 (API에서 제공 시 사용)
+    let day1Rate: Double?
+    let day2Rate: Double?
+    let day3Rate: Double?
+    let totalRate: Double?
+    let completedRoutineCount: Int
+    let recordContent: String?
+    let routines: [DailyReportRoutineItemDTO]?
+}
+
+struct DailyReportRoutineItemDTO: Decodable {
+    let routineId: Int
+    let content: String
+    let status: String
+}
 
 // MARK: - History Journey Report Model
 struct HistoryJourneyReport {
     let date: Date
     let goal: String
+    /// 여정 N일차 (API daily-report의 journeyDay). nil이면 미표시
+    let journeyDay: Int?
+    /// Day1/Day2/Day3 실행률 (API). 성장 추이 그래프에 사용
+    let day1Rate: Double?
+    let day2Rate: Double?
+    let day3Rate: Double?
+    let totalRate: Double?
     let routines: [HistoryRoutineReport]
 }
 
@@ -37,12 +109,25 @@ enum HistoryRoutineStatus {
 
 @MainActor
 class HistoryViewModel: ObservableObject {
-    // 날짜별 루틴 달성 개수 (예시 데이터)
-    // 실제로는 API에서 가져와야 함
+    /// 날짜별 루틴 달성 개수 (GET /api/journeys/monthly 로 채움)
     @Published var routineCompletionCount: [Date: Int] = [:]
     
-    // 날짜별 리포트 데이터 (예시 데이터)
+    /// 날짜별 리포트 (GET /api/journeys/daily-report + 더미)
     @Published var journeyReports: [Date: HistoryJourneyReport] = [:]
+    
+    /// 일일 리포트 API 로딩 중
+    @Published var isLoadingDailyReport: Bool = false
+    
+    private let networkManager = DefaultNetworkManager<HistoryAPI>()
+    private let calendar = Calendar.current
+    
+    private static let monthlyDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone.current
+        return f
+    }()
     
     // #region agent log
     /// 디버그 모드용 간단한 로깅 헬퍼 (HTTP POST → host 로그 서버)
@@ -83,7 +168,7 @@ class HistoryViewModel: ObservableObject {
         )
         // #endregion
         
-        // 예시 데이터 - 실제로는 API에서 가져와야 함
+        // 테스트용 더미 데이터 (달력 점 + 리포트). 실제 연동 시 loadMonth() API가 해당 월을 덮어씀
         setupExampleData()
         setupExampleReports()
         
@@ -184,6 +269,92 @@ class HistoryViewModel: ObservableObject {
         return getCompletionCount(for: date) > 0
     }
     
+    /// 해당 월의 루틴 수행 개수를 API로 불러와 달력 점에 반영
+    func loadMonth(_ date: Date) {
+        let year = calendar.component(.year, from: date)
+        let month = calendar.component(.month, from: date)
+        networkManager.request(
+            target: .fetchMonthly(year: year, month: month),
+            decodingType: [MonthlyJourneyItemDTO].self
+        ) { [weak self] result in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let list):
+                    self.applyMonthlyData(list, year: year, month: month)
+                case .failure:
+                    break
+                }
+            }
+        }
+    }
+    
+    /// API 응답으로 해당 월의 routineCompletionCount 갱신 (해당 월 기존 키 제거 후 추가)
+    private func applyMonthlyData(_ list: [MonthlyJourneyItemDTO], year: Int, month: Int) {
+        let toRemove = routineCompletionCount.keys.filter { date in
+            calendar.component(.year, from: date) == year && calendar.component(.month, from: date) == month
+        }
+        for key in toRemove {
+            routineCompletionCount.removeValue(forKey: key)
+        }
+        for item in list {
+            guard let date = Self.monthlyDateFormatter.date(from: item.date) else { continue }
+            let dateKey = calendar.startOfDay(for: date)
+            routineCompletionCount[dateKey] = item.completedCount
+        }
+    }
+    
+    /// 해당 날짜의 일일 리포트 API 호출 후 journeyReports 반영
+    func loadDailyReport(for date: Date) {
+        let dateKey = calendar.startOfDay(for: date)
+        if dateKey > calendar.startOfDay(for: Date()) {
+            return
+        }
+        let dateString = Self.monthlyDateFormatter.string(from: dateKey)
+        isLoadingDailyReport = true
+        networkManager.request(
+            target: .fetchDailyReport(date: dateString),
+            decodingType: DailyReportDataDTO.self
+        ) { [weak self] result in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.isLoadingDailyReport = false
+                switch result {
+                case .success(let dto):
+                    let report = self.mapDailyReportDTO(dto, date: dateKey)
+                    self.journeyReports[dateKey] = report
+                case .failure:
+                    // 테스트용: 실패 시 기존 더미 리포트 유지 (삭제하지 않음)
+                    break
+                }
+            }
+        }
+    }
+    
+    /// API 달성률이 0~100(%)으로 오면 0.0~1.0으로 변환 (그래프 Y축은 0.0~1.0 기준)
+    private func normalizeRate(_ value: Double?) -> Double? {
+        guard let v = value else { return nil }
+        if v > 1.0 { return min(1.0, max(0, v / 100)) }
+        return min(1.0, max(0, v))
+    }
+
+    private func mapDailyReportDTO(_ dto: DailyReportDataDTO, date: Date) -> HistoryJourneyReport {
+        let routines: [HistoryRoutineReport] = (dto.routines ?? []).map { item in
+            let status: HistoryRoutineStatus = item.status.uppercased().contains("COMPLETED") || item.status.contains("완료") ? .completed : .postponed
+            return HistoryRoutineReport(id: item.routineId, name: item.content, status: status)
+        }
+        return HistoryJourneyReport(
+            date: date,
+            goal: dto.goal,
+            journeyDay: dto.journeyDay,
+            day1Rate: normalizeRate(dto.day1Rate),
+            day2Rate: normalizeRate(dto.day2Rate),
+            day3Rate: normalizeRate(dto.day3Rate),
+            totalRate: normalizeRate(dto.totalRate),
+            routines: routines
+        )
+    }
+    
     /// 예시 데이터 설정 (개발용)
     private func setupExampleData() {
         // #region agent log
@@ -234,28 +405,46 @@ class HistoryViewModel: ObservableObject {
         let calendar = Calendar.current
         let today = Date()
         
-        // 예시: 최근 며칠간의 리포트 데이터
-        // setupExampleData()에서 설정한 completionCount를 기반으로 리포트 생성
+        // 테스트용 여정 목표 목록
+        let exampleGoals = [
+            "건강한 생활 만들기",
+            "규칙적인 운동 습관 들이기",
+            "아침 기상 루틴 지키기",
+            "매일 독서 30분",
+            "수면 패턴 개선하기"
+        ]
+        // 테스트용 루틴 이름 목록 (3개씩 묶어서 사용)
+        let exampleRoutineNames = [
+            ["아침 스트레칭", "물 8잔 마시기", "저녁 산책"],
+            ["오전 운동 20분", "점심 식사 정해진 시간", "저녁 독서"],
+            ["7시 기상", "아침 식사 챙겨 먹기", "23시 취침"],
+            ["요가 15분", "영양제 복용", "일기 쓰기"],
+            ["명상 10분", "물 2L 마시기", "스크린타임 1시간 이내"]
+        ]
+        
         for i in 0..<31 {
             if let date = calendar.date(byAdding: .day, value: -i, to: today) {
                 let dateKey = calendar.startOfDay(for: date)
                 
-                // routineCompletionCount에 값이 있는 경우에만 리포트 생성
                 if let completionCount = routineCompletionCount[dateKey] {
-                    // 날짜 밑 점 색깔(달성 개수)에 따라 루틴 상태를 분배
-                    // 3개 달성 → 3개 모두 완료
-                    // 2개 달성 → 2개 완료, 1개 미룸
-                    // 1개 달성 → 1개 완료, 2개 미룸
-                    // 0개 달성 → 3개 모두 미룸
                     let clampedCount = max(0, min(completionCount, 3))
-                    let routines: [HistoryRoutineReport] = (1...3).map { idx in
-                        let status: HistoryRoutineStatus = idx <= clampedCount ? .completed : .postponed
-                        return HistoryRoutineReport(id: idx, name: "루틴 \(idx)", status: status)
+                    let goalIndex = i % exampleGoals.count
+                    let routineSetIndex = i % exampleRoutineNames.count
+                    let names = exampleRoutineNames[routineSetIndex]
+                    let routines: [HistoryRoutineReport] = (0..<3).map { idx in
+                        let status: HistoryRoutineStatus = idx < clampedCount ? .completed : .postponed
+                        let name = idx < names.count ? names[idx] : "루틴 \(idx + 1)"
+                        return HistoryRoutineReport(id: idx + 1, name: name, status: status)
                     }
                     
                     journeyReports[dateKey] = HistoryJourneyReport(
                         date: date,
-                        goal: "건강한 생활 만들기",
+                        goal: exampleGoals[goalIndex],
+                        journeyDay: nil,
+                        day1Rate: nil,
+                        day2Rate: nil,
+                        day3Rate: nil,
+                        totalRate: nil,
                         routines: routines
                     )
                 }

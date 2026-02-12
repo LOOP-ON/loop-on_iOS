@@ -270,16 +270,23 @@ private struct CommentRowView: View {
                                 .foregroundStyle(Color.gray)
                         }
                         .buttonStyle(.plain)
-                        .confirmationDialog(
-                            "댓글 옵션",
-                            isPresented: $isShowingDeleteDialog,
-                            titleVisibility: .hidden
-                        ) {
-                            Button("댓글 삭제", role: .destructive) {
-                                // TODO: API 연결 시 댓글 삭제 요청 처리 (comment.id)
-                                onDelete()
+                        .fullScreenCover(isPresented: $isShowingDeleteDialog) {
+                            ZStack {
+                                CommonPopupView(
+                                    isPresented: $isShowingDeleteDialog,
+                                    title: "정말로 댓글을 삭제하시겠습니까?",
+                                    message: "삭제 시 댓글이 영구적으로 삭제되며, 복구할 수 없습니다.",
+                                    leftButtonText: "취소",
+                                    rightButtonText: "삭제",
+                                    leftAction: { isShowingDeleteDialog = false },
+                                    rightAction: {
+                                        isShowingDeleteDialog = false
+                                        onDelete()
+                                    }
+                                )
                             }
-                            Button("취소", role: .cancel) { }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .presentationBackground(.clear)
                         }
                     } else {
                         Button {
