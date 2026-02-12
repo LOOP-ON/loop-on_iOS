@@ -108,33 +108,3 @@ private struct AuthPreviewContainer: View {
         }
     }
 }
-
-
-//struct AuthView: View {
-//    @StateObject private var viewModel = AuthViewModel()
-//
-//    var body: some View {
-//        VStack(spacing: 20) {
-//            TextField("이메일", text: $viewModel.email)
-//                .textFieldStyle(RoundedBorderTextFieldStyle())
-//
-//            SecureField("비밀번호", text: $viewModel.password)
-//                .textFieldStyle(RoundedBorderTextFieldStyle())
-//
-//            Button("로그인") {
-//                viewModel.login()
-//            }
-//
-//            if let error = viewModel.errorMessage {
-//                Text(error)
-//                    .foregroundColor(.red)
-//            }
-//
-//            if viewModel.isLoggedIn {
-//                Text("로그인 성공 🎉")
-//                    .foregroundColor(.green)
-//            }
-//        }
-//        .padding()
-//    }
-//}

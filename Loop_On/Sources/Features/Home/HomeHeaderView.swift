@@ -42,7 +42,7 @@ struct HomeHeaderView: View {
                 .buttonStyle(.plain)
             }
             .font(.system(size: 20))
-            .foregroundColor(.black)
+            .foregroundStyle(Color.black)
         }
     }
 }

@@ -54,6 +54,21 @@ struct RoutinePostponeRequest: Codable {
     let reason: String
 }
 
+struct RoutinePostponeReasonData: Codable {
+    let progressId: Int
+    let content: String
+    let reason: String
+}
+
+struct RoutinePostponeReasonUpdateRequest: Codable {
+    let reason: String
+}
+
+struct RoutinePostponeReasonUpdateData: Codable {
+    let progressId: Int
+    let reason: String
+}
+
 struct JourneyContinueData: Codable {
     let goal: String
     let originalJourneyId: Int

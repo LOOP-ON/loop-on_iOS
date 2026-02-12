@@ -133,7 +133,7 @@ private extension HomeView {
                         
                         onConfirm: {
                             viewModel.selectRoutine(at: index)
-                            viewModel.activeFullSheet = .camera
+                            requestCameraAndPresentIfPossible()
                         },
                         onDelay: {
                             viewModel.selectRoutine(at: index)
@@ -329,7 +329,7 @@ private extension HomeView {
                     set: { if !$0 { viewModel.activeFullSheet = nil } }
                 ),
                 onDelaySuccess: { reason in
-                    viewModel.delayRoutine(at: viewModel.selectedRoutineIndex, reason: reason)
+                    viewModel.updateDelayReason(at: viewModel.selectedRoutineIndex, reason: reason)
                 },
                 isReadOnly: true, // 확인 모드로 실행
                 initialReason: viewModel.selectedRoutine?.delayReason // 저장된 사유 전달
@@ -352,6 +352,30 @@ private extension HomeView {
                     onClose: { viewModel.activeFullSheet = nil }
                 )
                 .presentationBackground(.clear)
+        }
+    }
+
+    func requestCameraAndPresentIfPossible() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            viewModel.activeFullSheet = .camera
+
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        viewModel.activeFullSheet = .camera
+                    } else {
+                        isShowingPermissionAlert = true
+                    }
+                }
+            }
+
+        case .denied, .restricted:
+            isShowingPermissionAlert = true
+
+        @unknown default:
+            isShowingPermissionAlert = true
         }
     }
 }

@@ -13,6 +13,8 @@ class DelayPopupViewModel: ObservableObject {
     @Published var selectedReason: DelayReason? = nil
     @Published var customReason: String = ""
     @Published var isSubmitting: Bool = false // API 통신 중 로딩 상태 관리
+    @Published var isLoadingReason: Bool = false
+    @Published var errorMessage: String?
     
     let reasons: [DelayReason] = delayReasonsData
     private let networkManager = DefaultNetworkManager<HomeAPI>()
@@ -33,7 +35,7 @@ class DelayPopupViewModel: ObservableObject {
         }
         return ""
     }
-    
+
     // MARK: - API Integration (준비 단계)
     func submitDelay(journeyId: Int, progressId: Int, completion: @escaping (Bool) -> Void) {
         guard canSubmit else { return }
@@ -69,6 +71,67 @@ class DelayPopupViewModel: ObservableObject {
                     completion(true)
                 case .failure(let error):
                     print("루틴 미루기 실패: \(error.localizedDescription)")
+                    self.errorMessage = error.localizedDescription
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    func fetchPostponeReason(progressId: Int, completion: ((Bool) -> Void)? = nil) {
+        guard progressId > 0 else {
+            completion?(false)
+            return
+        }
+
+        isLoadingReason = true
+        errorMessage = nil
+
+        networkManager.request(
+            target: .fetchPostponeReason(progressId: progressId),
+            decodingType: RoutinePostponeReasonData.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isLoadingReason = false
+                switch result {
+                case .success(let data):
+                    self.setupInitialReason(data.reason)
+                    completion?(true)
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                    completion?(false)
+                }
+            }
+        }
+    }
+
+    func updatePostponeReason(progressId: Int, completion: @escaping (Bool) -> Void) {
+        guard canSubmit else {
+            completion(false)
+            return
+        }
+        guard progressId > 0 else {
+            completion(false)
+            return
+        }
+
+        isSubmitting = true
+        errorMessage = nil
+
+        let request = RoutinePostponeReasonUpdateRequest(reason: finalReason)
+        networkManager.request(
+            target: .updatePostponeReason(progressId: progressId, request: request),
+            decodingType: RoutinePostponeReasonUpdateData.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isSubmitting = false
+                switch result {
+                case .success:
+                    completion(true)
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
                     completion(false)
                 }
             }
