@@ -15,6 +15,7 @@ enum AppRoute: Hashable, Codable {
         expeditionId: Int,
         expeditionName: String,
         isPrivate: Bool,
+        isJoined: Bool,
         isAdmin: Bool,
         canJoin: Bool
     )

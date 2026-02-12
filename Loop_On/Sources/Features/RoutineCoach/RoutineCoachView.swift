@@ -10,6 +10,8 @@ import SwiftUI
 
 struct RoutineCoachView: View {
     @StateObject private var viewModel: RoutineCoachViewModel
+    @Environment(NavigationRouter.self) private var router
+    @Environment(SessionStore.self) private var session
     @EnvironmentObject var homeViewModel: HomeViewModel
     @State private var showContinuationPopup: Bool = false
     private let shouldShowContinuationPopupOnAppear: Bool
@@ -214,9 +216,10 @@ struct RoutineCoachView: View {
                 .zIndex(2)
             }
         }
-        // 여정 시작 성공 시 HomeView로 이동
-        .fullScreenCover(isPresented: $viewModel.isJourneyStarted) {
-            HomeView() // 이동할 메인 화면
+        .onChange(of: viewModel.isJourneyStarted) { _, started in
+            guard started else { return }
+            session.completeOnboarding()
+            router.reset()
         }
         
         .alert("루틴 이름 수정", isPresented: $viewModel.isShowingNameEditor) {

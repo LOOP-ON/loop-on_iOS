@@ -9,7 +9,6 @@ import SwiftUI
 struct InsightSelectView: View {
     @StateObject private var viewModel: InsightSelectViewModel
     @Environment(NavigationRouter.self) private var router
-    @Environment(SessionStore.self) private var session
 
     init(goalText: String, category: String, insights: [String]) {
         _viewModel = StateObject(
@@ -118,7 +117,6 @@ struct InsightSelectView: View {
         Button {
             // 인사이트 선택 결과로 루프 생성 흐름 시작
             viewModel.createLoop()
-            session.completeOnboarding()
         } label: {
             Text("루프 생성하기")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))

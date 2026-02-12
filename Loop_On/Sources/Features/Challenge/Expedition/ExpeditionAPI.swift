@@ -21,6 +21,8 @@ enum ExpeditionAPI {
     case deleteExpedition(expeditionId: Int)
     // 탐험대 탈퇴 (DELETE /api/expeditions/{expeditionId}/withdraw)
     case withdrawExpedition(expeditionId: Int)
+    // 탐험대원 명단 조회 (GET /api/expeditions/{expeditionId}/users)
+    case getExpeditionMembers(expeditionId: Int)
 }
 
 extension ExpeditionAPI: TargetType {
@@ -45,6 +47,8 @@ extension ExpeditionAPI: TargetType {
             return "/api/expeditions/\(expeditionId)"
         case let .withdrawExpedition(expeditionId):
             return "/api/expeditions/\(expeditionId)/withdraw"
+        case let .getExpeditionMembers(expeditionId):
+            return "/api/expeditions/\(expeditionId)/users"
         }
     }
 
@@ -62,6 +66,8 @@ extension ExpeditionAPI: TargetType {
             return .delete
         case .withdrawExpedition:
             return .delete
+        case .getExpeditionMembers:
+            return .get
         }
     }
 
@@ -90,6 +96,8 @@ extension ExpeditionAPI: TargetType {
         case .deleteExpedition:
             return .requestPlain
         case .withdrawExpedition:
+            return .requestPlain
+        case .getExpeditionMembers:
             return .requestPlain
         }
     }

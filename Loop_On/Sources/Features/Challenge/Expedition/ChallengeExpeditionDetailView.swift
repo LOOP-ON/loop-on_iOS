@@ -19,6 +19,11 @@ struct ChallengeExpeditionDetailView: View {
 
     @State private var cards: [ChallengeCard] = ChallengeCard.samplePlaza
     @State private var isShowingMemberList = false
+    @State private var isLoadingMemberList = false
+    @State private var hasLoadedMemberList = false
+    @State private var memberListErrorMessage: String?
+    @State private var memberListIsHost = false
+    @State private var memberList: [ChallengeExpeditionMember] = []
     @State private var isShowingDeleteAlert = false
     @State private var isShowingLeaveAlert = false
     @State private var isShowingJoinPrivateAlert = false
@@ -27,18 +32,18 @@ struct ChallengeExpeditionDetailView: View {
     @State private var resultAlertTitle: String = ""
     @State private var resultAlertMessage: String = ""
     @State private var isSubmittingAction = false
+    @State private var isJoinedState: Bool
     @State private var isAdminState: Bool
-    @State private var canJoinState: Bool
     @State private var currentMemberCount = 18
     @State private var maxMemberCount = 50
     @State private var deleteTargetId: Int? = nil
 
-    init(expeditionId: Int, expeditionName: String, isPrivate: Bool, isAdmin: Bool, canJoin: Bool) {
+    init(expeditionId: Int, expeditionName: String, isPrivate: Bool, isJoined: Bool, isAdmin: Bool, canJoin _: Bool) {
         self.expeditionId = expeditionId
         self.expeditionName = expeditionName
         self.isPrivate = isPrivate
+        _isJoinedState = State(initialValue: isJoined)
         _isAdminState = State(initialValue: isAdmin)
-        _canJoinState = State(initialValue: canJoin)
     }
 
     var body: some View {
@@ -74,25 +79,28 @@ struct ChallengeExpeditionDetailView: View {
             }
 
             bottomActionButton
-        }
-        .fullScreenCover(isPresented: $isShowingMemberList) {
-            ChallengeExpeditionMemberListView(
-                title: "탐험대 명단",
-                memberCountText: memberCountText,
-                isOwner: isOwner,
-                members: ChallengeExpeditionMember.sampleMembers,
-                onClose: { isShowingMemberList = false },
-                onKick: { _ in
-                    // TODO: API 연결 시 탐험대원 퇴출 처리
-                },
-                onKickCancel: { _ in
-                    // TODO: API 연결 시 퇴출 해제 처리
-                },
-                onFriendRequest: { _ in
-                    // TODO: API 연결 시 친구 신청 처리
-                }
-            )
-            .presentationBackground(.clear)
+
+            if isShowingMemberList {
+                ChallengeExpeditionMemberListView(
+                    title: "탐험대 명단",
+                    memberCountText: memberCountText,
+                    isHost: memberListIsHost,
+                    members: memberList,
+                    isLoading: isLoadingMemberList,
+                    errorMessage: memberListErrorMessage,
+                    onClose: { isShowingMemberList = false },
+                    onRefresh: {
+                        loadExpeditionMembers()
+                    },
+                    onKick: { _ in
+                        // TODO: API 연결 시 탐험대원 퇴출 처리
+                    },
+                    onKickCancel: { _ in
+                        // TODO: API 연결 시 퇴출 해제 처리
+                    }
+                )
+                .zIndex(10)
+            }
         }
         .alert(
             deleteAlertTitle,
@@ -156,28 +164,31 @@ struct ChallengeExpeditionDetailView: View {
         )) {
             deleteConfirmFullScreen
         }
+        .onAppear {
+            loadExpeditionMembersIfNeeded()
+        }
     }
 }
 
 private extension ChallengeExpeditionDetailView {
-    var isJoinAvailable: Bool {
-        canJoinState
+    var shouldShowJoinActions: Bool {
+        !isJoinedState
     }
 
     var isOwner: Bool {
-        !isJoinAvailable && isAdminState
+        isJoinedState && isAdminState
     }
 
     var topActionTitle: String {
-        if isJoinAvailable {
+        if shouldShowJoinActions {
             return "탐험대 가입"
         }
-        return isOwner ? "탐험대 삭제" : "탐험대 탈퇴"
+        return isOwner ? "탐험대 설정" : "탐험대 탈퇴"
     }
 
     var bottomActionButton: some View {
         Group {
-            if isJoinAvailable {
+            if shouldShowJoinActions {
                 Button {
                     handleJoinTap()
                 } label: {
@@ -248,7 +259,7 @@ private extension ChallengeExpeditionDetailView {
     var memberRow: some View {
         HStack(spacing: 8) {
             Button {
-                isShowingMemberList = true
+                openMemberList()
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "person.fill")
@@ -303,13 +314,68 @@ private extension ChallengeExpeditionDetailView {
         "\(currentMemberCount)/\(maxMemberCount)"
     }
 
+    func openMemberList() {
+        isShowingMemberList = true
+        if !hasLoadedMemberList && !isLoadingMemberList {
+            loadExpeditionMembers()
+        }
+    }
+
+    func loadExpeditionMembersIfNeeded() {
+        guard !hasLoadedMemberList else { return }
+        guard !isLoadingMemberList else { return }
+        loadExpeditionMembers()
+    }
+
+    func loadExpeditionMembers() {
+        isLoadingMemberList = true
+        memberListErrorMessage = nil
+        print("✅ [Expedition] loadExpeditionMembers start: GET /api/expeditions/\(expeditionId)/users")
+
+        expeditionNetworkManager.request(
+            target: .getExpeditionMembers(expeditionId: expeditionId),
+            decodingType: ExpeditionMemberListResponseDTO.self
+        ) { result in
+            Task { @MainActor in
+                isLoadingMemberList = false
+                switch result {
+                case .success(let dto):
+                    print("✅ [Expedition] loadExpeditionMembers success: isHost=\(dto.isHost), current=\(dto.currentMemberCount), max=\(dto.maxMemberCount), users=\(dto.userList.count)")
+                    dto.userList.forEach { user in
+                        print("  - userId=\(user.userId), nickname=\(user.nickname), isMe=\(user.isMe), isHost=\(user.isHost), friendStatus=\(user.friendStatus), expeditionUserStatus=\(user.expeditionUserStatus)")
+                    }
+                    memberListIsHost = dto.isHost
+                    currentMemberCount = dto.currentMemberCount
+                    maxMemberCount = dto.maxMemberCount
+                    hasLoadedMemberList = true
+                    memberList = dto.userList.map { user in
+                        ChallengeExpeditionMember(
+                            id: user.userId,
+                            name: user.nickname,
+                            profileImageUrl: user.profileImageUrl,
+                            isSelf: user.isMe,
+                            isLeader: user.isHost,
+                            isKickPending: user.expeditionUserStatus.uppercased() != "APPROVED"
+                        )
+                    }
+                case .failure(let error):
+                    print("❌ [Expedition] loadExpeditionMembers failed")
+                    print("❌ [Expedition] loadExpeditionMembers error detail: \(error)")
+                    hasLoadedMemberList = false
+                    memberList = []
+                    memberListErrorMessage = "탐험대 명단을 불러오지 못했어요.\n잠시 후 다시 시도해 주세요."
+                }
+            }
+        }
+    }
+
     func handleTopActionTap() {
-        if isJoinAvailable {
+        if shouldShowJoinActions {
             handleJoinTap()
             return
         }
 
-        if isOwner {
+        if isAdminState {
             isShowingDeleteAlert = true
         } else {
             isShowingLeaveAlert = true
@@ -390,7 +456,7 @@ private extension ChallengeExpeditionDetailView {
                 joinPassword = ""
                 switch result {
                 case .success:
-                    canJoinState = false
+                    isJoinedState = true
                     NotificationCenter.default.post(name: .expeditionListNeedsRefresh, object: nil)
                     showResultAlert(
                         title: "가입 완료",
@@ -517,6 +583,7 @@ extension ChallengeExpeditionDetailView {
         expeditionId: 1,
         expeditionName: "갓생 루틴 공유방",
         isPrivate: true,
+        isJoined: true,
         isAdmin: true,
         canJoin: false
     )

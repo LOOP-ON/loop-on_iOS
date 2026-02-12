@@ -34,6 +34,10 @@ struct RootView: View {
                         IntroView()
                             .navigationBarBackButtonHidden(true)
                     }
+//                    HomeView()
+//                    온보딩 스킵해서 테스트 할 경우 여기 사용
+//                    RootTabView()
+//                        .environmentObject(homeViewModel)
                 } else {
                     AuthView()
                     // RootTabView() 회원가입 api 연동 기간 동안 잠시 주석 처리
@@ -102,11 +106,12 @@ struct RootView: View {
                     // DetailView(title: title)   임시로 Text(title)로 대체
                     Text(title)
 
-                case let .app(.expeditionDetail(expeditionId, expeditionName, isPrivate, isAdmin, canJoin)):
+                case let .app(.expeditionDetail(expeditionId, expeditionName, isPrivate, isJoined, isAdmin, canJoin)):
                     ChallengeExpeditionDetailView(
                         expeditionId: expeditionId,
                         expeditionName: expeditionName,
                         isPrivate: isPrivate,
+                        isJoined: isJoined,
                         isAdmin: isAdmin,
                         canJoin: canJoin
                     )
