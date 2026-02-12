@@ -40,7 +40,8 @@ struct CommonPopupView: View {
                             .multilineTextAlignment(.center)
                     }
                 }
-                .padding(.vertical, 30)
+                .padding(.top, 30)
+                .padding(.bottom, 20)
 
                 Divider()
 
@@ -105,9 +106,10 @@ struct CommonPopupView: View {
             // 여정 지속 확인 팝업 (ContinueJourney)
             CommonPopupView(
                 isPresented: .constant(true),
-                title: "여정을 이어갈까요?",
-                leftButtonText: "이어가기",
-                rightButtonText: "새롭게 시작하기",
+                title: "어제 완료되지 않은 루틴있어요!",
+                message: "모든 루틴의 ‘미루기’를 완료해야 오늘 루틴을 확\n인할 수 있습니다. 어제 루틴을 완료하지 못한 이유를 기록해주세요 :)",
+                leftButtonText: "취소",
+                rightButtonText: "미완료 루틴 기록하기",
                 leftAction: { print("이어가기 클릭") },
                 rightAction: { print("새로 시작 클릭") }
             )
