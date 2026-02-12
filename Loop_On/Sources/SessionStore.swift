@@ -24,10 +24,8 @@ final class SessionStore {
     }
     
     var hasValidToken: Bool {
-//        KeychainService.shared.loadToken() != nil
-        
-        // 잠시 테스트용으로 로직 바꿈 나중에 이거 지우고 주석해둔거 주석 해제
-        isLoggedIn || KeychainService.shared.loadToken() != nil
+        let token = KeychainService.shared.loadToken()?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return isLoggedIn || !(token?.isEmpty ?? true)
     }
     
     var hasLoggedInBefore: Bool {
@@ -55,21 +53,10 @@ final class SessionStore {
     /// - Note: refresh 토큰이 별도 저장되어 있지 않아 현재는 accessToken을 `refresh_token`으로 전달합니다.
     func logout(completion: ((Bool) -> Void)? = nil) {
         let accessToken = KeychainService.shared.loadToken()
-
-        // 내부 정리 로직
-        let clearSession: (Bool) -> Void = { [weak self] success in
-            guard let self else { return }
-            KeychainService.shared.deleteToken()
-            self.hasLoggedInBefore = false
-            self.isLoggedIn = false
-            self.isOnboardingCompleted = false
-            self.hasValidatedSessionAtLaunch = false
-            completion?(success)
-        }
+        clearSessionState()
+        completion?(true)
 
         guard let token = accessToken, !token.isEmpty else {
-            // 토큰이 없으면 서버 호출 없이 바로 로그아웃 처리
-            clearSession(true)
             return
         }
 
@@ -78,19 +65,24 @@ final class SessionStore {
             target: .logout(refreshToken: token),
             decodingType: String.self
         ) { result in
-            // 성공/실패 여부와 관계 없이 로컬 세션은 정리
-            switch result {
-            case .success:
-                clearSession(true)
-            case .failure:
-                clearSession(false)
+            // 서버 로그아웃은 best-effort
+            if case .failure(let error) = result {
+                print("DEBUG: 서버 로그아웃 실패 - \(error.localizedDescription)")
             }
         }
+    }
+
+    private func clearSessionState() {
+        KeychainService.shared.deleteToken()
+        hasLoggedInBefore = false
+        isLoggedIn = false
+        isOnboardingCompleted = false
+        hasValidatedSessionAtLaunch = false
     }
     
     // 서버에서 프로필 정보를 가져오는 함수
     func fetchUserProfile() {
-        if let token = KeychainService.shared.loadToken() {
+        if let token = KeychainService.shared.loadToken(), !token.isEmpty {
             print("DEBUG: 토큰 확인됨 - \(token.prefix(10))...")
         } else {
             print("DEBUG: 토큰이 없습니다! 로그인이 필요합니다.")

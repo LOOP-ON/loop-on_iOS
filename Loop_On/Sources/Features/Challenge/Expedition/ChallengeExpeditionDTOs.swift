@@ -92,7 +92,7 @@ struct ChallengeExpeditionListItemDTO: Decodable {
             ?? (try? c.decode(Int.self, forKey: .expeditionID))
             ?? 0
         title = (try? c.decode(String.self, forKey: .title)) ?? ""
-        category = (try? c.decode(String.self, forKey: .category)) ?? "SKILL"
+        category = (try? c.decode(String.self, forKey: .category)) ?? "GROWTH"
         admin = (try? c.decode(String.self, forKey: .admin))
             ?? (try? c.decode(String.self, forKey: .adminNickname))
             ?? (try? c.decode(String.self, forKey: .adminNicknameSnake))
@@ -118,13 +118,13 @@ extension ChallengeExpedition {
     static func categoryCode(from displayName: String) -> String {
         switch displayName {
         case "역량 강화":
-            return "SKILL"
+            return "GROWTH"
         case "생활 루틴":
             return "ROUTINE"
         case "내면 관리":
             return "MENTAL"
         default:
-            return "SKILL"
+            return "GROWTH"
         }
     }
 

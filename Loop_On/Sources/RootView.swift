@@ -102,6 +102,16 @@ struct RootView: View {
                     // DetailView(title: title)   임시로 Text(title)로 대체
                     Text(title)
 
+                case let .app(.expeditionDetail(expeditionId, expeditionName, isPrivate, isAdmin, canJoin)):
+                    ChallengeExpeditionDetailView(
+                        expeditionId: expeditionId,
+                        expeditionName: expeditionName,
+                        isPrivate: isPrivate,
+                        isAdmin: isAdmin,
+                        canJoin: canJoin
+                    )
+                    .navigationBarBackButtonHidden(true)
+
                 case let .app(.profile(userID)):
                     // 타인 프로필: 뒤로가기는 커스텀 헤더, 하단 탭바 유지
                     PersonalProfileView(isOwnProfile: false)

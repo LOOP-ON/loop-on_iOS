@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ChallengeExpeditionView: View {
+    @Environment(NavigationRouter.self) private var router
     @ObservedObject var viewModel: ChallengeExpeditionViewModel
 
     init(viewModel: ChallengeExpeditionViewModel = ChallengeExpeditionViewModel()) {
@@ -137,6 +138,12 @@ struct ChallengeExpeditionView: View {
         .onChange(of: viewModel.searchText) { _, newValue in
             if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 viewModel.clearSearchResults()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .expeditionListNeedsRefresh)) { _ in
+            viewModel.refreshMyExpeditions()
+            if viewModel.isShowingSearchResults {
+                viewModel.searchExpeditions()
             }
         }
     }
@@ -280,7 +287,13 @@ private extension ChallengeExpeditionView {
                     expedition: expedition,
                     isSearchMode: isSearchMode,
                     onRowTap: {
-                        // TODO: 라우팅 연결 (탐험대 상세 화면 이동)
+                        router.push(.app(.expeditionDetail(
+                            expeditionId: expedition.id,
+                            expeditionName: expedition.name,
+                            isPrivate: expedition.isPrivate,
+                            isAdmin: expedition.isOwner,
+                            canJoin: expedition.canJoin
+                        )))
                     },
                     onActionTap: { viewModel.handleAction(expedition) }
                 )

@@ -11,6 +11,13 @@ import Foundation
 enum AppRoute: Hashable, Codable {
     case home
     case detail(title: String)
+    case expeditionDetail(
+        expeditionId: Int,
+        expeditionName: String,
+        isPrivate: Bool,
+        isAdmin: Bool,
+        canJoin: Bool
+    )
     case profile(userID: Int)
     /// 루틴 코치 화면 진입 시 생성된 루틴 목록과 요청 컨텍스트를 함께 전달
     case routineCoach(

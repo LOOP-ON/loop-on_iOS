@@ -9,4 +9,5 @@ import Foundation
 
 extension Notification.Name {
     static let authenticationRequired = Notification.Name("authenticationRequired")
+    static let expeditionListNeedsRefresh = Notification.Name("expeditionListNeedsRefresh")
 }

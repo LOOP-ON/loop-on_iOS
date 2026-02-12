@@ -8,17 +8,38 @@
 import SwiftUI
 
 struct ChallengeExpeditionDetailView: View {
+    @Environment(NavigationRouter.self) private var router
+
+    let expeditionId: Int
     let expeditionName: String
+    let isPrivate: Bool
+
     private let networkManager = DefaultNetworkManager<ChallengeAPI>()
+    private let expeditionNetworkManager = DefaultNetworkManager<ExpeditionAPI>()
+
     @State private var cards: [ChallengeCard] = ChallengeCard.samplePlaza
     @State private var isShowingMemberList = false
-    @State private var isOwner = true
     @State private var isShowingDeleteAlert = false
     @State private var isShowingLeaveAlert = false
+    @State private var isShowingJoinPrivateAlert = false
+    @State private var joinPassword: String = ""
+    @State private var isShowingResultAlert = false
+    @State private var resultAlertTitle: String = ""
+    @State private var resultAlertMessage: String = ""
+    @State private var isSubmittingAction = false
+    @State private var isAdminState: Bool
+    @State private var canJoinState: Bool
     @State private var currentMemberCount = 18
     @State private var maxMemberCount = 50
-    /// 게시물 삭제 확인 팝업용 타겟 ID (탐험대 상세 피드)
     @State private var deleteTargetId: Int? = nil
+
+    init(expeditionId: Int, expeditionName: String, isPrivate: Bool, isAdmin: Bool, canJoin: Bool) {
+        self.expeditionId = expeditionId
+        self.expeditionName = expeditionName
+        self.isPrivate = isPrivate
+        _isAdminState = State(initialValue: isAdmin)
+        _canJoinState = State(initialValue: canJoin)
+    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -52,21 +73,7 @@ struct ChallengeExpeditionDetailView: View {
                 .scrollIndicators(.hidden)
             }
 
-            Button {
-                // TODO: API 연결 시 탐험대로 게시물 올리기 처리
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(Color.white)
-                    .frame(width: 56, height: 56)
-                    .background(
-                        Circle()
-                            .fill(Color(.primaryColorVarient65))
-                    )
-                    .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
-            }
-            .padding(.trailing, 20)
-            .padding(.bottom, 30)
+            bottomActionButton
         }
         .fullScreenCover(isPresented: $isShowingMemberList) {
             ChallengeExpeditionMemberListView(
@@ -93,7 +100,7 @@ struct ChallengeExpeditionDetailView: View {
         ) {
             Button("취소", role: .cancel) { }
             Button("탐험대 삭제", role: .destructive) {
-                // TODO: API 연결 시 탐험대 삭제 처리
+                performDeleteExpedition()
             }
         } message: {
             Text(deleteAlertMessage)
@@ -104,12 +111,45 @@ struct ChallengeExpeditionDetailView: View {
         ) {
             Button("취소", role: .cancel) { }
             Button("탐험대 탈퇴", role: .destructive) {
-                // TODO: API 연결 시 탐험대 탈퇴 처리
+                performWithdrawExpedition()
             }
         } message: {
             Text(leaveAlertMessage)
         }
-        // 게시물 삭제 확인: 전체 화면(세이프에어리어·탭바 포함) 덮고, 팝업은 화면 정중앙
+        .alert(
+            "비공개 탐험대",
+            isPresented: $isShowingJoinPrivateAlert
+        ) {
+            TextField("암호를 입력해주세요", text: $joinPassword)
+                .keyboardType(.numberPad)
+                .onChange(of: joinPassword) { _, newValue in
+                    let digitsOnly = newValue.filter { $0.isNumber }
+                    if digitsOnly.count > 8 {
+                        joinPassword = String(digitsOnly.prefix(8))
+                    } else if digitsOnly != newValue {
+                        joinPassword = digitsOnly
+                    }
+                }
+            Button("취소", role: .cancel) {
+                joinPassword = ""
+            }
+            Button("탐험대 가입") {
+                let trimmed = joinPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+                performJoinExpedition(password: trimmed)
+            }
+        } message: {
+            Text("비밀번호를 입력해주세요.")
+        }
+        .alert(
+            resultAlertTitle,
+            isPresented: $isShowingResultAlert
+        ) {
+            Button("확인") {
+                isShowingResultAlert = false
+            }
+        } message: {
+            Text(resultAlertMessage)
+        }
         .fullScreenCover(isPresented: Binding(
             get: { deleteTargetId != nil },
             set: { if !$0 { deleteTargetId = nil } }
@@ -120,10 +160,65 @@ struct ChallengeExpeditionDetailView: View {
 }
 
 private extension ChallengeExpeditionDetailView {
+    var isJoinAvailable: Bool {
+        canJoinState
+    }
+
+    var isOwner: Bool {
+        !isJoinAvailable && isAdminState
+    }
+
+    var topActionTitle: String {
+        if isJoinAvailable {
+            return "탐험대 가입"
+        }
+        return isOwner ? "탐험대 삭제" : "탐험대 탈퇴"
+    }
+
+    var bottomActionButton: some View {
+        Group {
+            if isJoinAvailable {
+                Button {
+                    handleJoinTap()
+                } label: {
+                    Text("탐험대 가입하기")
+                        .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
+                        .foregroundStyle(Color.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(.primaryColorVarient65))
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            } else {
+                Button {
+                    // TODO: API 연결 시 탐험대로 게시물 올리기 처리
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(Color.white)
+                        .frame(width: 56, height: 56)
+                        .background(
+                            Circle()
+                                .fill(Color(.primaryColorVarient65))
+                        )
+                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 4)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 20)
+                .padding(.bottom, 30)
+            }
+        }
+    }
+
     var header: some View {
         HStack(spacing: 8) {
             Button {
-                // TODO: 라우팅 연결 (뒤로가기)
+                router.pop()
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 20, weight: .regular))
@@ -170,13 +265,9 @@ private extension ChallengeExpeditionDetailView {
             Spacer()
 
             Button {
-                if isOwner {
-                    isShowingDeleteAlert = true
-                } else {
-                    isShowingLeaveAlert = true
-                }
+                handleTopActionTap()
             } label: {
-                Text(isOwner ? "탐험대 삭제" : "탐험대 탈퇴")
+                Text(topActionTitle)
                     .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 12))
                     .foregroundStyle(Color.white)
                     .padding(.horizontal, 12)
@@ -187,6 +278,7 @@ private extension ChallengeExpeditionDetailView {
                     )
             }
             .buttonStyle(.plain)
+            .disabled(isSubmittingAction)
         }
         .padding(.vertical, 10)
     }
@@ -209,6 +301,130 @@ private extension ChallengeExpeditionDetailView {
 
     var memberCountText: String {
         "\(currentMemberCount)/\(maxMemberCount)"
+    }
+
+    func handleTopActionTap() {
+        if isJoinAvailable {
+            handleJoinTap()
+            return
+        }
+
+        if isOwner {
+            isShowingDeleteAlert = true
+        } else {
+            isShowingLeaveAlert = true
+        }
+    }
+
+    func handleJoinTap() {
+        guard !isSubmittingAction else { return }
+        if isPrivate {
+            joinPassword = ""
+            isShowingJoinPrivateAlert = true
+        } else {
+            performJoinExpedition(password: nil)
+        }
+    }
+
+    func performDeleteExpedition() {
+        guard !isSubmittingAction else { return }
+        isSubmittingAction = true
+        expeditionNetworkManager.requestStatusCode(
+            target: .deleteExpedition(expeditionId: expeditionId)
+        ) { result in
+            Task { @MainActor in
+                isSubmittingAction = false
+                switch result {
+                case .success:
+                    NotificationCenter.default.post(name: .expeditionListNeedsRefresh, object: nil)
+                    router.pop()
+                case .failure:
+                    showResultAlert(
+                        title: "탐험대 삭제 실패",
+                        message: "잠시 후 다시 시도해 주세요."
+                    )
+                }
+            }
+        }
+    }
+
+    func performWithdrawExpedition() {
+        guard !isSubmittingAction else { return }
+        isSubmittingAction = true
+        expeditionNetworkManager.requestStatusCode(
+            target: .withdrawExpedition(expeditionId: expeditionId)
+        ) { result in
+            Task { @MainActor in
+                isSubmittingAction = false
+                switch result {
+                case .success:
+                    NotificationCenter.default.post(name: .expeditionListNeedsRefresh, object: nil)
+                    router.pop()
+                case .failure:
+                    showResultAlert(
+                        title: "탐험대 탈퇴 실패",
+                        message: "잠시 후 다시 시도해 주세요."
+                    )
+                }
+            }
+        }
+    }
+
+    func performJoinExpedition(password: String?) {
+        guard !isSubmittingAction else { return }
+        isSubmittingAction = true
+        isShowingJoinPrivateAlert = false
+
+        let request = JoinExpeditionRequest(
+            expeditionId: expeditionId,
+            expeditionVisibility: isPrivate ? "PRIVATE" : "PUBLIC",
+            password: isPrivate ? password : nil
+        )
+
+        expeditionNetworkManager.request(
+            target: .joinExpedition(request: request),
+            decodingType: JoinExpeditionResponseDTO.self
+        ) { result in
+            Task { @MainActor in
+                isSubmittingAction = false
+                joinPassword = ""
+                switch result {
+                case .success:
+                    canJoinState = false
+                    NotificationCenter.default.post(name: .expeditionListNeedsRefresh, object: nil)
+                    showResultAlert(
+                        title: "가입 완료",
+                        message: "'\(expeditionName)' 탐험대에 가입되었습니다."
+                    )
+                case .failure(let error):
+                    let (title, message) = joinFailureAlert(error: error)
+                    showResultAlert(title: title, message: message)
+                }
+            }
+        }
+    }
+
+    func joinFailureAlert(error: NetworkError) -> (String, String) {
+        if case let .serverError(_, rawMessage) = error {
+            let message = rawMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+            if message.contains("비밀번호") || message.contains("암호") {
+                return ("잘못된 암호입니다.", "비공개 탐험대에 가입하기 위해 올바른 암호를 입력해주세요.")
+            }
+            if message.contains("정원") || message.contains("가득") {
+                return ("탐험대에 가입할 수 없습니다.", "'\(expeditionName)' 탐험대의 정원이 가득 차 가입할 수 없습니다.")
+            }
+            if message.contains("최대") || message.contains("가입할 수 없습니다") {
+                return ("탐험대에 가입할 수 없습니다.", message)
+            }
+            return ("탐험대 가입 실패", message.isEmpty ? "잠시 후 다시 시도해 주세요." : message)
+        }
+        return ("탐험대 가입 실패", "잠시 후 다시 시도해 주세요.")
+    }
+
+    func showResultAlert(title: String, message: String) {
+        resultAlertTitle = title
+        resultAlertMessage = message
+        isShowingResultAlert = true
     }
 }
 
@@ -234,12 +450,10 @@ extension ChallengeExpeditionDetailView {
                         .foregroundStyle(Color("45-Text"))
                         .multilineTextAlignment(.center)
 
-                    // 텍스트와 버튼 영역을 시각적으로 구분하는 상단 구분선 (카드 양끝까지)
                     Rectangle()
                         .fill(Color(.systemGray5))
                         .frame(height: 1)
                         .padding(.top, 4)
-                        // VStack 전체에 걸린 .padding(.horizontal, 24)를 상쇄해서 팝업 안쪽 양끝까지 라인 확장
                         .padding(.horizontal, -24)
 
                     HStack(spacing: 8) {
@@ -262,7 +476,7 @@ extension ChallengeExpeditionDetailView {
                         }
 
                         Button {
-                            networkManager.requestStatusCode(target: ChallengeAPI.deleteChallenge(challengeId: targetId)) { result in
+                            networkManager.requestStatusCode(target: .deleteChallenge(challengeId: targetId)) { result in
                                 DispatchQueue.main.async {
                                     switch result {
                                     case .success:
@@ -299,6 +513,12 @@ extension ChallengeExpeditionDetailView {
 }
 
 #Preview {
-    ChallengeExpeditionDetailView(expeditionName: "갓생 루틴 공유방")
-        .environment(NavigationRouter())
+    ChallengeExpeditionDetailView(
+        expeditionId: 1,
+        expeditionName: "갓생 루틴 공유방",
+        isPrivate: true,
+        isAdmin: true,
+        canJoin: false
+    )
+    .environment(NavigationRouter())
 }
