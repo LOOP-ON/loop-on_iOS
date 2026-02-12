@@ -233,6 +233,7 @@ private extension ChallengeExpeditionCreateView {
 struct ChallengeExpeditionMemberPickerSheet: View {
     @Binding var memberCount: Int
     var onClose: () -> Void
+    var minimumCount: Int = 1
 
     var body: some View {
         VStack(spacing: 16) {
@@ -249,7 +250,7 @@ struct ChallengeExpeditionMemberPickerSheet: View {
             .padding(.horizontal, 20)
 
             Picker("", selection: $memberCount) {
-                ForEach(1...50, id: \.self) { count in
+                ForEach(minimumCount...50, id: \.self) { count in
                     Text("\(count)")
                         .tag(count)
                 }

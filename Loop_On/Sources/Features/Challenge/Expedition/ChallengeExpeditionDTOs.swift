@@ -128,6 +128,56 @@ struct ExpeditionChallengeItemDTO: Decodable {
     }
 }
 
+struct ExpeditionSettingDTO: Decodable {
+    let expeditionId: Int
+    let title: String
+    let category: String
+    let admin: String
+    let currentUsers: Int
+    let capacity: Int
+    let visibility: String
+    let isAdmin: Bool
+    let password: String?
+
+    enum CodingKeys: String, CodingKey {
+        case expeditionId
+        case title
+        case category
+        case admin
+        case currentUsers
+        case currentMembers
+        case userLimit
+        case capacity
+        case visibility
+        case isAdmin
+        case password
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        expeditionId = (try? c.decode(Int.self, forKey: .expeditionId)) ?? 0
+        title = (try? c.decode(String.self, forKey: .title)) ?? ""
+        category = (try? c.decode(String.self, forKey: .category)) ?? "GROWTH"
+        admin = (try? c.decode(String.self, forKey: .admin)) ?? ""
+        currentUsers = (try? c.decode(Int.self, forKey: .currentUsers))
+            ?? (try? c.decode(Int.self, forKey: .currentMembers))
+            ?? 0
+        capacity = (try? c.decode(Int.self, forKey: .capacity))
+            ?? (try? c.decode(Int.self, forKey: .userLimit))
+            ?? 0
+        visibility = (try? c.decode(String.self, forKey: .visibility)) ?? "PUBLIC"
+        isAdmin = (try? c.decode(Bool.self, forKey: .isAdmin)) ?? false
+        password = try? c.decodeIfPresent(String.self, forKey: .password)
+    }
+}
+
+struct UpdateExpeditionSettingRequest: Encodable {
+    let title: String
+    let visibility: String
+    let password: String?
+    let userLimit: Int
+}
+
 struct ChallengeExpeditionListItemDTO: Decodable {
     let expeditionId: Int
     let title: String
