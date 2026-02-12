@@ -23,6 +23,8 @@ enum ExpeditionAPI {
     case withdrawExpedition(expeditionId: Int)
     // 탐험대원 명단 조회 (GET /api/expeditions/{expeditionId}/users)
     case getExpeditionMembers(expeditionId: Int)
+    // 탐험대 내 챌린지 조회 (GET /api/expeditions/{expeditionId}/challenges)
+    case getExpeditionChallenges(expeditionId: Int, page: Int, size: Int, sort: [String]?)
     // 탐험대원 퇴출 (PATCH /api/expeditions/{expeditionId}/expel)
     case expelMember(expeditionId: Int, request: ExpeditionExpelRequest)
     // 탐험대원 퇴출 해제 (DELETE /api/expeditions/{expeditionId}/expel)
@@ -53,6 +55,8 @@ extension ExpeditionAPI: TargetType {
             return "/api/expeditions/\(expeditionId)/withdraw"
         case let .getExpeditionMembers(expeditionId):
             return "/api/expeditions/\(expeditionId)/users"
+        case let .getExpeditionChallenges(expeditionId, _, _, _):
+            return "/api/expeditions/\(expeditionId)/challenges"
         case let .expelMember(expeditionId, _):
             return "/api/expeditions/\(expeditionId)/expel"
         case let .cancelExpelMember(expeditionId, _):
@@ -75,6 +79,8 @@ extension ExpeditionAPI: TargetType {
         case .withdrawExpedition:
             return .delete
         case .getExpeditionMembers:
+            return .get
+        case .getExpeditionChallenges:
             return .get
         case .expelMember:
             return .patch
@@ -111,6 +117,15 @@ extension ExpeditionAPI: TargetType {
             return .requestPlain
         case .getExpeditionMembers:
             return .requestPlain
+        case let .getExpeditionChallenges(_, page, size, sort):
+            var params: [String: Any] = [
+                "page": page,
+                "size": size
+            ]
+            if let sort = sort, !sort.isEmpty {
+                params["sort"] = sort.joined(separator: ",")
+            }
+            return .requestParameters(parameters: params, encoding: URLEncoding.queryString)
         case let .expelMember(_, request):
             return .requestJSONEncodable(request)
         case let .cancelExpelMember(_, request):

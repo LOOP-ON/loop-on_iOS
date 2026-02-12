@@ -17,7 +17,12 @@ struct ChallengeExpeditionDetailView: View {
     private let networkManager = DefaultNetworkManager<ChallengeAPI>()
     private let expeditionNetworkManager = DefaultNetworkManager<ExpeditionAPI>()
 
-    @State private var cards: [ChallengeCard] = ChallengeCard.samplePlaza
+    @State private var cards: [ChallengeCard] = []
+    @State private var isLoadingCards = false
+    @State private var hasLoadedCards = false
+    @State private var hasMoreCards = true
+    @State private var cardsPage = 0
+    private let cardsPageSize = 10
     @State private var isShowingMemberList = false
     @State private var isLoadingMemberList = false
     @State private var hasLoadedMemberList = false
@@ -47,61 +52,7 @@ struct ChallengeExpeditionDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                header
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-
-                memberRow
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-
-                ScrollView {
-                    VStack(spacing: 16) {
-                        ForEach($cards) { $card in
-                            ChallengeCardView(
-                                card: $card,
-                                onDelete: { id in
-                                    deleteTargetId = id
-                                }
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 120)
-                }
-                .scrollIndicators(.hidden)
-            }
-
-            bottomActionButton
-
-            if isShowingMemberList {
-                ChallengeExpeditionMemberListView(
-                    title: "탐험대 명단",
-                    memberCountText: memberCountText,
-                    isHost: memberListIsHost,
-                    members: memberList,
-                    isLoading: isLoadingMemberList,
-                    errorMessage: memberListErrorMessage,
-                    onClose: { isShowingMemberList = false },
-                    onRefresh: {
-                        loadExpeditionMembers()
-                    },
-                    onKick: { userId in
-                        performExpelMember(userId: userId)
-                    },
-                    onKickCancel: { userId in
-                        performCancelExpelMember(userId: userId)
-                    }
-                )
-                .zIndex(10)
-            }
-        }
+        contentView
         .alert(
             deleteAlertTitle,
             isPresented: $isShowingDeleteAlert
@@ -158,19 +109,103 @@ struct ChallengeExpeditionDetailView: View {
         } message: {
             Text(resultAlertMessage)
         }
-        .fullScreenCover(isPresented: Binding(
-            get: { deleteTargetId != nil },
-            set: { if !$0 { deleteTargetId = nil } }
-        )) {
+        .fullScreenCover(isPresented: deleteCoverBinding) {
             deleteConfirmFullScreen
         }
         .onAppear {
             loadExpeditionMembersIfNeeded()
+            loadExpeditionChallengesIfNeeded()
         }
     }
 }
 
 private extension ChallengeExpeditionDetailView {
+    var contentView: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                header
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+
+                memberRow
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+
+                cardsScrollView
+            }
+
+            bottomActionButton
+            memberListOverlay
+        }
+    }
+
+    var cardsScrollView: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                ForEach($cards) { $card in
+                    ChallengeCardView(
+                        card: $card,
+                        onDelete: { id in
+                            deleteTargetId = id
+                        }
+                    )
+                    .onAppear {
+                        handleCardAppear(currentId: $card.wrappedValue.challengeId)
+                    }
+                }
+
+                if isLoadingCards {
+                    ProgressView()
+                        .padding(.vertical, 16)
+                } else if cards.isEmpty, hasLoadedCards {
+                    Text("탐험대 내 게시물이 없습니다.")
+                        .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                        .foregroundStyle(Color("25-Text"))
+                        .padding(.vertical, 24)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 120)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    @ViewBuilder
+    var memberListOverlay: some View {
+        if isShowingMemberList {
+            ChallengeExpeditionMemberListView(
+                title: "탐험대 명단",
+                memberCountText: memberCountText,
+                isHost: memberListIsHost,
+                members: memberList,
+                isLoading: isLoadingMemberList,
+                errorMessage: memberListErrorMessage,
+                onClose: { isShowingMemberList = false },
+                onRefresh: {
+                    loadExpeditionMembers()
+                },
+                onKick: { userId in
+                    performExpelMember(userId: userId)
+                },
+                onKickCancel: { userId in
+                    performCancelExpelMember(userId: userId)
+                }
+            )
+            .zIndex(10)
+        }
+    }
+
+    var deleteCoverBinding: Binding<Bool> {
+        Binding(
+            get: { deleteTargetId != nil },
+            set: { if !$0 { deleteTargetId = nil } }
+        )
+    }
+
     var shouldShowJoinActions: Bool {
         !isJoinedState
     }
@@ -367,6 +402,97 @@ private extension ChallengeExpeditionDetailView {
                 }
             }
         }
+    }
+
+    func loadExpeditionChallengesIfNeeded() {
+        guard !hasLoadedCards else { return }
+        loadExpeditionChallenges(reset: true)
+    }
+
+    func loadExpeditionChallenges(reset: Bool = false) {
+        if reset {
+            cardsPage = 0
+            hasMoreCards = true
+            hasLoadedCards = false
+            cards = []
+        }
+
+        guard hasMoreCards else { return }
+        guard !isLoadingCards else { return }
+
+        let requestPage = cardsPage
+        isLoadingCards = true
+        print("✅ [Expedition] loadExpeditionChallenges start: GET /api/expeditions/\(expeditionId)/challenges?page=\(requestPage)&size=\(cardsPageSize)")
+
+        expeditionNetworkManager.request(
+            target: .getExpeditionChallenges(
+                expeditionId: expeditionId,
+                page: requestPage,
+                size: cardsPageSize,
+                sort: ["createdAt,desc"]
+            ),
+            decodingType: ExpeditionChallengePageDTO.self
+        ) { result in
+            Task { @MainActor in
+                isLoadingCards = false
+                hasLoadedCards = true
+                switch result {
+                case .success(let page):
+                    let mapped = page.content.map { challengeCard(from: $0) }
+                    if requestPage == 0 {
+                        cards = mapped
+                    } else {
+                        cards.append(contentsOf: mapped)
+                    }
+                    let isLastPage = page.last ?? (mapped.count < cardsPageSize)
+                    hasMoreCards = !isLastPage
+                    if hasMoreCards {
+                        cardsPage = requestPage + 1
+                    }
+                    print("✅ [Expedition] loadExpeditionChallenges success: page=\(requestPage), received=\(mapped.count), hasMore=\(hasMoreCards)")
+                case .failure(let error):
+                    print("❌ [Expedition] loadExpeditionChallenges failed: \(error)")
+                }
+            }
+        }
+    }
+
+    func handleCardAppear(currentId: Int) {
+        guard hasMoreCards, !isLoadingCards else { return }
+        let threshold = max(cards.count - 2, 0)
+        if let idx = cards.firstIndex(where: { $0.challengeId == currentId }), idx >= threshold {
+            loadExpeditionChallenges()
+        }
+    }
+
+    func challengeCard(from dto: ExpeditionChallengeItemDTO) -> ChallengeCard {
+        let tags = dto.hashtags.map { $0.hasPrefix("#") ? $0 : "#\($0)" }
+        return ChallengeCard(
+            challengeId: dto.challengeId,
+            title: "\(dto.journeyNumber) 번째 여정",
+            subtitle: dto.content,
+            dateText: formatExpeditionDate(dto.createdAt),
+            hashtags: tags,
+            authorName: dto.nickName,
+            imageUrls: dto.imageUrls,
+            profileImageUrl: dto.profileImageUrl,
+            isLiked: dto.isLiked,
+            likeCount: dto.likeCount
+        )
+    }
+
+    func formatExpeditionDate(_ raw: String) -> String {
+        if raw.isEmpty { return "" }
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let withoutFraction = ISO8601DateFormatter()
+        withoutFraction.formatOptions = [.withInternetDateTime]
+        let parsedDate = withFraction.date(from: raw) ?? withoutFraction.date(from: raw)
+        guard let date = parsedDate else { return raw }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy.MM.dd"
+        formatter.locale = Locale(identifier: "ko_KR")
+        return formatter.string(from: date)
     }
 
     func handleTopActionTap() {

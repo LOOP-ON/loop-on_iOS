@@ -72,6 +72,62 @@ struct ExpeditionMemberDTO: Decodable {
     let expeditionUserStatus: String
 }
 
+struct ExpeditionChallengePageDTO: Decodable {
+    let content: [ExpeditionChallengeItemDTO]
+    let number: Int?
+    let last: Bool?
+    let empty: Bool?
+}
+
+struct ExpeditionChallengeItemDTO: Decodable {
+    let challengeId: Int
+    let journeyNumber: Int
+    let imageUrls: [String]
+    let content: String
+    let hashtags: [String]
+    let createdAt: String
+    let nickName: String
+    let profileImageUrl: String?
+    let isLiked: Bool
+    let likeCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case challengeId
+        case journeyNumber
+        case journeySequence
+        case imageUrls
+        case content
+        case hashtags
+        case hashtagList
+        case createdAt
+        case nickName
+        case nickname
+        case profileImageUrl
+        case isLiked
+        case likeCount
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        challengeId = (try? c.decode(Int.self, forKey: .challengeId)) ?? 0
+        journeyNumber = (try? c.decode(Int.self, forKey: .journeyNumber))
+            ?? (try? c.decode(Int.self, forKey: .journeySequence))
+            ?? 0
+        imageUrls = (try? c.decode([String].self, forKey: .imageUrls)) ?? []
+        content = (try? c.decode(String.self, forKey: .content)) ?? ""
+        hashtags = (try? c.decode([String].self, forKey: .hashtags))
+            ?? (try? c.decode([String].self, forKey: .hashtagList))
+            ?? []
+        createdAt = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
+        nickName = (try? c.decode(String.self, forKey: .nickName))
+            ?? (try? c.decode(String.self, forKey: .nickname))
+            ?? "사용자"
+        profileImageUrl = try? c.decodeIfPresent(String.self, forKey: .profileImageUrl)
+        isLiked = (try? c.decode(Bool.self, forKey: .isLiked)) ?? false
+        likeCount = (try? c.decode(Int.self, forKey: .likeCount)) ?? 0
+    }
+}
+
 struct ChallengeExpeditionListItemDTO: Decodable {
     let expeditionId: Int
     let title: String
