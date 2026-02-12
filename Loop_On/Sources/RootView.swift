@@ -59,6 +59,10 @@ struct RootView: View {
 
                 case .app(.home):
                     HomeView()
+
+                case .app(.passport):
+                    PassportView()
+                        .navigationBarBackButtonHidden(true)
                 
                 case let .app(.routineCoach(routines, goal, category, selectedInsights, showContinuationPopup)):
                     RoutineCoachView(

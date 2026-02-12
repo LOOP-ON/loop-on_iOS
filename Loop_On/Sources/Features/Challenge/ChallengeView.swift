@@ -32,9 +32,14 @@ struct ChallengeView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                HomeHeaderView(onSettingsTapped: {
-                    router.push(.app(.settings))
-                })
+                HomeHeaderView(
+                    onPassportTapped: {
+                        router.push(.app(.passport))
+                    },
+                    onSettingsTapped: {
+                        router.push(.app(.settings))
+                    }
+                )
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
 
