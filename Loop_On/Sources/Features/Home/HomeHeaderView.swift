@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 
 struct HomeHeaderView: View {
+    var onPassportTapped: (() -> Void)?
     var onSettingsTapped: (() -> Void)?
 
     var body: some View {
@@ -21,10 +22,15 @@ struct HomeHeaderView: View {
             Spacer()
 
             HStack(spacing: 8) {
-                Image("passport")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width:34)
+                Button(action: {
+                    onPassportTapped?()
+                }) {
+                    Image("passport")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 34)
+                }
+                .buttonStyle(.plain)
                 Button(action: {
                     onSettingsTapped?()
                 }) {

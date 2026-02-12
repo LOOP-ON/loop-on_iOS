@@ -10,6 +10,7 @@ import Foundation
 /// 네비게이션 경로 복원 시 NavigationPath 디코딩에 필요
 enum AppRoute: Hashable, Codable {
     case home
+    case passport
     case detail(title: String)
     case expeditionDetail(
         expeditionId: Int,
