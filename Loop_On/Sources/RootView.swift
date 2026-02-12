@@ -56,12 +56,13 @@ struct RootView: View {
                 case .app(.home):
                     HomeView()
                 
-                case let .app(.routineCoach(routines, goal, category, selectedInsights)):
+                case let .app(.routineCoach(routines, goal, category, selectedInsights, showContinuationPopup)):
                     RoutineCoachView(
                         routines: routines,
                         goal: goal,
                         category: category,
-                        selectedInsights: selectedInsights
+                        selectedInsights: selectedInsights,
+                        showContinuationPopup: showContinuationPopup
                     )
                         .toolbar(.hidden, for: .tabBar)
                         .navigationBarBackButtonHidden(true)

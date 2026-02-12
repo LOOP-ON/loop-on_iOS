@@ -11,6 +11,8 @@ import SwiftUI
 struct RoutineCoachView: View {
     @StateObject private var viewModel: RoutineCoachViewModel
     @EnvironmentObject var homeViewModel: HomeViewModel
+    @State private var showContinuationPopup: Bool = false
+    private let shouldShowContinuationPopupOnAppear: Bool
     
     // 브랜드 컬러 정의
     let pointColor = Color(.primaryColorVarient65)
@@ -23,11 +25,18 @@ struct RoutineCoachView: View {
     @State private var scrollOffset: CGFloat = 0        // 현재 스크롤 위치(y, 아래로 갈수록 +)
     @State private var contentHeight: CGFloat = 0       // 전체 콘텐츠 높이
     
-    init(routines: [RoutineCoach], goal: String, category: String, selectedInsights: [String]) {
+    init(
+        routines: [RoutineCoach],
+        goal: String,
+        category: String,
+        selectedInsights: [String],
+        showContinuationPopup: Bool = false
+    ) {
         let vm = RoutineCoachViewModel(initialRoutines: routines)
         vm.goal_text = goal
         vm.category = category
         vm.selected_insights = selectedInsights
+        self.shouldShowContinuationPopupOnAppear = showContinuationPopup
         _viewModel = StateObject(wrappedValue: vm)
     }
     
@@ -188,6 +197,22 @@ struct RoutineCoachView: View {
                 .transition(.opacity)
                 .zIndex(1)
             }
+
+            if showContinuationPopup {
+                CommonPopupView(
+                    isPresented: $showContinuationPopup,
+                    title: "이전 여정을 100% 완수해서 루틴이 하나 추가되었어요!",
+                    message: "필요 없다면 변경할 수 있습니다.",
+                    leftButtonText: "확인",
+                    leftAction: {
+                        showContinuationPopup = false
+                    },
+                    onClose: {
+                        showContinuationPopup = false
+                    }
+                )
+                .zIndex(2)
+            }
         }
         // 여정 시작 성공 시 HomeView로 이동
         .fullScreenCover(isPresented: $viewModel.isJourneyStarted) {
@@ -221,6 +246,11 @@ struct RoutineCoachView: View {
         .onAppear {
             // 화면 진입 시 API 호출
             viewModel.fetchJourneyOrder()
+            if shouldShowContinuationPopupOnAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    showContinuationPopup = true
+                }
+            }
         }
     }
 }

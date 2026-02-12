@@ -94,7 +94,8 @@ final class InsightSelectViewModel: ObservableObject {
             routines: newRoutines,
             goal: self.goalText,
             category: self.selectedCategory,
-            selectedInsights: selectedItems.map(\.title)
+            selectedInsights: selectedItems.map(\.title),
+            showContinuationPopup: false
         )))
     }
     

@@ -13,7 +13,13 @@ enum AppRoute: Hashable, Codable {
     case detail(title: String)
     case profile(userID: Int)
     /// 루틴 코치 화면 진입 시 생성된 루틴 목록과 요청 컨텍스트를 함께 전달
-    case routineCoach(routines: [RoutineCoach], goal: String, category: String, selectedInsights: [String])
+    case routineCoach(
+        routines: [RoutineCoach],
+        goal: String,
+        category: String,
+        selectedInsights: [String],
+        showContinuationPopup: Bool
+    )
     case settings
     case account
     case notifications

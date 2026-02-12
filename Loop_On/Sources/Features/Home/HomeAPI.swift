@@ -12,6 +12,7 @@ enum HomeAPI {
     case fetchCurrentJourney
     case postponeRoutine(journeyId: Int, request: RoutinePostponeRequest)
     case certifyRoutine(progressId: Int, imageData: Data, fileName: String, mimeType: String)
+    case continueJourney(journeyId: Int)
 }
 
 extension HomeAPI: TargetType {
@@ -27,6 +28,8 @@ extension HomeAPI: TargetType {
             return "/api/journeys/\(journeyId)/routines/postpone"
         case let .certifyRoutine(progressId, _, _, _):
             return "/api/routines/\(progressId)/certify"
+        case let .continueJourney(journeyId):
+            return "/api/journeys/\(journeyId)/continue"
         }
     }
     
@@ -34,7 +37,7 @@ extension HomeAPI: TargetType {
         switch self {
         case .fetchCurrentJourney:
             return .get
-        case .postponeRoutine, .certifyRoutine:
+        case .postponeRoutine, .certifyRoutine, .continueJourney:
             return .post
         }
     }
@@ -53,13 +56,15 @@ extension HomeAPI: TargetType {
                 mimeType: mimeType
             )
             return .uploadMultipart([form])
+        case .continueJourney:
+            return .requestPlain
         }
     }
     
     var headers: [String: String]? {
         var header: [String: String] = [:]
         switch self {
-        case .fetchCurrentJourney, .postponeRoutine:
+        case .fetchCurrentJourney, .postponeRoutine, .continueJourney:
             header["Content-Type"] = "application/json"
         case .certifyRoutine:
             // Multipart 경계(boundary)는 Moya가 자동 설정하도록 Content-Type 미설정

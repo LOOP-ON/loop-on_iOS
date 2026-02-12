@@ -13,9 +13,9 @@ struct CommonPopupView: View {
     let title: String
     var message: String? = nil
     let leftButtonText: String
-    let rightButtonText: String
+    var rightButtonText: String? = nil
     let leftAction: () -> Void
-    let rightAction: () -> Void
+    var rightAction: (() -> Void)? = nil
     var onClose: (() -> Void)? = nil
 
     var body: some View {
@@ -44,20 +44,29 @@ struct CommonPopupView: View {
 
                 Divider()
 
-                HStack(spacing: 0) {
-                    // 왼쪽 버튼
+                if let rightButtonText, let rightAction {
+                    HStack(spacing: 0) {
+                        // 왼쪽 버튼
+                        Button(action: leftAction) {
+                            Text(leftButtonText)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(Color(.primaryColorVarient65))
+                                .frame(maxWidth: .infinity, maxHeight: 50)
+                        }
+
+                        Divider().frame(height: 50)
+
+                        // 오른쪽 버튼
+                        Button(action: rightAction) {
+                            Text(rightButtonText)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(Color(.primaryColorVarient65))
+                                .frame(maxWidth: .infinity, maxHeight: 50)
+                        }
+                    }
+                } else {
                     Button(action: leftAction) {
                         Text(leftButtonText)
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(Color(.primaryColorVarient65))
-                            .frame(maxWidth: .infinity, maxHeight: 50)
-                    }
-
-                    Divider().frame(height: 50)
-
-                    // 오른쪽 버튼
-                    Button(action: rightAction) {
-                        Text(rightButtonText)
                             .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(Color(.primaryColorVarient65))
                             .frame(maxWidth: .infinity, maxHeight: 50)

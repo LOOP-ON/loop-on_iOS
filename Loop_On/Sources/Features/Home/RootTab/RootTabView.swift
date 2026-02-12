@@ -66,13 +66,22 @@ struct RootTabView: View {
             }
             // 최상위 ZStack에서 팝업을 띄워 노치와 탭바를 모두 덮어준다
             if homeViewModel.activeFullSheet == .reflection {
-                if let info = homeViewModel.journeyInfo {
+                if let info = homeViewModel.journeyInfo,
+                   let progressId = homeViewModel.reflectionProgressId {
                     ReflectionPopupView(
-                        viewModel: ReflectionViewModel(loopId: info.loopId, currentDay: info.currentDay),
+                        viewModel: ReflectionViewModel(
+                            loopId: info.loopId,
+                            currentDay: info.currentDay,
+                            goalTitle: homeViewModel.goalTitle,
+                            progressId: progressId
+                        ),
                         isPresented: Binding(
                             get: { homeViewModel.activeFullSheet == .reflection },
                             set: { if !$0 { homeViewModel.activeFullSheet = nil } }
-                        )
+                        ),
+                        onSaved: {
+                            homeViewModel.markReflectionSaved()
+                        }
                     )
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                     .zIndex(999)

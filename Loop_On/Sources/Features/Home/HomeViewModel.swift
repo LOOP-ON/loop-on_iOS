@@ -54,6 +54,8 @@ class HomeViewModel: ObservableObject {
     @Published var isShowingDelayPopup: Bool = false    // 미루기 팝업 상태 변수
     @Published var isShowingFinishPopup: Bool = false
     @Published var isJourneyCreated: Bool = false
+    @Published var continueJourneyErrorMessage: String?
+    @Published var isReflectionSaved: Bool = false
     
     // 목표 저장 변수
     @Published var goalTitle: String = ""
@@ -76,6 +78,18 @@ class HomeViewModel: ObservableObject {
                 alarmTime: Date()
             )
         }
+    }
+
+    var allRoutinesSettled: Bool {
+        !routines.isEmpty && routines.allSatisfy { $0.isCompleted || $0.isDelayed }
+    }
+
+    var reflectionProgressId: Int? {
+        routines.first?.routineProgressId
+    }
+
+    var reflectionButtonTitle: String {
+        isReflectionSaved ? "기록 수정하기" : "여정 기록하기"
     }
 
     init() {
@@ -134,6 +148,7 @@ class HomeViewModel: ObservableObject {
                 delayReason: "" // 필요 시 서버에서 확장하여 받아야 함
             )
         }
+        self.isReflectionSaved = false
             
         // 전날 미완료 루틴 처리 모드 여부 체크
         checkUncompletedRoutines(isNotReady: data.isNotReady ?? false)
@@ -301,6 +316,74 @@ class HomeViewModel: ObservableObject {
         guard let selectedRoutine else { return }
         guard let index = routines.firstIndex(where: { $0.id == selectedRoutine.id }) else { return }
         completeRoutine(at: index)
+    }
+
+    struct ContinueJourneyContext {
+        let routines: [RoutineCoach]
+        let goal: String
+    }
+
+    func continueJourneyAndPrepareRoutineCoach(
+        completion: @escaping (Result<ContinueJourneyContext, NetworkError>) -> Void
+    ) {
+        guard let journeyId = journeyInfo?.journeyId, journeyId > 0 else {
+            completion(.failure(.unknown))
+            return
+        }
+
+        isLoading = true
+        continueJourneyErrorMessage = nil
+
+        networkManager.request(
+            target: .continueJourney(journeyId: journeyId),
+            decodingType: JourneyContinueData.self
+        ) { [weak self] continueResult in
+            guard let self else { return }
+            switch continueResult {
+            case .success:
+                self.networkManager.request(
+                    target: .fetchCurrentJourney,
+                    decodingType: HomeDataDetail.self
+                ) { [weak self] fetchResult in
+                    guard let self else { return }
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        switch fetchResult {
+                        case .success(let data):
+                            self.updateUI(with: data)
+                            completion(.success(.init(
+                                routines: self.routinesForCoaching,
+                                goal: self.goalTitle
+                            )))
+                        case .failure(let error):
+                            self.continueJourneyErrorMessage = error.localizedDescription
+                            completion(.failure(error))
+                        }
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.continueJourneyErrorMessage = error.localizedDescription
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+
+    func resetForNewOnboarding() {
+        activeFullSheet = nil
+        hasUncompletedRoutines = false
+        selectedRoutine = nil
+        journeyInfo = nil
+        routines = []
+        goalTitle = ""
+        continueJourneyErrorMessage = nil
+        isReflectionSaved = false
+    }
+
+    func markReflectionSaved() {
+        isReflectionSaved = true
     }
     
     func createNewJourney() {

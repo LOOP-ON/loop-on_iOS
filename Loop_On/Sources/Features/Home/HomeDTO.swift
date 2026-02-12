@@ -54,6 +54,12 @@ struct RoutinePostponeRequest: Codable {
     let reason: String
 }
 
+struct JourneyContinueData: Codable {
+    let goal: String
+    let originalJourneyId: Int
+    let continuation: Bool
+}
+
 // MARK: - Domain Model
 // 앱 내 로직에서 사용할 모델 (Identifiable 준수)
 struct RoutineModel: Identifiable {
