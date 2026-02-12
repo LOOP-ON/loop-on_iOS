@@ -54,6 +54,8 @@ class HomeViewModel: ObservableObject {
     @Published var isShowingDelayPopup: Bool = false    // 미루기 팝업 상태 변수
     @Published var isShowingFinishPopup: Bool = false
     @Published var isJourneyCreated: Bool = false
+    @Published var continueJourneyErrorMessage: String?
+    @Published var isReflectionSaved: Bool = false
     
     // 목표 저장 변수
     @Published var goalTitle: String = ""
@@ -78,8 +80,20 @@ class HomeViewModel: ObservableObject {
         }
     }
 
+    var allRoutinesSettled: Bool {
+        !routines.isEmpty && routines.allSatisfy { $0.isCompleted || $0.isDelayed }
+    }
+
+    var reflectionProgressId: Int? {
+        routines.first?.routineProgressId
+    }
+
+    var reflectionButtonTitle: String {
+        isReflectionSaved ? "기록 수정하기" : "여정 기록하기"
+    }
+
     init() {
-//        fetchHomeData()
+        fetchHomeData()
     }
 
     // MARK: - API 통신 (Mock)
@@ -112,6 +126,7 @@ class HomeViewModel: ObservableObject {
             
         // 여정 정보 매핑 (journeyOrder와 journeyDate 활용)
         self.journeyInfo = JourneyInfo(
+            journeyId: data.journey.journeyId,
             loopId: data.journey.journeyOrder,      // n번째 여정
             currentDay: data.journey.journeyDate,   // n일차 여정
             totalJourney: data.todayProgress.totalCount,
@@ -125,6 +140,7 @@ class HomeViewModel: ObservableObject {
         self.routines = data.routines.map { dto in
             RoutineModel(
                 id: dto.routineId,
+                routineProgressId: dto.routineProgressId,
                 title: dto.content,
                 time: "\(dto.notificationTime) 알림 예정",
                 isCompleted: dto.status == "COMPLETED",
@@ -132,19 +148,26 @@ class HomeViewModel: ObservableObject {
                 delayReason: "" // 필요 시 서버에서 확장하여 받아야 함
             )
         }
+        self.isReflectionSaved = false
             
-        // 상태 체크
-        checkUncompletedRoutines()
+        // 전날 미완료 루틴 처리 모드 여부 체크
+        checkUncompletedRoutines(isNotReady: data.isNotReady ?? false)
     }
     
-    private func checkUncompletedRoutines() {
-        let hasUnsettledRoutine = self.routines.contains { !$0.isCompleted && !$0.isDelayed }
-            
-        if hasUnsettledRoutine {
-            self.hasUncompletedRoutines = true
-            self.activeFullSheet = .uncompletedRoutineAlert
-        } else {
+    private func checkUncompletedRoutines(isNotReady: Bool) {
+        // 서버가 "전날 미완료 처리 필요"라고 준 경우에만 미완료 모드를 활성화한다.
+        guard isNotReady else {
             self.hasUncompletedRoutines = false
+            if self.activeFullSheet == .uncompletedRoutineAlert {
+                self.activeFullSheet = nil
+            }
+            return
+        }
+
+        let hasUnsettledRoutine = self.routines.contains { !$0.isCompleted && !$0.isDelayed }
+        self.hasUncompletedRoutines = hasUnsettledRoutine
+        if hasUnsettledRoutine {
+            self.activeFullSheet = .uncompletedRoutineAlert
         }
     }
 //    func fetchHomeData() {
@@ -203,21 +226,18 @@ class HomeViewModel: ObservableObject {
     // MARK: - 루틴 완료 처리 (인증 버튼 클릭 시 호출)
     func completeRoutine(at index: Int) {
         guard index < routines.count else { return }
+        guard !routines[index].isCompleted, !routines[index].isDelayed else { return }
         routines[index].isCompleted = true
             
         if var info = journeyInfo {
-            // 완료 버튼 클릭 시 카운트 1 증가
-            info.todayRoutineCount += 1
-                
-            // 오늘 목표를 달성했으면 완주 일수(completedJourney) 1 증가
-            if info.todayRoutineCount == info.todayRoutine {
-                info.completedJourney += 1
-            }
+            // 오늘 완료 수를 루틴 상태에서 다시 계산해 이중 증가를 방지
+            let completedCount = routines.filter(\.isCompleted).count
+            info.todayRoutineCount = min(completedCount, info.todayRoutine)
                 
             self.journeyInfo = info // 변경된 정보 반영
                 
-            // 전체 여정의 마지막 날까지 다 채웠을 때 종료 팝업 (기존 로직)
-            if info.completedJourney == info.totalJourney {
+            // 오늘 루틴을 모두 완료하면 종료 팝업 노출
+            if info.todayRoutine > 0 && info.todayRoutineCount == info.todayRoutine {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.activeFullSheet = .finishJourney
                 }
@@ -265,6 +285,7 @@ class HomeViewModel: ObservableObject {
             self.routines = todayRoutines.map { dto in
                 RoutineModel(
                     id: dto.routineId,
+                    routineProgressId: dto.routineProgressId,
                     title: dto.content,
                     time: "\(dto.notificationTime) 알림 예정",
                     isCompleted: dto.isCompleted,
@@ -289,6 +310,80 @@ class HomeViewModel: ObservableObject {
 
     func selectRoutine(at index: Int) {
         self.selectedRoutine = routines[index]
+    }
+
+    func completeSelectedRoutine() {
+        guard let selectedRoutine else { return }
+        guard let index = routines.firstIndex(where: { $0.id == selectedRoutine.id }) else { return }
+        completeRoutine(at: index)
+    }
+
+    struct ContinueJourneyContext {
+        let routines: [RoutineCoach]
+        let goal: String
+    }
+
+    func continueJourneyAndPrepareRoutineCoach(
+        completion: @escaping (Result<ContinueJourneyContext, NetworkError>) -> Void
+    ) {
+        guard let journeyId = journeyInfo?.journeyId, journeyId > 0 else {
+            completion(.failure(.unknown))
+            return
+        }
+
+        isLoading = true
+        continueJourneyErrorMessage = nil
+
+        networkManager.request(
+            target: .continueJourney(journeyId: journeyId),
+            decodingType: JourneyContinueData.self
+        ) { [weak self] continueResult in
+            guard let self else { return }
+            switch continueResult {
+            case .success:
+                self.networkManager.request(
+                    target: .fetchCurrentJourney,
+                    decodingType: HomeDataDetail.self
+                ) { [weak self] fetchResult in
+                    guard let self else { return }
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        switch fetchResult {
+                        case .success(let data):
+                            self.updateUI(with: data)
+                            completion(.success(.init(
+                                routines: self.routinesForCoaching,
+                                goal: self.goalTitle
+                            )))
+                        case .failure(let error):
+                            self.continueJourneyErrorMessage = error.localizedDescription
+                            completion(.failure(error))
+                        }
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.continueJourneyErrorMessage = error.localizedDescription
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+
+    func resetForNewOnboarding() {
+        activeFullSheet = nil
+        hasUncompletedRoutines = false
+        selectedRoutine = nil
+        journeyInfo = nil
+        routines = []
+        goalTitle = ""
+        continueJourneyErrorMessage = nil
+        isReflectionSaved = false
+    }
+
+    func markReflectionSaved() {
+        isReflectionSaved = true
     }
     
     func createNewJourney() {

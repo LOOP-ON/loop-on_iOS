@@ -10,6 +10,9 @@ import Moya
 
 enum HomeAPI {
     case fetchCurrentJourney
+    case postponeRoutine(journeyId: Int, request: RoutinePostponeRequest)
+    case certifyRoutine(progressId: Int, imageData: Data, fileName: String, mimeType: String)
+    case continueJourney(journeyId: Int)
 }
 
 extension HomeAPI: TargetType {
@@ -21,22 +24,55 @@ extension HomeAPI: TargetType {
         switch self {
         case .fetchCurrentJourney:
             return "/api/journeys/current"
+        case let .postponeRoutine(journeyId, _):
+            return "/api/journeys/\(journeyId)/routines/postpone"
+        case let .certifyRoutine(progressId, _, _, _):
+            return "/api/routines/\(progressId)/certify"
+        case let .continueJourney(journeyId):
+            return "/api/journeys/\(journeyId)/continue"
         }
     }
     
     var method: Moya.Method {
-        return .get
+        switch self {
+        case .fetchCurrentJourney:
+            return .get
+        case .postponeRoutine, .certifyRoutine, .continueJourney:
+            return .post
+        }
     }
     
     var task: Task {
-        return .requestPlain
+        switch self {
+        case .fetchCurrentJourney:
+            return .requestPlain
+        case let .postponeRoutine(_, request):
+            return .requestJSONEncodable(request)
+        case let .certifyRoutine(_, imageData, fileName, mimeType):
+            let form = MultipartFormData(
+                provider: .data(imageData),
+                name: "image",
+                fileName: fileName,
+                mimeType: mimeType
+            )
+            return .uploadMultipart([form])
+        case .continueJourney:
+            return .requestPlain
+        }
     }
     
     var headers: [String: String]? {
-        // TODO: Keychain에서 실제 토큰을 가져오도록 수정 필요
-        return [
-            "Content-Type": "application/json",
-            "Authorization": "Bearer \(UserDefaults.standard.string(forKey: "accessToken") ?? "")"
-        ]
+        var header: [String: String] = [:]
+        switch self {
+        case .fetchCurrentJourney, .postponeRoutine, .continueJourney:
+            header["Content-Type"] = "application/json"
+        case .certifyRoutine:
+            // Multipart 경계(boundary)는 Moya가 자동 설정하도록 Content-Type 미설정
+            break
+        }
+        if let token = KeychainService.shared.loadToken(), !token.isEmpty {
+            header["Authorization"] = "Bearer \(token)"
+        }
+        return header
     }
 }

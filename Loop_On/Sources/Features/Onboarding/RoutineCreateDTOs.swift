@@ -30,7 +30,7 @@ struct RoutineCreateResponse: Decodable {
 
 struct RoutineContentRequest: Encodable {
     let content: String
-    let notificationTime: String // "HH:mm" 형식 문자열
+    let time: String // "HH:mm" 형식 문자열
 }
 
 //struct RoutineCreateResponse: Decodable {

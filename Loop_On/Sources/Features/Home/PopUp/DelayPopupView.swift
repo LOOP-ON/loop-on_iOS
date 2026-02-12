@@ -10,6 +10,8 @@ import SwiftUI
 struct DelayPopupView: View {
     let index: Int
     let title: String
+    let journeyId: Int
+    let progressId: Int
     @Binding var isPresented: Bool
     var onDelaySuccess: ((String) -> Void)?
     
@@ -164,7 +166,7 @@ struct DelayPopupView: View {
                 if isReadOnly && !isEditMode {
                     isEditMode = true // 수정 모드로 진입
                 } else {
-                    viewModel.submitDelay(routineIndex: index) { success in
+                    viewModel.submitDelay(journeyId: journeyId, progressId: progressId) { success in
                         if success {
                             DispatchQueue.main.async {
                                 // 팝업에서 선택/입력된 최종 사유를 부모 뷰로 전달
@@ -180,7 +182,7 @@ struct DelayPopupView: View {
                     .foregroundStyle(viewModel.canSubmit ? Color(.primaryColorVarient65) : Color.gray.opacity(0.4))
                     .frame(maxWidth: .infinity, minHeight: 56)
             }
-            .disabled(!viewModel.canSubmit && isEditMode)
+            .disabled(viewModel.isSubmitting || ((isReadOnly && !isEditMode) ? false : !viewModel.canSubmit))
         }
     }
 }
@@ -189,7 +191,7 @@ struct DelayPopupView: View {
     struct DelayPopupPreviewContainer: View {
         @State private var isPresented = true
         @State private var mockRoutine = RoutineModel(
-            id: 1, title: "매일 아침 스트레칭 하기",
+            id: 1, routineProgressId: 101, title: "매일 아침 스트레칭 하기",
             time: "08:00 알림 예정",
             isCompleted: false,
             isDelayed: false,
@@ -216,6 +218,8 @@ struct DelayPopupView: View {
                         DelayPopupView(
                             index: 1,
                             title: mockRoutine.title,
+                            journeyId: 1,
+                            progressId: mockRoutine.routineProgressId,
                             isPresented: $isPresented,
                             onDelaySuccess: { reason in
                                 mockRoutine.isDelayed = true

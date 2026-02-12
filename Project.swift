@@ -44,7 +44,10 @@ let project = Project(
                 ]
             ), // infoPlist 괄호 닫기
 	    sources: ["Loop_On/Sources/**"],
-            resources: ["Loop_On/Resources/**"],
+            resources: [
+                "Loop_On/Resources/**",
+                "Loop_On/Sources/Loading/*.json"
+            ],
             entitlements: .file(path: .relativeToRoot("Loop_On/Loop_On.entitlements")),
             dependencies: [
 	    	.external(name: "Alamofire"),
@@ -74,8 +77,6 @@ let project = Project(
         ),
     ],
     additionalFiles: [
-        "Loop_On/Sources/Secret.xcconfig",
-	"Loop_On/Sources/Loading/Loading 51 _ Monoplane.json",
-	"Loop_On/Sources/Loading/TriPriend.json"
+        "Loop_On/Sources/Secret.xcconfig"
     ]
 )

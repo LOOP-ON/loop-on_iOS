@@ -20,8 +20,8 @@ struct HomeDataDetail: Codable {
     let journey: JourneyDTO
     let todayProgress: ProgressDTO
     let routines: [RoutineDTO]
-    let isNotReady: Bool
-    let targetDate: String
+    let isNotReady: Bool?
+    let targetDate: String?
 }
 
 struct JourneyDTO: Codable {
@@ -49,10 +49,22 @@ struct RoutineDTO: Codable {
     var isDelayed: Bool { status == "DELAYED" } // 서버 상태값에 따라 조정 필요
 }
 
+struct RoutinePostponeRequest: Codable {
+    let progressIds: [Int]
+    let reason: String
+}
+
+struct JourneyContinueData: Codable {
+    let goal: String
+    let originalJourneyId: Int
+    let continuation: Bool
+}
+
 // MARK: - Domain Model
 // 앱 내 로직에서 사용할 모델 (Identifiable 준수)
 struct RoutineModel: Identifiable {
     let id: Int
+    let routineProgressId: Int
     let title: String
     var time: String
     var isCompleted: Bool
@@ -61,6 +73,7 @@ struct RoutineModel: Identifiable {
 }
 
 struct JourneyInfo {
+    let journeyId: Int
     let loopId: Int
     let currentDay: Int
     let totalJourney: Int    // 전체 여정 기간 (일수)

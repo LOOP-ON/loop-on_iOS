@@ -76,14 +76,8 @@ struct AuthView: View {
         .onChange(of: viewModel.isLoggedIn) { _, loggedIn in
             guard loggedIn else { return }
             session.markLoggedIn()
-
-            if session.isOnboardingCompleted {
-                // 온보딩을 이미 했다면 스택 비우고 홈으로 (RootView가 RootTabView로 교체함)
-                router.reset()
-            } else {
-                // 온보딩 전이라면 온보딩 시작 화면으로 이동
-                router.push(.app(.onBoarding))
-            }
+            // 로그인 직후 화면 분기는 RootView에서 journeys/current 조회 결과로 결정
+            router.reset()
         }
     }
 }

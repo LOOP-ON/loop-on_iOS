@@ -17,6 +17,8 @@ enum OnboardingAPI {
     case generateLoops(request: LoopRecommendationRequest)
     // 11번 api (루틴 생성)
     case createRoutines(request: RoutineCreateRequest)
+    // (/journey/order api)에 사용
+    case getJourneyOrder
 }
 
 extension OnboardingAPI: TargetType {
@@ -38,11 +40,15 @@ extension OnboardingAPI: TargetType {
             return "/api/goals/loops"
         case .createRoutines:
             return "/api/routines"
+        case .getJourneyOrder:
+            return "/api/journeys/order"
         }
     }
 
     var method: Moya.Method {
         switch self {
+        case .getJourneyOrder:
+            return .get
         case .createJourneyGoal, .generateLoops, .createLoop, .createRoutines:
             return .post
         }
@@ -50,6 +56,8 @@ extension OnboardingAPI: TargetType {
 
     var task: Task {
         switch self {
+        case .getJourneyOrder:
+            return .requestPlain
         case let .createJourneyGoal(request):
             return .requestJSONEncodable(request)
         case let .createLoop(request):
@@ -58,6 +66,7 @@ extension OnboardingAPI: TargetType {
             return .requestJSONEncodable(request)
         case let .createRoutines(request):
             return .requestJSONEncodable(request)
+        
         }
     }
 
