@@ -148,8 +148,13 @@ private extension HomeView {
         Button(action: {
             // 전날 미완료 루틴 처리 모드일 때 (hasUncompletedRoutines == true)
             if viewModel.hasUncompletedRoutines {
+                // 전날 미완료 루틴의 미루기 처리를 모두 마쳤다면,
+                // 버튼 탭 시 현재 여정 데이터를 다시 호출해 오늘 데이터로 전환한다.
+                if viewModel.allRoutinesSettled {
+                    viewModel.fetchHomeData()
+                }
                 // 아직 완료/미루기가 안 된 첫 번째 카드를 찾아 미루기 팝업 노출
-                if let firstIdx = viewModel.routines.firstIndex(where: { !$0.isCompleted && !$0.isDelayed }) {
+                else if let firstIdx = viewModel.routines.firstIndex(where: { !$0.isCompleted && !$0.isDelayed }) {
                     viewModel.selectRoutine(at: firstIdx)
                     viewModel.activeFullSheet = .delay
                 }
@@ -330,7 +335,7 @@ private extension HomeView {
         case .uncompletedRoutineAlert:
                 CommonPopupView(
                     isPresented: .constant(true),
-                    title: "어제 완료되지 않은 루틴있어요!",
+                    title: "ㅊ",
                     message: "모든 루틴의 ‘미루기’를 완료해야 오늘 루틴을 확\n인할 수 있습니다.\n어제 루틴을 완료하지 못한 이유를 기록해주세요 :)",
                     leftButtonText: "취소",
                     rightButtonText: "미완료 루틴 기록하기",

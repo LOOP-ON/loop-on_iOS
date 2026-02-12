@@ -21,7 +21,7 @@ struct JourneyProgressCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("오늘의 여정 완주율")
-                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
+                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
                 .foregroundStyle(Color.white)
 
             Text("\(completed)/\(total)") // 0/3, 1/3 등 실시간 상태 표시
@@ -31,10 +31,11 @@ struct JourneyProgressCardView: View {
             JourneyProgressBarView(progress: progress)
 
             Text(completed == 0 ? "아직 완료된 루틴이 없어요" : "잘 진행 중이에요!")
-                .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.9))
+                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
+                .foregroundStyle(Color.white)
         }
-        .padding(20)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 20)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.primaryColorVarient65))
@@ -51,11 +52,11 @@ struct JourneyProgressBarView: View {
 
                 // 배경 (흰색)
                 Capsule()
-                    .fill(Color.white.opacity(0.9))
+                    .fill(Color(.primaryColorVarient75))
 
                 // 채워진 영역
                 Capsule()
-                    .fill(Color(.primaryColor55))
+                    .fill(Color.white)
                     .frame(
                         width: geometry.size.width * max(0, min(progress, 1))
                     )
