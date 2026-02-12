@@ -281,11 +281,20 @@ extension ChallengeAPI: TargetType {
     }
 
     var headers: [String: String]? {
+        var header: [String: String] = [:]
+
         switch self {
         case .createChallenge, .updateChallenge:
-            return nil
+            // Multipart boundary는 Moya가 자동 설정
+            break
         default:
-            return ["Content-Type": "application/json"]
+            header["Content-Type"] = "application/json"
         }
+
+        if let token = KeychainService.shared.loadToken(), !token.isEmpty {
+            header["Authorization"] = "Bearer \(token)"
+        }
+
+        return header
     }
 }

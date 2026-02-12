@@ -51,6 +51,23 @@ struct ChallengeExpeditionSearchPageDTO: Decodable {
     let content: [ChallengeExpeditionListItemDTO]
 }
 
+struct ExpeditionMemberListResponseDTO: Decodable {
+    let isHost: Bool
+    let currentMemberCount: Int
+    let maxMemberCount: Int
+    let userList: [ExpeditionMemberDTO]
+}
+
+struct ExpeditionMemberDTO: Decodable {
+    let userId: Int
+    let nickname: String
+    let profileImageUrl: String?
+    let isMe: Bool
+    let isHost: Bool
+    let friendStatus: String
+    let expeditionUserStatus: String
+}
+
 struct ChallengeExpeditionListItemDTO: Decodable {
     let expeditionId: Int
     let title: String
