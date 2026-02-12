@@ -23,6 +23,10 @@ enum ExpeditionAPI {
     case withdrawExpedition(expeditionId: Int)
     // 탐험대원 명단 조회 (GET /api/expeditions/{expeditionId}/users)
     case getExpeditionMembers(expeditionId: Int)
+    // 탐험대원 퇴출 (PATCH /api/expeditions/{expeditionId}/expel)
+    case expelMember(expeditionId: Int, request: ExpeditionExpelRequest)
+    // 탐험대원 퇴출 해제 (DELETE /api/expeditions/{expeditionId}/expel)
+    case cancelExpelMember(expeditionId: Int, request: ExpeditionExpelRequest)
 }
 
 extension ExpeditionAPI: TargetType {
@@ -49,6 +53,10 @@ extension ExpeditionAPI: TargetType {
             return "/api/expeditions/\(expeditionId)/withdraw"
         case let .getExpeditionMembers(expeditionId):
             return "/api/expeditions/\(expeditionId)/users"
+        case let .expelMember(expeditionId, _):
+            return "/api/expeditions/\(expeditionId)/expel"
+        case let .cancelExpelMember(expeditionId, _):
+            return "/api/expeditions/\(expeditionId)/expel"
         }
     }
 
@@ -68,6 +76,10 @@ extension ExpeditionAPI: TargetType {
             return .delete
         case .getExpeditionMembers:
             return .get
+        case .expelMember:
+            return .patch
+        case .cancelExpelMember:
+            return .delete
         }
     }
 
@@ -99,6 +111,10 @@ extension ExpeditionAPI: TargetType {
             return .requestPlain
         case .getExpeditionMembers:
             return .requestPlain
+        case let .expelMember(_, request):
+            return .requestJSONEncodable(request)
+        case let .cancelExpelMember(_, request):
+            return .requestJSONEncodable(request)
         }
     }
 

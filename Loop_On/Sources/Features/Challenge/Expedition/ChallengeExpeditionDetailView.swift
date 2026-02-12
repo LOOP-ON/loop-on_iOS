@@ -92,11 +92,11 @@ struct ChallengeExpeditionDetailView: View {
                     onRefresh: {
                         loadExpeditionMembers()
                     },
-                    onKick: { _ in
-                        // TODO: API 연결 시 탐험대원 퇴출 처리
+                    onKick: { userId in
+                        performExpelMember(userId: userId)
                     },
-                    onKickCancel: { _ in
-                        // TODO: API 연결 시 퇴출 해제 처리
+                    onKickCancel: { userId in
+                        performCancelExpelMember(userId: userId)
                     }
                 )
                 .zIndex(10)
@@ -465,6 +465,84 @@ private extension ChallengeExpeditionDetailView {
                 case .failure(let error):
                     let (title, message) = joinFailureAlert(error: error)
                     showResultAlert(title: title, message: message)
+                }
+            }
+        }
+    }
+
+    func performExpelMember(userId: Int) {
+        guard !isSubmittingAction else { return }
+        isSubmittingAction = true
+        print("✅ [Expedition] expelMember start: PATCH /api/expeditions/\(expeditionId)/expel, userId=\(userId)")
+
+        expeditionNetworkManager.requestStatusCode(
+            target: .expelMember(
+                expeditionId: expeditionId,
+                request: ExpeditionExpelRequest(userId: userId)
+            )
+        ) { result in
+            Task { @MainActor in
+                isSubmittingAction = false
+                switch result {
+                case .success:
+                    print("✅ [Expedition] expelMember success: userId=\(userId)")
+                    loadExpeditionMembers()
+                    showResultAlert(
+                        title: "퇴출 완료",
+                        message: "탐험대원을 퇴출했습니다."
+                    )
+                case .failure(let error):
+                    print("❌ [Expedition] expelMember failed: \(error)")
+                    let message: String
+                    if case let .serverError(_, rawMessage) = error {
+                        let trimmed = rawMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+                        message = trimmed.isEmpty ? "잠시 후 다시 시도해 주세요." : trimmed
+                    } else {
+                        message = "잠시 후 다시 시도해 주세요."
+                    }
+                    showResultAlert(
+                        title: "퇴출 실패",
+                        message: message
+                    )
+                }
+            }
+        }
+    }
+
+    func performCancelExpelMember(userId: Int) {
+        guard !isSubmittingAction else { return }
+        isSubmittingAction = true
+        print("✅ [Expedition] cancelExpelMember start: DELETE /api/expeditions/\(expeditionId)/expel, userId=\(userId)")
+
+        expeditionNetworkManager.requestStatusCode(
+            target: .cancelExpelMember(
+                expeditionId: expeditionId,
+                request: ExpeditionExpelRequest(userId: userId)
+            )
+        ) { result in
+            Task { @MainActor in
+                isSubmittingAction = false
+                switch result {
+                case .success:
+                    print("✅ [Expedition] cancelExpelMember success: userId=\(userId)")
+                    loadExpeditionMembers()
+                    showResultAlert(
+                        title: "퇴출 해제 완료",
+                        message: "탐험대원의 퇴출 상태를 해제했습니다."
+                    )
+                case .failure(let error):
+                    print("❌ [Expedition] cancelExpelMember failed: \(error)")
+                    let message: String
+                    if case let .serverError(_, rawMessage) = error {
+                        let trimmed = rawMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+                        message = trimmed.isEmpty ? "잠시 후 다시 시도해 주세요." : trimmed
+                    } else {
+                        message = "잠시 후 다시 시도해 주세요."
+                    }
+                    showResultAlert(
+                        title: "퇴출 해제 실패",
+                        message: message
+                    )
                 }
             }
         }

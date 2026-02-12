@@ -21,6 +21,10 @@ struct JoinExpeditionRequest: Encodable {
     let password: String?
 }
 
+struct ExpeditionExpelRequest: Encodable {
+    let userId: Int
+}
+
 struct JoinExpeditionResponseDTO: Decodable {
     let expeditionUserId: Int?
 }
