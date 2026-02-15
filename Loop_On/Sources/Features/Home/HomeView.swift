@@ -158,11 +158,6 @@ private extension HomeView {
                 if viewModel.allRoutinesSettled {
                     viewModel.fetchHomeData()
                 }
-                // 아직 완료/미루기가 안 된 첫 번째 카드를 찾아 미루기 팝업 노출
-                else if let firstIdx = viewModel.routines.firstIndex(where: { !$0.isCompleted && !$0.isDelayed }) {
-                    viewModel.selectRoutine(at: firstIdx)
-                    viewModel.activeFullSheet = .delay
-                }
             }
             // 모든 루틴이 완료/미루기 처리된 경우에만 여정 기록 팝업 노출
             else if viewModel.allRoutinesSettled {
@@ -176,8 +171,8 @@ private extension HomeView {
                 .frame(maxWidth: .infinity, minHeight: 56)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color(.primaryColorVarient65)))
         }
-        .disabled(!viewModel.hasUncompletedRoutines && !viewModel.allRoutinesSettled)
-        .opacity((!viewModel.hasUncompletedRoutines && !viewModel.allRoutinesSettled) ? 0.6 : 1.0)
+        .disabled(!viewModel.allRoutinesSettled)
+        .opacity(viewModel.allRoutinesSettled ? 1.0 : 0.6)
     }
 
     // FullScreenCover 라우팅 로직 분리
@@ -254,13 +249,13 @@ private extension HomeView {
         case .loading:
             CommonLoadingView(message: "다음 여정을 생성중입니다", lottieFileName: "Loading 51 _ Monoplane")
         case .reflection:
-            if let info = viewModel.journeyInfo, let progressId = viewModel.reflectionProgressId {
+            if let info = viewModel.journeyInfo {
                 ReflectionPopupView(
                     viewModel: ReflectionViewModel(
+                        journeyId: info.journeyId,
                         loopId: info.loopId,
                         currentDay: info.currentDay,
-                        goalTitle: viewModel.goalTitle,
-                        progressId: progressId
+                        goalTitle: viewModel.goalTitle
                     ),
                     isPresented: Binding(
                         get: { viewModel.activeFullSheet == .reflection },
@@ -306,7 +301,7 @@ private extension HomeView {
                     get: { viewModel.activeFullSheet == .journeyReport },
                     set: { if !$0 { viewModel.activeFullSheet = nil } }
                 ),
-                loopId: viewModel.journeyInfo?.loopId ?? 1,
+                journeyId: viewModel.journeyInfo?.journeyId ?? 0,
                 onShare: {
                     // 리포트 팝업이 닫히는 애니메이션과 겹치지 않도록 약간의 지연 후 공유 화면을 띄움
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -340,8 +335,8 @@ private extension HomeView {
         case .uncompletedRoutineAlert:
                 CommonPopupView(
                     isPresented: .constant(true),
-                    title: "ㅊ",
-                    message: "모든 루틴의 ‘미루기’를 완료해야 오늘 루틴을 확\n인할 수 있습니다.\n어제 루틴을 완료하지 못한 이유를 기록해주세요 :)",
+                    title: "어제 완료하지 않은 루틴이 있어요",
+                    message: "모든 루틴의 ‘미루기’를 완료해야 오늘 루틴을 확\n인할 수 있습니다.어제 루틴을 완료하지 못한 이유를 기록해주세요 :)",
                     leftButtonText: "취소",
                     rightButtonText: "미완료 루틴 기록하기",
                     leftAction: { viewModel.activeFullSheet = nil },

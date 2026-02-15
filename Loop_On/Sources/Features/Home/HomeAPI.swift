@@ -10,10 +10,12 @@ import Moya
 
 enum HomeAPI {
     case fetchCurrentJourney
+    case fetchJourneyRecord(journeyId: Int)
     case postponeRoutine(journeyId: Int, request: RoutinePostponeRequest)
     case fetchPostponeReason(progressId: Int)
     case updatePostponeReason(progressId: Int, request: RoutinePostponeReasonUpdateRequest)
     case certifyRoutine(progressId: Int, imageData: Data, fileName: String, mimeType: String)
+    case createRoutineRecord(journeyId: Int, request: RoutineRecordRequest)
     case continueJourney(journeyId: Int)
 }
 
@@ -26,6 +28,8 @@ extension HomeAPI: TargetType {
         switch self {
         case .fetchCurrentJourney:
             return "/api/journeys/current"
+        case let .fetchJourneyRecord(journeyId):
+            return "/api/journeys/\(journeyId)/record"
         case let .postponeRoutine(journeyId, _):
             return "/api/journeys/\(journeyId)/routines/postpone"
         case let .fetchPostponeReason(progressId):
@@ -34,6 +38,8 @@ extension HomeAPI: TargetType {
             return "/api/routines/\(progressId)/postpone-reason"
         case let .certifyRoutine(progressId, _, _, _):
             return "/api/routines/\(progressId)/certify"
+        case let .createRoutineRecord(journeyId, _):
+            return "/api/routines/\(journeyId)/routine-record"
         case let .continueJourney(journeyId):
             return "/api/journeys/\(journeyId)/continue"
         }
@@ -41,11 +47,11 @@ extension HomeAPI: TargetType {
     
     var method: Moya.Method {
         switch self {
-        case .fetchCurrentJourney, .fetchPostponeReason:
+        case .fetchCurrentJourney, .fetchJourneyRecord, .fetchPostponeReason:
             return .get
         case .updatePostponeReason:
             return .patch
-        case .postponeRoutine, .certifyRoutine, .continueJourney:
+        case .postponeRoutine, .certifyRoutine, .createRoutineRecord, .continueJourney:
             return .post
         }
     }
@@ -53,6 +59,8 @@ extension HomeAPI: TargetType {
     var task: Task {
         switch self {
         case .fetchCurrentJourney:
+            return .requestPlain
+        case .fetchJourneyRecord:
             return .requestPlain
         case let .postponeRoutine(_, request):
             return .requestJSONEncodable(request)
@@ -68,6 +76,8 @@ extension HomeAPI: TargetType {
                 mimeType: mimeType
             )
             return .uploadMultipart([form])
+        case let .createRoutineRecord(_, request):
+            return .requestJSONEncodable(request)
         case .continueJourney:
             return .requestPlain
         }
@@ -75,8 +85,9 @@ extension HomeAPI: TargetType {
     
     var headers: [String: String]? {
         var header: [String: String] = [:]
+        header["Accept"] = "application/json"
         switch self {
-        case .fetchCurrentJourney, .postponeRoutine, .fetchPostponeReason, .updatePostponeReason, .continueJourney:
+        case .fetchCurrentJourney, .fetchJourneyRecord, .postponeRoutine, .fetchPostponeReason, .updatePostponeReason, .createRoutineRecord, .continueJourney:
             header["Content-Type"] = "application/json"
         case .certifyRoutine:
             // Multipart 경계(boundary)는 Moya가 자동 설정하도록 Content-Type 미설정

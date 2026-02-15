@@ -29,6 +29,7 @@ struct CameraView: View {
     @State private var isSubmitting = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
+    @State private var captureErrorMessage: String?
     private let networkManager = DefaultNetworkManager<HomeAPI>()
 
     var body: some View {
@@ -63,6 +64,12 @@ struct CameraView: View {
         .onChange(of: capturedImage) { _, _ in
             updatePreviewIfNeeded()
         }
+        .onChange(of: captureErrorMessage) { _, newValue in
+            guard let message = newValue, !message.isEmpty else { return }
+            errorMessage = message
+            showErrorAlert = true
+            captureErrorMessage = nil
+        }
         .alert("인증 실패", isPresented: $showErrorAlert) {
             Button("확인", role: .cancel) { }
         } message: {
@@ -76,6 +83,7 @@ struct CameraView: View {
             CameraPicker(
                 isPresented: $isPresented,
                 capturedImage: $capturedImage,
+                captureErrorMessage: $captureErrorMessage,
                 cameraDevice: $cameraPosition,
                 takePhotoTrigger: $takePhotoTrigger
             )
@@ -188,18 +196,22 @@ struct CameraView: View {
 
         isSubmitting = true
         let fileName = "routine_\(progressId)_\(Int(Date().timeIntervalSince1970)).jpg"
-        networkManager.requestStatusCode(
+        networkManager.request(
             target: .certifyRoutine(
                 progressId: progressId,
                 imageData: imageData,
                 fileName: fileName,
                 mimeType: "image/jpeg"
-            )
+            ),
+            decodingType: RoutineCertifyData.self
         ) { result in
             DispatchQueue.main.async {
                 isSubmitting = false
                 switch result {
-                case .success:
+                case .success(let certifyData):
+                    #if DEBUG
+                    print("CAMERA DEBUG: 인증 API 성공 - progressId=\(certifyData.progressId), status=\(certifyData.status)")
+                    #endif
                     onCertificationSuccess?()
                     isPresented = false
                 case .failure(let error):

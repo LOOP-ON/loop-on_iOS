@@ -7,7 +7,6 @@
 
 import Foundation
 import SwiftUI
-import Photos
 
 struct ReflectionPopupView: View {
     @ObservedObject var viewModel: ReflectionViewModel
@@ -15,8 +14,6 @@ struct ReflectionPopupView: View {
     var onSaved: (() -> Void)? = nil
     
     @FocusState private var isTextFieldFocused: Bool
-    @State private var isShowingPicker = false
-    @State private var isShowingPermissionAlert = false
 
     var body: some View {
         ZStack {
@@ -61,9 +58,6 @@ struct ReflectionPopupView: View {
                             .padding()
                             .focused($isTextFieldFocused)
                             .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6)))
-
-                        // 이미지 선택 영역
-                        imageSelectionHStack
                     }
                 }
                 .padding(24)
@@ -76,10 +70,6 @@ struct ReflectionPopupView: View {
             .background(Color.white)
             .cornerRadius(20)
             .padding(.horizontal, 30)
-            .offset(y: isTextFieldFocused ? -100 : 0)
-        }
-        .sheet(isPresented: $isShowingPicker) {
-            PhotoPicker(images: $viewModel.selectedImages, selectionLimit: 3 - viewModel.selectedImages.count)
         }
         .alert(
             "저장 실패",
@@ -92,52 +82,11 @@ struct ReflectionPopupView: View {
         } message: {
             Text(viewModel.errorMessage ?? "알 수 없는 오류가 발생했어요.")
         }
-        .animation(.spring(), value: isTextFieldFocused)
     }
 }
 
 // MARK: - Subviews 분리
 private extension ReflectionPopupView {
-    var imageSelectionHStack: some View {
-        HStack(alignment: .center, spacing: 12) {
-            if !viewModel.selectedImages.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(Array(viewModel.selectedImages.enumerated()), id: \.offset) { index, image in
-                            ZStack(alignment: .topTrailing) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 60, height: 60)
-                                    .cornerRadius(10)
-                                    .clipped()
-                                
-                                Button { viewModel.selectedImages.remove(at: index) } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(Color.gray)
-                                        .background(Color.white.clipShape(Circle()))
-                                }
-                                .padding(4)
-                            }
-                        }
-                    }
-                }
-                .frame(height: 60)
-            }
-            
-            Spacer()
-            
-            Button(action: { isShowingPicker = true }) {
-                Text("사진 추가")
-                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))
-                    .foregroundStyle(.white)
-                    .frame(width: 68, height: 30)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(.primaryColorVarient65)))
-            }
-            .disabled(viewModel.selectedImages.count >= 3)
-        }
-    }
-
     var footerButtons: some View {
         HStack(spacing: 0) {
             Button(action: { if !viewModel.isSaving { isPresented = false } }) {
@@ -175,10 +124,10 @@ private extension ReflectionPopupView {
         
         // 임시 뷰모델 생성 (더미 데이터 주입)
         let mockViewModel = ReflectionViewModel(
+            journeyId: 1,
             loopId: 1,
             currentDay: 3,
-            goalTitle: "건강한 생활 만들기",
-            progressId: 1
+            goalTitle: "건강한 생활 만들기"
         )
         
         // 새로운 생성자 형식에 맞춰 호출

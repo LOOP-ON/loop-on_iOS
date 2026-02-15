@@ -84,10 +84,6 @@ class HomeViewModel: ObservableObject {
         !routines.isEmpty && routines.allSatisfy { $0.isCompleted || $0.isDelayed }
     }
 
-    var reflectionProgressId: Int? {
-        routines.first?.routineProgressId
-    }
-
     var reflectionButtonTitle: String {
         isReflectionSaved ? "기록 수정하기" : "여정 기록하기"
     }
@@ -143,8 +139,8 @@ class HomeViewModel: ObservableObject {
                 routineProgressId: dto.routineProgressId,
                 title: dto.content,
                 time: "\(dto.notificationTime) 알림 예정",
-                isCompleted: dto.status == "COMPLETED",
-                isDelayed: dto.status == "DELAYED",
+                isCompleted: dto.isCompleted,
+                isDelayed: dto.isDelayed,
                 delayReason: "" // 필요 시 서버에서 확장하여 받아야 함
             )
         }

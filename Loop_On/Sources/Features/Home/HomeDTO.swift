@@ -46,7 +46,7 @@ struct RoutineDTO: Codable {
     
     // 상태 문자열을 바탕으로 한 편의 속성
     var isCompleted: Bool { status == "COMPLETED" }
-    var isDelayed: Bool { status == "DELAYED" } // 서버 상태값에 따라 조정 필요
+    var isDelayed: Bool { status == "DELAYED" || status == "POSTPONED" }
 }
 
 struct RoutinePostponeRequest: Codable {
@@ -69,10 +69,77 @@ struct RoutinePostponeReasonUpdateData: Codable {
     let reason: String
 }
 
+struct RoutineCertifyData: Codable {
+    let progressId: Int
+    let status: String
+    let imageUrl: String?
+}
+
 struct JourneyContinueData: Codable {
     let goal: String
     let originalJourneyId: Int
     let continuation: Bool
+}
+
+struct JourneyRecordRoutineDTO: Codable {
+    let routineId: Int
+    let routineName: String
+}
+
+struct JourneyRecordData: Codable {
+    let journeyId: Int
+    let goal: String
+    let routines: [JourneyRecordRoutineDTO]
+    let day1Rate: Double
+    let day2Rate: Double
+    let day3Rate: Double
+    let totalRate: Double
+
+    enum CodingKeys: String, CodingKey {
+        case journeyId
+        case goal
+        case routines
+        case day1Rate
+        case day2Rate
+        case day3Rate
+        case totalRate
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        journeyId = try container.decode(Int.self, forKey: .journeyId)
+        goal = try container.decode(String.self, forKey: .goal)
+        routines = try container.decode([JourneyRecordRoutineDTO].self, forKey: .routines)
+        day1Rate = try container.decodeFlexibleDouble(forKey: .day1Rate)
+        day2Rate = try container.decodeFlexibleDouble(forKey: .day2Rate)
+        day3Rate = try container.decodeFlexibleDouble(forKey: .day3Rate)
+        totalRate = try container.decodeFlexibleDouble(forKey: .totalRate)
+    }
+}
+
+private extension KeyedDecodingContainer where K == JourneyRecordData.CodingKeys {
+    func decodeFlexibleDouble(forKey key: K) throws -> Double {
+        if let value = try? decode(Double.self, forKey: key) {
+            return value
+        }
+        if let intValue = try? decode(Int.self, forKey: key) {
+            return Double(intValue)
+        }
+        if let stringValue = try? decode(String.self, forKey: key),
+           let parsed = Double(stringValue) {
+            return parsed
+        }
+        return 0
+    }
+}
+
+struct RoutineRecordRequest: Codable {
+    let content: String
+}
+
+struct RoutineRecordData: Codable {
+    let routineReportId: Int
+    let content: String
 }
 
 // MARK: - Domain Model
@@ -98,7 +165,7 @@ struct JourneyInfo {
     var yesterdayRoutineCount: Int // 어제 완료한 루틴 개수
 }
 
-// MARK: - Reflection Reques벼t DTO
+// MARK: - Reflection Request DTO
 struct ReflectionRequestDTO: Codable {
     let loopId: Int
     let day: Int
