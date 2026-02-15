@@ -11,7 +11,10 @@ import Foundation
 struct PopupJourneyReport: Codable {
     let title: String
     let goal: String
-    let routines: [String]
-    let achievementRate: Int
+    let routines: [JourneyRecordRoutineDTO]
+    let day1Rate: Double
+    let day2Rate: Double
+    let day3Rate: Double
+    let achievementRate: Double
     let feedback: String
 }
