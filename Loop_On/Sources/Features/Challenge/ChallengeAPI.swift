@@ -14,9 +14,22 @@ struct ChallengeLikeRequestDTO: Encodable {
 }
 
 /// POST /api/challenges/{challengeId}/comments 요청 바디
+/// 대댓글이 아닌 경우 parentId는 omit (서버에 안 보냄)
 struct CommentPostRequestDTO: Encodable {
     let content: String
-    let parentId: Int
+    let parentId: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case content, parentId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(content, forKey: .content)
+        if let parentId = parentId, parentId != 0 {
+            try container.encode(parentId, forKey: .parentId)
+        }
+    }
 }
 
 /// POST /api/challenges 요청 바디 (multipart의 requestDto)
@@ -71,29 +84,99 @@ struct MyChallengesPageDTO: Decodable {
 }
 
 /// POST /api/challenges/{challengeId}/like 응답 data
+/// unlike 시 challengeLikeId는 null로 옴
 struct ChallengeLikeDataDTO: Decodable {
     let challengeId: Int
-    let challengeLikeId: Int
+    let challengeLikeId: Int?
 }
 
 /// GET /api/challenges/{challengeId}/comments 응답의 한 댓글
+/// children는 대댓글(표시 안 함) - 디코딩만 하고 목록에는 top-level만 사용
 struct ChallengeCommentItemDTO: Decodable {
     let commentId: Int
     let nickName: String
     let profileImageUrl: String?
     let content: String
     let likeCount: Int
-    let children: [String]?
+    /// 내 댓글 여부. 추후 백엔드에서 추가 예정
+    let isMine: Bool?
+    let isLiked: Bool?
+    /// 대댓글 목록 (목록에는 표시하지 않음)
+    let children: [ChallengeCommentItemDTO]?
+
+    enum CodingKeys: String, CodingKey {
+        case commentId
+        case commentIdSnake = "comment_id"
+        case nickName
+        case nickNameSnake = "nick_name"
+        case profileImageUrl
+        case profileImageUrlSnake = "profile_image_url"
+        case content
+        case likeCount
+        case likeCountSnake = "like_count"
+        case isMine
+        case isMineSnake = "is_mine"
+        case isLiked
+        case isLikedSnake = "is_liked"
+        case children
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        commentId = (try? c.decode(Int.self, forKey: .commentId)) ?? (try? c.decode(Int.self, forKey: .commentIdSnake)) ?? 0
+        nickName = (try? c.decode(String.self, forKey: .nickName)) ?? (try? c.decode(String.self, forKey: .nickNameSnake)) ?? "사용자"
+        profileImageUrl = (try? c.decodeIfPresent(String.self, forKey: .profileImageUrl)) ?? (try? c.decodeIfPresent(String.self, forKey: .profileImageUrlSnake))
+        content = (try? c.decode(String.self, forKey: .content)) ?? ""
+        likeCount = (try? c.decode(Int.self, forKey: .likeCount)) ?? (try? c.decode(Int.self, forKey: .likeCountSnake)) ?? 0
+        isMine = (try? c.decodeIfPresent(Bool.self, forKey: .isMine)) ?? (try? c.decodeIfPresent(Bool.self, forKey: .isMineSnake))
+        isLiked = (try? c.decodeIfPresent(Bool.self, forKey: .isLiked)) ?? (try? c.decodeIfPresent(Bool.self, forKey: .isLikedSnake))
+        children = try? c.decodeIfPresent([ChallengeCommentItemDTO].self, forKey: .children)
+    }
 }
 
 /// GET /api/challenges/{challengeId}/comments 응답 data (페이지)
 struct ChallengeCommentsPageDTO: Decodable {
     let content: [ChallengeCommentItemDTO]
-    let size: Int?
-    let number: Int?
+    let pageNumber: Int?
+    let pageSize: Int?
+    let hasNext: Bool?
+    let hasPrevious: Bool?
     let first: Bool?
     let last: Bool?
+    let size: Int?
+    let number: Int?
     let empty: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case content
+        case pageNumber
+        case pageNumberSnake = "page_number"
+        case pageSize
+        case pageSizeSnake = "page_size"
+        case hasNext
+        case hasNextSnake = "has_next"
+        case hasPrevious
+        case hasPreviousSnake = "has_previous"
+        case first
+        case last
+        case size
+        case number
+        case empty
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        content = (try? c.decode([ChallengeCommentItemDTO].self, forKey: .content)) ?? []
+        pageNumber = (try? c.decode(Int.self, forKey: .pageNumber)) ?? (try? c.decode(Int.self, forKey: .pageNumberSnake))
+        pageSize = (try? c.decode(Int.self, forKey: .pageSize)) ?? (try? c.decode(Int.self, forKey: .pageSizeSnake))
+        hasNext = (try? c.decode(Bool.self, forKey: .hasNext)) ?? (try? c.decode(Bool.self, forKey: .hasNextSnake))
+        hasPrevious = (try? c.decode(Bool.self, forKey: .hasPrevious)) ?? (try? c.decode(Bool.self, forKey: .hasPreviousSnake))
+        first = try? c.decode(Bool.self, forKey: .first)
+        last = try? c.decode(Bool.self, forKey: .last)
+        size = try? c.decode(Int.self, forKey: .size)
+        number = try? c.decode(Int.self, forKey: .number)
+        empty = try? c.decode(Bool.self, forKey: .empty)
+    }
 }
 
 /// POST /api/challenges/comment/{commentId}/like 응답 data
