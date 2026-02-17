@@ -21,6 +21,8 @@ struct ChallengeCard: Identifiable {
     let profileImageUrl: String?
     var isLiked: Bool
     var likeCount: Int
+    /// 내 글 여부. true일 때만 수정/삭제 버튼 표시. API에 없는 경우 false
+    let isMine: Bool
 
     init(
         challengeId: Int,
@@ -32,7 +34,8 @@ struct ChallengeCard: Identifiable {
         imageUrls: [String] = [],
         profileImageUrl: String? = nil,
         isLiked: Bool,
-        likeCount: Int = 0
+        likeCount: Int = 0,
+        isMine: Bool = false
     ) {
         self.challengeId = challengeId
         self.title = title
@@ -44,6 +47,7 @@ struct ChallengeCard: Identifiable {
         self.profileImageUrl = profileImageUrl
         self.isLiked = isLiked
         self.likeCount = likeCount
+        self.isMine = isMine
     }
 
 }

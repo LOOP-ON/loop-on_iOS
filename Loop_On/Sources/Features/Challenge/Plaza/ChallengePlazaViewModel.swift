@@ -84,7 +84,8 @@ final class ChallengePlazaViewModel: ObservableObject {
             imageUrls: dto.imageUrls,
             profileImageUrl: dto.profileImageUrl,
             isLiked: dto.isLiked,
-            likeCount: dto.likeCount
+            likeCount: dto.likeCount,
+            isMine: dto.isMine ?? false
         )
     }
 
@@ -127,7 +128,10 @@ final class ChallengePlazaViewModel: ObservableObject {
     func didToggleLike(id: Int, isLiked: Bool) {
         guard let idx = cards.firstIndex(where: { $0.challengeId == id }) else { return }
         cards[idx].isLiked = isLiked
-        let request = ChallengeLikeRequestDTO(isLiked: isLiked)
+        // API: true=취소(이미 좋아요O→해제), false=추가(좋아요X→좋아요)
+        let apiIsLiked = !isLiked
+        print("📤 [챌린지 좋아요] POST /api/challenges/\(id)/like 요청: isLiked=\(apiIsLiked) (UI=\(isLiked ? "좋아요" : "취소"))")
+        let request = ChallengeLikeRequestDTO(isLiked: apiIsLiked)
         let target = ChallengeAPI.likeChallenge(challengeId: id, request: request)
         networkManager.request(
             target: target,
@@ -137,13 +141,16 @@ final class ChallengePlazaViewModel: ObservableObject {
                     guard let self = self,
                           let idx = self.cards.firstIndex(where: { $0.challengeId == id }) else { return }
                     switch result {
-                    case .success:
+                    case .success(let data):
+                        print("📥 [챌린지 좋아요] 응답 성공: challengeId=\(data.challengeId), challengeLikeId=\(data.challengeLikeId.map { "\($0)" } ?? "nil")")
+                        // isLiked = UI 상태(좋아요됨/취소됨), apiIsLiked와 반대
                         if isLiked {
                             self.cards[idx].likeCount += 1
                         } else {
                             self.cards[idx].likeCount = max(0, self.cards[idx].likeCount - 1)
                         }
-                    case .failure:
+                    case .failure(let error):
+                        print("❌ [챌린지 좋아요] 응답 실패: \(error)")
                         self.cards[idx].isLiked.toggle()
                     }
                 }
@@ -169,12 +176,9 @@ final class ChallengePlazaViewModel: ObservableObject {
         }
     }
 
-    /// 댓글 목록 조회 (비동기). 캐시 있으면 즉시 completion, 없으면 API 호출 후 completion.
+    /// 댓글 목록 조회 (비동기). 탭할 때마다 API 호출.
     func loadComments(for cardId: Int, completion: @escaping ([ChallengeComment]) -> Void) {
-        if let cached = commentsByCard[cardId] {
-            completion(cached)
-            return
-        }
+        print("📤 [댓글 목록] GET /api/challenges/\(cardId)/comments 요청")
         let target = ChallengeAPI.getChallengeComments(challengeId: cardId, page: 0, size: 50, sort: nil)
         networkManager.request(
             target: target,
@@ -184,9 +188,11 @@ final class ChallengePlazaViewModel: ObservableObject {
                     let comments: [ChallengeComment]
                     switch result {
                     case .success(let page):
-                        comments = page.content.map { Self.challengeComment(from: $0) }
+                        comments = Self.flattenComments(from: page.content)
                         self?.commentsByCard[cardId] = comments
-                    case .failure:
+                        print("📥 [댓글 목록] 응답 성공: \(comments.count)개")
+                    case .failure(let error):
+                        print("❌ [댓글 목록] 응답 실패: \(error)")
                         comments = ChallengeComment.sample
                     }
                     completion(comments)
@@ -205,8 +211,8 @@ final class ChallengePlazaViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     switch result {
                     case .success(let pageDto):
-                        let comments = pageDto.content.map { Self.challengeComment(from: $0) }
-                        let hasMore = !(pageDto.last ?? true)
+                        let comments = Self.flattenComments(from: pageDto.content)
+                        let hasMore = pageDto.hasNext ?? !(pageDto.last ?? true)
                         completion(comments, hasMore)
                     case .failure:
                         completion([], false)
@@ -217,8 +223,12 @@ final class ChallengePlazaViewModel: ObservableObject {
     }
 
     /// 댓글 등록 (성공 시 맨 위에 보여줄 ChallengeComment 반환)
-    func postComment(challengeId: Int, content: String, parentId: Int, replyToName: String?, completion: @escaping (Result<ChallengeComment, NetworkError>) -> Void) {
-        let request = CommentPostRequestDTO(content: content, parentId: parentId)
+    /// - Parameter authorName: 내 닉네임. 비어있으면 "나"로 표시
+    func postComment(challengeId: Int, content: String, parentId: Int, replyToName: String?, authorName: String?, completion: @escaping (Result<ChallengeComment, NetworkError>) -> Void) {
+        let request = CommentPostRequestDTO(content: content, parentId: parentId == 0 ? nil : parentId)
+        let contentPreview = content.count > 50 ? String(content.prefix(50)) + "..." : content
+        let parentLog = parentId == 0 ? "omit" : "\(parentId)"
+        print("📤 [댓글 작성] POST /api/challenges/\(challengeId)/comments 요청: content=\"\(contentPreview)\", parentId=\(parentLog)")
         let target = ChallengeAPI.postComment(challengeId: challengeId, request: request)
         networkManager.request(
             target: target,
@@ -227,9 +237,11 @@ final class ChallengePlazaViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     switch result {
                     case .success(let data):
+                        print("📥 [댓글 작성] 응답 성공: commentId=\(data.commentId)")
+                        let author = (authorName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "나"
                         let comment = ChallengeComment(
                             commentId: data.commentId,
-                            authorName: "나",
+                            authorName: author,
                             content: content,
                             isReply: parentId != 0,
                             replyToName: parentId != 0 ? replyToName : nil,
@@ -239,6 +251,7 @@ final class ChallengePlazaViewModel: ObservableObject {
                         )
                         completion(.success(comment))
                     case .failure(let error):
+                        print("❌ [댓글 작성] 응답 실패: \(error)")
                         completion(.failure(error))
                     }
                 }
@@ -285,15 +298,27 @@ final class ChallengePlazaViewModel: ObservableObject {
         )
     }
 
-    private static func challengeComment(from dto: ChallengeCommentItemDTO) -> ChallengeComment {
+    /// top-level + children를 평탄화하여 [부모, 대댓글들, 다음 부모, ...] 순으로 반환
+    private static func flattenComments(from dtos: [ChallengeCommentItemDTO]) -> [ChallengeComment] {
+        var result: [ChallengeComment] = []
+        for dto in dtos {
+            result.append(challengeComment(from: dto, replyToName: nil))
+            for child in dto.children ?? [] {
+                result.append(challengeComment(from: child, replyToName: dto.nickName))
+            }
+        }
+        return result
+    }
+
+    private static func challengeComment(from dto: ChallengeCommentItemDTO, replyToName: String? = nil) -> ChallengeComment {
         ChallengeComment(
             commentId: dto.commentId,
             authorName: dto.nickName,
             content: dto.content,
-            isReply: !(dto.children?.isEmpty ?? true),
-            replyToName: nil,
-            isMine: false,
-            isLiked: false,
+            isReply: replyToName != nil,
+            replyToName: replyToName,
+            isMine: dto.isMine ?? false,
+            isLiked: dto.isLiked ?? false,
             likeCount: dto.likeCount
         )
     }

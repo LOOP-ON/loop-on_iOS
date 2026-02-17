@@ -39,14 +39,16 @@ struct ChallengeCardView: View {
 
                     Spacer()
 
-                    Button {
-                        isShowingMenu.toggle()
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .foregroundStyle(Color.gray)
-                            .padding(4)
+                    if card.isMine {
+                        Button {
+                            isShowingMenu.toggle()
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .foregroundStyle(Color.gray)
+                                .padding(4)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
 
                 imageCarousel
@@ -99,11 +101,8 @@ struct ChallengeCardView: View {
 
                     HStack(spacing: 16) {
                         Button {
-                            if let onCommentTap = onCommentTap {
-                                onCommentTap(card.challengeId) { loaded in
-                                    comments = loaded
-                                    isShowingCommentSheet = true
-                                }
+                            if onCommentTap != nil {
+                                isShowingCommentSheet = true
                             } else {
                                 comments = ChallengeComment.sample
                                 isShowingCommentSheet = true
@@ -146,7 +145,8 @@ struct ChallengeCardView: View {
         .sheet(isPresented: $isShowingCommentSheet) {
             ChallengeCommentSheetView(
                 challengeId: card.challengeId,
-                comments: comments,
+                comments: onCommentTap == nil ? comments : [],
+                onLoadComments: onCommentTap,
                 onClose: { isShowingCommentSheet = false },
                 onLoadMore: onLoadMoreComments,
                 onCommentLike: onCommentLike,

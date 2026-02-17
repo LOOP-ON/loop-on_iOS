@@ -19,6 +19,8 @@ struct ChallengeFeedItemDTO: Decodable {
     let profileImageUrl: String?
     let isLiked: Bool
     let likeCount: Int
+    /// 내 글 여부. 없으면 false (여정광장에서는 내 글 미노출)
+    let isMine: Bool?
 }
 
 /// 피드 페이지 (trendingChallenges / friendChallenges)

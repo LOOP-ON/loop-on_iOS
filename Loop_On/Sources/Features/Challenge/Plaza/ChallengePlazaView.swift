@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ChallengePlazaView: View {
+    @Environment(SessionStore.self) private var session
     @StateObject private var viewModel = ChallengePlazaViewModel()
     var onOpenOtherProfile: ((Int) -> Void)? = nil
     /// 상위에서 삭제 팝업을 띄우고 싶을 때 호출되는 콜백 (id, 실제 삭제 실행 클로저)
@@ -37,7 +38,7 @@ struct ChallengePlazaView: View {
             onLoadMoreComments: viewModel.loadMoreComments,
             onCommentLike: viewModel.likeComment,
             onPostComment: { challengeId, content, parentId, replyToName, completion in
-                viewModel.postComment(challengeId: challengeId, content: content, parentId: parentId, replyToName: replyToName) { result in
+                viewModel.postComment(challengeId: challengeId, content: content, parentId: parentId, replyToName: replyToName, authorName: session.currentUserNickname) { result in
                     completion(result.mapError { $0 as Error })
                 }
             },
@@ -59,4 +60,5 @@ struct ChallengePlazaView: View {
 #Preview {
     ChallengePlazaView()
         .environment(NavigationRouter())
+        .environment(SessionStore())
 }

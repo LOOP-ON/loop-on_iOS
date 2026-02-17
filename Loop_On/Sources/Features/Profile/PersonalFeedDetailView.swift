@@ -135,7 +135,8 @@ final class PersonalFeedDetailViewModel: ObservableObject {
             imageUrls: dto.imageUrls,
             profileImageUrl: dto.profileImageUrl,
             isLiked: dto.isLiked,
-            likeCount: dto.likeCount
+            likeCount: dto.likeCount,
+            isMine: dto.isMine ?? false
         )
     }
 
