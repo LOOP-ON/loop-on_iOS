@@ -84,6 +84,8 @@ struct HistoryJourneyReport {
     let day2Rate: Double?
     let day3Rate: Double?
     let totalRate: Double?
+    /// 여정 기록 텍스트 (API daily-report의 recordContent)
+    let recordContent: String?
     let routines: [HistoryRoutineReport]
 }
 
@@ -351,6 +353,7 @@ class HistoryViewModel: ObservableObject {
             day2Rate: normalizeRate(dto.day2Rate),
             day3Rate: normalizeRate(dto.day3Rate),
             totalRate: normalizeRate(dto.totalRate),
+            recordContent: dto.recordContent,
             routines: routines
         )
     }
@@ -445,6 +448,7 @@ class HistoryViewModel: ObservableObject {
                         day2Rate: nil,
                         day3Rate: nil,
                         totalRate: nil,
+                        recordContent: nil,
                         routines: routines
                     )
                 }

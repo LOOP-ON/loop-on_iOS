@@ -152,7 +152,7 @@ struct HistoryView: View {
                     .padding(.horizontal, 20) // 화면 양끝에서 살짝 띄움
                     .zIndex(1) // 달력이 항상 리포트 위에 오도록
 
-                    // 하단 영역 (연한 회색 배경, 전체 공간 차지)
+                    // 하단 영역 (리포트 또는 안내 메시지)
                     Group {
                         if isSelectedDateInFuture {
                             // 오늘 이후 날짜 선택 시: 기록 없음과 동일한 안내
@@ -168,13 +168,14 @@ struct HistoryView: View {
                                 }
                             }
                         } else if let report = viewModel.getReport(for: selectedDate) {
-                            // 선택된 날짜에 리포트가 있으면 리포트 표시
+                            // 선택된 날짜에 리포트가 있으면 리포트 표시 (남은 높이만 차지 → 내부만 스크롤)
                             HistoryJourneyReportView(
                                 report: report,
                                 isWeekMode: $isWeekMode,
                                 calendarHeight: calendarHeight
                             )
-                            .background(Color(red: 0.97, green: 0.97, blue: 0.97))
+                            .frame(minHeight: 0, maxHeight: .infinity)
+                            .background(Color(.systemGroupedBackground))
                         } else if hasRoutineRecordsInCurrentMonth {
                             // 현재 달에 기록이 있지만 선택된 날짜에는 없으면 안내 메시지
                             MessageMidpointContainer {
@@ -197,7 +198,8 @@ struct HistoryView: View {
                             }
                         }
                     }
-                    .background(Color(red: 0.97, green: 0.97, blue: 0.97))
+                    .frame(minHeight: 0, maxHeight: .infinity)
+                    .background(Color(.systemGroupedBackground))
                     .zIndex(0) // 리포트는 달력 아래 레이어
                 }
             }
