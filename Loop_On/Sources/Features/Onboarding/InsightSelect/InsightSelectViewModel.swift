@@ -56,7 +56,10 @@ final class InsightSelectViewModel: ObservableObject {
     }
 
     /// 스펙: 0개도 허용할 경우 항상 활성
-    var canCreateLoop: Bool { true }
+//    var canCreateLoop: Bool { true }
+    var canCreateLoop: Bool {
+        return selected.count >= 3
+    }
 
     var selectedTitles: [String] {
         selected

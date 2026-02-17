@@ -54,16 +54,7 @@ final class ProfileViewModel: ObservableObject {
     // 닉네임 검증
     var isNicknameValid: Bool {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        
-        let koreanCount = trimmed.filter { $0.isKorean }.count
-        let otherCount = trimmed.count - koreanCount
-        
-        if koreanCount > 0 {
-            return trimmed.count <= 7
-        } else {
-            return trimmed.count <= 10
-        }
+        return !trimmed.isEmpty
     }
     
     // 생년월일 검증
@@ -92,12 +83,7 @@ final class ProfileViewModel: ObservableObject {
         guard !trimmed.isEmpty else { return nil }
         
         if !isNicknameValid {
-            let koreanCount = trimmed.filter { $0.isKorean }.count
-            if koreanCount > 0 {
-                return "한글은 7자 이내로 입력해주세요."
-            } else {
-                return "영문/숫자는 10자 이내로 입력해주세요."
-            }
+            return "닉네임을 입력해주세요."
         }
         return nil
     }
@@ -323,44 +309,39 @@ final class ProfileViewModel: ObservableObject {
         
         guard isNicknameValid else {
             nicknameCheckState = .invalidFormat
-            errorMessage = "닉네임 형식이 올바르지 않습니다."
+            errorMessage = "닉네임을 입력해주세요."
             return
         }
         
-        // 이전에 성공적으로 확인한 닉네임과 같다면 중복 요청 방지
-        guard trimmed != lastCheckedNickname else { return }
+        // 이전에 성공적으로 확인한 닉네임과 같다면 성공 상태를 재사용
+        if trimmed == lastCheckedNickname {
+            nicknameCheckState = .available
+            errorMessage = nil
+            return
+        }
         
         nicknameCheckState = .checking
         errorMessage = nil
-        
         let currentRequestNickname = trimmed
 
-        networkManager.request(
-            target: .checkNickname(nickname: trimmed),
-            decodingType: NicknameCheckResponse.self
-        ) { [weak self] result in
-            guard let self else { return }
-            
-            Task { @MainActor in
-                guard self.nickname.trimmingCharacters(in: .whitespacesAndNewlines) == currentRequestNickname else { return }
+        let result = await requestStatusCodeAsync(target: .checkNickname(nickname: trimmed))
+        guard nickname.trimmingCharacters(in: .whitespacesAndNewlines) == currentRequestNickname else { return }
 
-                switch result {
-                case .success(let response):
-                    if response.isAvailable {
-                        self.nicknameCheckState = .available
-                        self.lastCheckedNickname = currentRequestNickname
-                        self.errorMessage = nil
-                    } else {
-                        self.nicknameCheckState = .duplicated
-                        self.errorMessage = response.message
-                    }
-                    
-                case .failure(let error):
-                    self.nicknameCheckState = .idle
-                    self.errorMessage = "중복 확인 중 오류가 발생했습니다."
-                    print("DEBUG: 닉네임 중복 체크 실패: \(error)")
-                }
+        switch result {
+        case .success:
+            nicknameCheckState = .available
+            lastCheckedNickname = currentRequestNickname
+            errorMessage = nil
+
+        case .failure(let error):
+            if case let .serverError(statusCode, message) = error, statusCode == 409 {
+                nicknameCheckState = .duplicated
+                errorMessage = message.isEmpty ? "이미 사용 중인 닉네임입니다." : message
+            } else {
+                nicknameCheckState = .idle
+                errorMessage = "중복 확인 중 오류가 발생했습니다."
             }
+            print("DEBUG: 닉네임 중복 체크 실패: \(error)")
         }
     }
     
@@ -377,9 +358,4 @@ final class ProfileViewModel: ObservableObject {
             }
         }
     }
-}
-
-struct NicknameCheckResponse: Decodable {
-    let isAvailable: Bool
-    let message: String
 }

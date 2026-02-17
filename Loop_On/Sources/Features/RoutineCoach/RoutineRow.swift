@@ -14,6 +14,7 @@ struct RoutineRow: View {
     let isEditing: Bool // 편집 모드 상태 주입
     let totalCount: Int // 전체 루틴 개수 파악용
     let isRegenerating: Bool // 재생성 상태
+    let isRegeneratingThisRoutine: Bool // 현재 카드 재생성 진행 상태
     
     var onTimeTap: () -> Void
     var onDelete: () -> Void // 삭제 액션
@@ -30,10 +31,17 @@ struct RoutineRow: View {
                     generator.impactOccurred()
                     onRegenerate()
                 }) {
-                    Image(systemName: "arrow.clockwise")
-                        .foregroundStyle(pointColor)
-                        .font(.system(size: 18, weight: .bold))
+                    if isRegeneratingThisRoutine {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(pointColor)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundStyle(pointColor)
+                            .font(.system(size: 18, weight: .bold))
+                    }
                 }
+                .disabled(isRegeneratingThisRoutine)
                 .transition(.move(edge: .leading).combined(with: .opacity))
             }
             
@@ -147,6 +155,7 @@ struct RoutineRow_Previews: PreviewProvider {
                 isEditing: false,
                 totalCount: 4,
                 isRegenerating: false, // 재생성 모드 Off
+                isRegeneratingThisRoutine: false,
                 onTimeTap: { print("시간 선택 클릭됨") },
                 onDelete: { print("삭제 클릭됨") },
                 onEditName: { print("이름 수정 클릭됨") },
@@ -160,6 +169,7 @@ struct RoutineRow_Previews: PreviewProvider {
                 isEditing: false,
                 totalCount: 4,
                 isRegenerating: true, // 재생성 모드 On
+                isRegeneratingThisRoutine: true,
                 onTimeTap: { },
                 onDelete: { },
                 onEditName: { },

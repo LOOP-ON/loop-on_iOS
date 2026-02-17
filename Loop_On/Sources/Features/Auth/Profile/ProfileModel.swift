@@ -35,15 +35,7 @@ struct ProfileModel {
     
     // 도메인 로직: 닉네임 길이 검증
     var isValidNickname: Bool {
-        let koreanCount = nickname.filter { $0.isKorean }.count
-        let otherCount = nickname.count - koreanCount
-        
-        // 한글 7자 이내 또는 영문/숫자 10자 이내
-        if koreanCount > 0 {
-            return nickname.count <= 7
-        } else {
-            return nickname.count <= 10
-        }
+        !nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     // 도메인 로직: 표시용 생년월일 포맷 (YYYY.MM.DD)

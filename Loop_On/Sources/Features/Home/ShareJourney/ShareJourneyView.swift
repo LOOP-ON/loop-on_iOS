@@ -12,20 +12,27 @@ import PhotosUI
 struct ShareJourneyView: View {
     /// 수정 모드일 때 기존 챌린지 ID (nil이면 새로 올리기)
     private let editChallengeId: Int?
+    private let bottomContentInset: CGFloat
+    private let onClose: (() -> Void)?
     @StateObject private var viewModel: ShareJourneyViewModel
     @Environment(\.dismiss) private var dismiss
 
-    init(editChallengeId: Int? = nil) {
+    init(editChallengeId: Int? = nil, bottomContentInset: CGFloat = 0, onClose: (() -> Void)? = nil) {
         self.editChallengeId = editChallengeId
+        self.bottomContentInset = bottomContentInset
+        self.onClose = onClose
         _viewModel = StateObject(wrappedValue: ShareJourneyViewModel(editChallengeId: editChallengeId))
     }
 
     private var isEditMode: Bool { editChallengeId != nil }
+    private var screenBackgroundColor: Color {
+        Color(red: 0.98, green: 0.98, blue: 0.98)
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.98, green: 0.98, blue: 0.98)
+                screenBackgroundColor
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
@@ -49,13 +56,18 @@ struct ShareJourneyView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .toolbarBackground(
+                screenBackgroundColor,
+                for: .navigationBar
+            )
+            .toolbarBackground(.visible, for: .navigationBar)
             .onAppear {
-                viewModel.dismiss = { dismiss() }
+                viewModel.dismiss = { closeView() }
                 viewModel.loadChallengeDetailIfNeeded()
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
+                    Button(action: closeView) {
                         Image(systemName: "chevron.left")
                             .foregroundStyle(Color.black)
                             .font(.system(size: 18, weight: .medium))
@@ -67,6 +79,15 @@ struct ShareJourneyView: View {
                         .foregroundStyle(Color.black)
                 }
             }
+        }
+        .background(screenBackgroundColor.ignoresSafeArea())
+    }
+
+    private func closeView() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
         }
     }
 
@@ -87,9 +108,9 @@ struct ShareJourneyView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
-            .padding(.bottom, 10)
+            .padding(.bottom, 10 + bottomContentInset)
         }
-        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+        .background(screenBackgroundColor)
     }
 
     private var photoSection: some View {

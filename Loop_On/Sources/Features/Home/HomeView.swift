@@ -56,9 +56,32 @@ struct HomeView: View {
                 .safeAreaPadding(.top, 1)
                 .background(Color(.systemGroupedBackground))
             }
+
+            if viewModel.activeFullSheet == .shareJourney {
+                ShareJourneyView(
+                    bottomContentInset: 88,
+                    onClose: {
+                    viewModel.activeFullSheet = nil
+                    }
+                )
+                .ignoresSafeArea(.container, edges: .top)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .zIndex(10)
+            }
         }
         // 풀스크린 커버 제어를 ViewModel에서 위임받음
-        .fullScreenCover(item: $viewModel.activeFullSheet) { sheet in
+        .fullScreenCover(item: Binding(
+            get: {
+                viewModel.activeFullSheet == .shareJourney ? nil : viewModel.activeFullSheet
+            },
+            set: { newValue in
+                if let newValue {
+                    viewModel.activeFullSheet = newValue
+                } else if viewModel.activeFullSheet != .shareJourney {
+                    viewModel.activeFullSheet = nil
+                }
+            }
+        )) { sheet in
             fullSheetContent(for: sheet)
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.isShowingDelayPopup)
@@ -247,7 +270,7 @@ private extension HomeView {
             )
             .presentationBackground(.clear)
         case .loading:
-            CommonLoadingView(message: "다음 여정을 생성중입니다", lottieFileName: "Loading 51 _ Monoplane")
+            CommonLoadingView(message: "다음 여정을 생성중입니다", lottieFileName: "TriPriend")
         case .reflection:
             if let info = viewModel.journeyInfo {
                 ReflectionPopupView(
@@ -311,7 +334,7 @@ private extension HomeView {
             )
             .presentationBackground(.clear)
         case .shareJourney:
-            ShareJourneyView()
+            EmptyView()
             
         case .viewDelay:
             DelayPopupView(
@@ -380,4 +403,24 @@ private extension HomeView {
         .environment(NavigationRouter())
         .environment(SessionStore())
         .environment(SignUpFlowStore())
+}
+
+#Preview("HomeView - ShareJourney Sheet") {
+    HomeShareJourneyPreviewContainer()
+}
+
+private struct HomeShareJourneyPreviewContainer: View {
+    @State private var router = NavigationRouter()
+    @State private var session = SessionStore()
+    @StateObject private var homeViewModel = HomeViewModel()
+
+    var body: some View {
+        RootTabView()
+            .environment(router)
+            .environment(session)
+            .environmentObject(homeViewModel)
+            .onAppear {
+                homeViewModel.activeFullSheet = .shareJourney
+            }
+    }
 }

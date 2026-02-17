@@ -50,3 +50,14 @@ struct RoutineDetail: Decodable {
     let content: String
     let notificationTime: String
 }
+
+// /api/journeys/regenerate 요청
+struct RoutineRegenerateRequest: Encodable {
+    let originalGoal: String
+    let mainGoal: String
+}
+
+// /api/journeys/regenerate 응답 data
+struct RoutineRegenerateData: Decodable {
+    let newGoal: String
+}
