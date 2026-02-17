@@ -17,11 +17,20 @@ struct ShareJourneyView: View {
     @StateObject private var viewModel: ShareJourneyViewModel
     @Environment(\.dismiss) private var dismiss
 
-    init(editChallengeId: Int? = nil, bottomContentInset: CGFloat = 0, onClose: (() -> Void)? = nil) {
+    init(
+        editChallengeId: Int? = nil,
+        journeyId: Int = 0,
+        expeditionId: Int = 0,
+        bottomContentInset: CGFloat = 0,
+        onClose: (() -> Void)? = nil
+    ) {
         self.editChallengeId = editChallengeId
         self.bottomContentInset = bottomContentInset
         self.onClose = onClose
-        _viewModel = StateObject(wrappedValue: ShareJourneyViewModel(editChallengeId: editChallengeId))
+        let vm = ShareJourneyViewModel(editChallengeId: editChallengeId)
+        vm.journeyId = journeyId
+        vm.expeditionId = expeditionId
+        _viewModel = StateObject(wrappedValue: vm)
     }
 
     private var isEditMode: Bool { editChallengeId != nil }
@@ -81,6 +90,17 @@ struct ShareJourneyView: View {
             }
         }
         .background(screenBackgroundColor.ignoresSafeArea())
+        .alert(
+            "챌린지 업로드 실패",
+            isPresented: Binding(
+                get: { viewModel.uploadErrorMessage != nil },
+                set: { if !$0 { viewModel.uploadErrorMessage = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) { viewModel.uploadErrorMessage = nil }
+        } message: {
+            Text(viewModel.uploadErrorMessage ?? "알 수 없는 오류가 발생했어요.")
+        }
     }
 
     private func closeView() {
@@ -95,17 +115,24 @@ struct ShareJourneyView: View {
     private var fixedBottomButton: some View {
         VStack {
             Button(action: viewModel.uploadChallenge) {
-                Text("챌린지 업로드")
-                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.primaryColorVarient65))
-                    )
-                    .foregroundStyle(Color.white)
+                HStack(spacing: 8) {
+                    if viewModel.isUploading {
+                        ProgressView()
+                            .tint(.white)
+                    }
+                    Text("챌린지 업로드")
+                        .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(viewModel.isUploading ? Color("85") : Color(.primaryColorVarient65))
+                )
+                .foregroundStyle(Color.white)
                     
             }
+            .disabled(viewModel.isUploading)
             .padding(.horizontal, 20)
             .padding(.top, 12)
             .padding(.bottom, 10 + bottomContentInset)

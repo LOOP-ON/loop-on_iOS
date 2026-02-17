@@ -98,11 +98,19 @@ private struct AuthPreviewContainer: View {
                 .environment(session)
                 .environment(flowStore)
                 .navigationDestination(for: Route.self) { route in
-                    if case .auth(.signUp) = route {
+                    switch route {
+                    case .auth(.signUp):
                         SignUpView()
                             .environment(router)
                             .environment(session)
                             .environment(flowStore)
+                    case .auth(.findPassword):
+                        FindPasswordView()
+                            .environment(router)
+                            .environment(session)
+                            .environment(flowStore)
+                    default:
+                        EmptyView()
                     }
                 }
         }

@@ -59,6 +59,7 @@ struct HomeView: View {
 
             if viewModel.activeFullSheet == .shareJourney {
                 ShareJourneyView(
+                    journeyId: viewModel.journeyInfo?.journeyId ?? 0,
                     bottomContentInset: 88,
                     onClose: {
                     viewModel.activeFullSheet = nil
