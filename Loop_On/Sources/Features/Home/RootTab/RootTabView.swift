@@ -78,20 +78,6 @@ struct RootTabView: View {
                 }
                 // #endregion
             }
-            // 최상위 ZStack에서 팝업을 띄워 노치와 탭바를 모두 덮어준다
-            if homeViewModel.activeFullSheet == .reflection {
-                if let info = homeViewModel.journeyInfo {
-                    ReflectionPopupView(
-                        viewModel: ReflectionViewModel(loopId: info.loopId, currentDay: info.currentDay),
-                        isPresented: Binding(
-                            get: { homeViewModel.activeFullSheet == .reflection },
-                            set: { if !$0 { homeViewModel.activeFullSheet = nil } }
-                        )
-                    )
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                    .zIndex(999)
-                }
-            }
         }
         // 하단 탭바의 흰색 배경만 기기 바닥까지 늘어지게 설정
         .ignoresSafeArea(.container, edges: .bottom)

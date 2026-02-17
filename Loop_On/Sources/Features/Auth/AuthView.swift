@@ -76,16 +76,8 @@ struct AuthView: View {
         .onChange(of: viewModel.isLoggedIn) { _, loggedIn in
             guard loggedIn else { return }
             session.markLoggedIn()
-
-            if session.isOnboardingCompleted {
-                // 온보딩을 이미 했다면 스택 비우고 홈으로 (RootView가 RootTabView로 교체함)
-                router.reset()
-            } else {
-                // 온보딩 스킵: 완료 처리 후 히스토리 탭으로 진입
-                session.completeOnboarding()
-                session.selectHistoryTabOnNextAppear = true
-                router.reset()
-            }
+            // 로그인 직후 화면 분기는 RootView에서 journeys/current 조회 결과로 결정
+            router.reset()
         }
     }
 }
@@ -116,33 +108,3 @@ private struct AuthPreviewContainer: View {
         }
     }
 }
-
-
-//struct AuthView: View {
-//    @StateObject private var viewModel = AuthViewModel()
-//
-//    var body: some View {
-//        VStack(spacing: 20) {
-//            TextField("이메일", text: $viewModel.email)
-//                .textFieldStyle(RoundedBorderTextFieldStyle())
-//
-//            SecureField("비밀번호", text: $viewModel.password)
-//                .textFieldStyle(RoundedBorderTextFieldStyle())
-//
-//            Button("로그인") {
-//                viewModel.login()
-//            }
-//
-//            if let error = viewModel.errorMessage {
-//                Text(error)
-//                    .foregroundColor(.red)
-//            }
-//
-//            if viewModel.isLoggedIn {
-//                Text("로그인 성공 🎉")
-//                    .foregroundColor(.green)
-//            }
-//        }
-//        .padding()
-//    }
-//}

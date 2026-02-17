@@ -21,6 +21,18 @@ enum ExpeditionAPI {
     case deleteExpedition(expeditionId: Int)
     // 탐험대 탈퇴 (DELETE /api/expeditions/{expeditionId}/withdraw)
     case withdrawExpedition(expeditionId: Int)
+    // 탐험대원 명단 조회 (GET /api/expeditions/{expeditionId}/users)
+    case getExpeditionMembers(expeditionId: Int)
+    // 탐험대 설정 조회 (GET /api/expeditions/{expeditionId})
+    case getExpeditionSetting(expeditionId: Int)
+    // 탐험대 설정 수정 (PATCH /api/expeditions/{expeditionId})
+    case updateExpeditionSetting(expeditionId: Int, request: UpdateExpeditionSettingRequest)
+    // 탐험대 내 챌린지 조회 (GET /api/expeditions/{expeditionId}/challenges)
+    case getExpeditionChallenges(expeditionId: Int, page: Int, size: Int, sort: [String]?)
+    // 탐험대원 퇴출 (PATCH /api/expeditions/{expeditionId}/expel)
+    case expelMember(expeditionId: Int, request: ExpeditionExpelRequest)
+    // 탐험대원 퇴출 해제 (DELETE /api/expeditions/{expeditionId}/expel)
+    case cancelExpelMember(expeditionId: Int, request: ExpeditionExpelRequest)
 }
 
 extension ExpeditionAPI: TargetType {
@@ -45,6 +57,18 @@ extension ExpeditionAPI: TargetType {
             return "/api/expeditions/\(expeditionId)"
         case let .withdrawExpedition(expeditionId):
             return "/api/expeditions/\(expeditionId)/withdraw"
+        case let .getExpeditionMembers(expeditionId):
+            return "/api/expeditions/\(expeditionId)/users"
+        case let .getExpeditionSetting(expeditionId):
+            return "/api/expeditions/\(expeditionId)"
+        case let .updateExpeditionSetting(expeditionId, _):
+            return "/api/expeditions/\(expeditionId)"
+        case let .getExpeditionChallenges(expeditionId, _, _, _):
+            return "/api/expeditions/\(expeditionId)/challenges"
+        case let .expelMember(expeditionId, _):
+            return "/api/expeditions/\(expeditionId)/expel"
+        case let .cancelExpelMember(expeditionId, _):
+            return "/api/expeditions/\(expeditionId)/expel"
         }
     }
 
@@ -61,6 +85,18 @@ extension ExpeditionAPI: TargetType {
         case .deleteExpedition:
             return .delete
         case .withdrawExpedition:
+            return .delete
+        case .getExpeditionMembers:
+            return .get
+        case .getExpeditionSetting:
+            return .get
+        case .updateExpeditionSetting:
+            return .patch
+        case .getExpeditionChallenges:
+            return .get
+        case .expelMember:
+            return .patch
+        case .cancelExpelMember:
             return .delete
         }
     }
@@ -91,6 +127,25 @@ extension ExpeditionAPI: TargetType {
             return .requestPlain
         case .withdrawExpedition:
             return .requestPlain
+        case .getExpeditionMembers:
+            return .requestPlain
+        case .getExpeditionSetting:
+            return .requestPlain
+        case let .updateExpeditionSetting(_, request):
+            return .requestJSONEncodable(request)
+        case let .getExpeditionChallenges(_, page, size, sort):
+            var params: [String: Any] = [
+                "page": page,
+                "size": size
+            ]
+            if let sort = sort, !sort.isEmpty {
+                params["sort"] = sort.joined(separator: ",")
+            }
+            return .requestParameters(parameters: params, encoding: URLEncoding.queryString)
+        case let .expelMember(_, request):
+            return .requestJSONEncodable(request)
+        case let .cancelExpelMember(_, request):
+            return .requestJSONEncodable(request)
         }
     }
 

@@ -36,6 +36,11 @@ final class GoalInputViewModel: ObservableObject {
     // MARK: - 통합된 API 호출 (9번/12번 통합)
     func fetchGoalRecommendations(completion: @escaping (Bool) -> Void) {
         let trimmedGoal = goalText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedGoal.isEmpty else {
+            self.errorMessage = "목표를 입력해 주세요."
+            completion(false)
+            return
+        }
         self.isSaving = true
         self.errorMessage = nil
             
@@ -43,15 +48,14 @@ final class GoalInputViewModel: ObservableObject {
 
         networkManager.request(
             target: .createJourneyGoal(request: request), // /api/journeys/goals
-            decodingType: UnifiedGoalResponse.self // 위에서 정의한 새 DTO
+            decodingType: GoalRecommendationData.self
         ) { [weak self] result in
             guard let self = self else { return }
             _Concurrency.Task { @MainActor in
                 self.isSaving = false
                 switch result {
                 case .success(let response):
-                    // API 명세에 따라 recommendations 추출
-                    self.recommendedInsights = response.data.recommendations
+                    self.recommendedInsights = response.recommendations
                     completion(true)
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
@@ -61,25 +65,30 @@ final class GoalInputViewModel: ObservableObject {
         }
     }
     
-    // 9번 API에서 여정 시작 - (/api/journeys/goals)
+    // /api/journeys/goals 응답은 recommendations를 반환
     func submitGoal(completion: @escaping (Bool) -> Void) {
         let trimmedGoal = goalText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedGoal.isEmpty else {
+            self.errorMessage = "목표를 입력해 주세요."
+            completion(false)
+            return
+        }
         isSaving = true
         let request = JourneyGoalRequest(goal: trimmedGoal, category: category)
 
         networkManager.request(
             target: .createJourneyGoal(request: request),
-            decodingType: JourneyGoalResponse.self
+            decodingType: GoalRecommendationData.self
         ) { [weak self] result in
             guard let self = self else { return }
             _Concurrency.Task { @MainActor in
+                self.isSaving = false
                 switch result {
                 case .success(let response):
-                    self.journeyId = response.journeyId
+                    self.recommendedInsights = response.recommendations
                     completion(true)
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
-                    self.isSaving = false
                     completion(false)
                 }
             }

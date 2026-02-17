@@ -10,6 +10,8 @@ import SwiftUI
 struct DelayPopupView: View {
     let index: Int
     let title: String
+    let journeyId: Int
+    let progressId: Int
     @Binding var isPresented: Bool
     var onDelaySuccess: ((String) -> Void)?
     
@@ -47,9 +49,11 @@ struct DelayPopupView: View {
             .animation(.spring(), value: isTextFieldFocused)
         }
         .onAppear {
-            if isReadOnly, let reason = initialReason, !reason.isEmpty {
-                // 미루기 보기(읽기 전용) 모드일 때만 기존 사유 세팅
-                viewModel.setupInitialReason(reason)
+            if isReadOnly {
+                if let reason = initialReason, !reason.isEmpty {
+                    viewModel.setupInitialReason(reason)
+                }
+                viewModel.fetchPostponeReason(progressId: progressId)
             } else {
                 // 처음 미루기를 누른 경우 모든 상태 초기화
                 viewModel.selectedReason = nil
@@ -83,8 +87,22 @@ struct DelayPopupView: View {
             Text("루틴을 미루려는 이유가 무엇인가요?")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
 
+            if viewModel.isLoadingReason {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            }
+
             reasonList
                 .disabled(isReadOnly && !isEditMode)
+
+            if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty {
+                Text(errorMessage)
+                    .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 12))
+                    .foregroundStyle(.red)
+            }
         }
         .padding(24)
     }
@@ -164,12 +182,23 @@ struct DelayPopupView: View {
                 if isReadOnly && !isEditMode {
                     isEditMode = true // 수정 모드로 진입
                 } else {
-                    viewModel.submitDelay(routineIndex: index) { success in
-                        if success {
-                            DispatchQueue.main.async {
-                                // 팝업에서 선택/입력된 최종 사유를 부모 뷰로 전달
-                                onDelaySuccess?(viewModel.finalReason)
-                                isPresented = false
+                    if isReadOnly {
+                        viewModel.updatePostponeReason(progressId: progressId) { success in
+                            if success {
+                                DispatchQueue.main.async {
+                                    onDelaySuccess?(viewModel.finalReason)
+                                    isPresented = false
+                                }
+                            }
+                        }
+                    } else {
+                        viewModel.submitDelay(journeyId: journeyId, progressId: progressId) { success in
+                            if success {
+                                DispatchQueue.main.async {
+                                    // 팝업에서 선택/입력된 최종 사유를 부모 뷰로 전달
+                                    onDelaySuccess?(viewModel.finalReason)
+                                    isPresented = false
+                                }
                             }
                         }
                     }
@@ -180,7 +209,7 @@ struct DelayPopupView: View {
                     .foregroundStyle(viewModel.canSubmit ? Color(.primaryColorVarient65) : Color.gray.opacity(0.4))
                     .frame(maxWidth: .infinity, minHeight: 56)
             }
-            .disabled(!viewModel.canSubmit && isEditMode)
+            .disabled(viewModel.isSubmitting || ((isReadOnly && !isEditMode) ? false : !viewModel.canSubmit))
         }
     }
 }
@@ -189,7 +218,7 @@ struct DelayPopupView: View {
     struct DelayPopupPreviewContainer: View {
         @State private var isPresented = true
         @State private var mockRoutine = RoutineModel(
-            id: 1, title: "매일 아침 스트레칭 하기",
+            id: 1, routineProgressId: 101, title: "매일 아침 스트레칭 하기",
             time: "08:00 알림 예정",
             isCompleted: false,
             isDelayed: false,
@@ -216,6 +245,8 @@ struct DelayPopupView: View {
                         DelayPopupView(
                             index: 1,
                             title: mockRoutine.title,
+                            journeyId: 1,
+                            progressId: mockRoutine.routineProgressId,
                             isPresented: $isPresented,
                             onDelaySuccess: { reason in
                                 mockRoutine.isDelayed = true

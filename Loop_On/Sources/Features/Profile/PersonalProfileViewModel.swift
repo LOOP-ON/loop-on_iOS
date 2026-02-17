@@ -23,6 +23,7 @@ final class PersonalProfileViewModel: ObservableObject {
     @Published var myChallengeItems: [MyChallengeItemDTO] = []
 
     private let challengeNetworkManager = DefaultNetworkManager<ChallengeAPI>()
+    private let profileNetworkManager = DefaultNetworkManager<ProfileAPI>()
     
     // 내 챌린지 피드 페이지네이션 상태
     private var myChallengesPage: Int = 0
@@ -36,23 +37,54 @@ final class PersonalProfileViewModel: ObservableObject {
 
     func loadProfile() {
         isLoading = true
-        // TODO: Fetch user profile from API
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.user = UserModel(
-                id: "1",
-                name: "서리",
-                profileImageURL: nil,
-                bio: "LOOP:ON 디자이너 서리/최서정\n룸온팀 파이팅!!"
-            )
-            #if DEBUG
-            // UI 확인용 더미 피드 (디버그 빌드에서만 사용)
-            let dummyCount = 12
-            self?.challengeImages = Array(repeating: "", count: dummyCount)
-            self?.myChallengeItems = (0..<dummyCount).map { MyChallengeItemDTO(challengeId: $0 + 1, imageUrl: "") }
-            #else
-            self?.loadMyChallenges(reset: true)
-            #endif
-            self?.isLoading = false
+        errorMessage = nil
+
+        profileNetworkManager.request(
+            target: .getMe,
+            decodingType: UserMeResponseDTO.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+
+                switch result {
+                case .success(let profile):
+                    let nickname = profile.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let bio = profile.bio?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    let statusMessage = profile.statusMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    let composedBio = [bio, statusMessage]
+                        .filter { !$0.isEmpty }
+                        .joined(separator: "\n")
+                    self.user = UserModel(
+                        id: String(profile.userId),
+                        name: nickname.isEmpty ? "사용자" : nickname,
+                        profileImageURL: profile.profileImageUrl,
+                        bio: composedBio.isEmpty ? "소개가 아직 없어요." : composedBio
+                    )
+
+                    let thumbItems = profile.thumbnailResponse?.content ?? []
+                    if !thumbItems.isEmpty {
+                        self.myChallengeItems = thumbItems.map {
+                            MyChallengeItemDTO(challengeId: $0.challengeId, imageUrl: $0.repImageUrl)
+                        }
+                        self.challengeImages = self.myChallengeItems.map(\.imageUrl)
+                    } else {
+                        self.loadMyChallenges(reset: true)
+                    }
+                    self.isLoading = false
+
+                case .failure(let error):
+                    self.isLoading = false
+                    self.errorMessage = error.localizedDescription
+                    self.user = UserModel(
+                        id: "0",
+                        name: "사용자",
+                        profileImageURL: nil,
+                        bio: "프로필을 불러오지 못했어요."
+                    )
+                    self.loadMyChallenges(reset: true)
+                    print("❌ [Profile] /api/users/me failed: \(error)")
+                }
+            }
         }
     }
 
@@ -124,4 +156,53 @@ final class PersonalProfileViewModel: ObservableObject {
     func refreshProfile() {
         loadProfile()
     }
+}
+
+private struct UserMeResponseDTO: Decodable {
+    let userId: Int
+    let nickname: String
+    let bio: String?
+    let statusMessage: String?
+    let profileImageUrl: String?
+    let thumbnailResponse: UserMeThumbnailPageDTO?
+
+    enum CodingKeys: String, CodingKey {
+        case userId
+        case nickname
+        case bio
+        case statusMessage
+        case profileImageUrl
+        case profileImage
+        case profileImageURL = "profile_image_url"
+        case thumbnailResponse
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        userId = try c.decode(Int.self, forKey: .userId)
+        nickname = try c.decode(String.self, forKey: .nickname)
+        bio = try c.decodeIfPresent(String.self, forKey: .bio)
+        statusMessage = try c.decodeIfPresent(String.self, forKey: .statusMessage)
+
+        if let url = try c.decodeIfPresent(String.self, forKey: .profileImageUrl) {
+            profileImageUrl = url
+        } else if let url = try c.decodeIfPresent(String.self, forKey: .profileImage) {
+            profileImageUrl = url
+        } else if let url = try c.decodeIfPresent(String.self, forKey: .profileImageURL) {
+            profileImageUrl = url
+        } else {
+            profileImageUrl = nil
+        }
+
+        thumbnailResponse = try c.decodeIfPresent(UserMeThumbnailPageDTO.self, forKey: .thumbnailResponse)
+    }
+}
+
+private struct UserMeThumbnailPageDTO: Decodable {
+    let content: [UserMeThumbnailDTO]
+}
+
+private struct UserMeThumbnailDTO: Decodable {
+    let challengeId: Int
+    let repImageUrl: String
 }

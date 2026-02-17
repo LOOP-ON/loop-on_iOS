@@ -35,9 +35,14 @@ struct PersonalProfileView: View {
                 // 내 프로필: 기존 홈 헤더 (Logo + 설정)
                 // 타인 프로필: 기존 로고 자리에 뒤로가기 + Logo 조합
                 if isOwnProfile {
-                    HomeHeaderView(onSettingsTapped: {
-                        router.push(.app(.settings))
-                    })
+                    HomeHeaderView(
+                        onPassportTapped: {
+                            router.push(.app(.passport))
+                        },
+                        onSettingsTapped: {
+                            router.push(.app(.settings))
+                        }
+                    )
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
                 } else {

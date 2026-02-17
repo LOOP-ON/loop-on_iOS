@@ -21,7 +21,7 @@ struct CameraOverlayView: View {
                 Button(action: onDismiss) {
                     Image(systemName: "arrow.left")
                         .font(.system(size: 20))
-                        .foregroundColor(.white)
+                        .foregroundStyle(Color.white)
                 }
                 Spacer()
             }
@@ -33,11 +33,11 @@ struct CameraOverlayView: View {
             VStack(spacing: 12) {
                 Text("사진을 촬영해 인증을 해주세요")
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(Color.white)
                 
                 Text(title)
                     .font(.system(size: 18))
-                    .foregroundColor(Color(.primaryColorVarient65)) // 루틴 제목 강조색
+                    .foregroundStyle(Color(.primaryColorVarient65)) // 루틴 제목 강조색
             }
 
             Spacer()
@@ -64,7 +64,7 @@ struct CameraOverlayView: View {
                 Button(action: onFlip) {
                     Image(systemName: "arrow.triangle.2.circlepath")
                         .font(.system(size: 24))
-                        .foregroundColor(.white)
+                        .foregroundStyle(Color.white)
                         .padding()
                         .background(Circle().fill(Color.white.opacity(0.2)))
                 }

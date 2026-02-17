@@ -82,7 +82,9 @@ struct HistoryView: View {
 
                 VStack(spacing: 0) {
                     // 헤더 (홈뷰와 동일한 위치)
-                    HistoryHeaderView(onSettingsTapped: {
+                    HistoryHeaderView(onPassportTapped: {
+                        router.push(.app(.passport))
+                    }, onSettingsTapped: {
                         router.push(.app(.settings))
                     })
                     .padding(.horizontal, 20)
@@ -254,6 +256,7 @@ struct HistoryView: View {
 
 // MARK: - History Header View
 struct HistoryHeaderView: View {
+    var onPassportTapped: (() -> Void)?
     var onSettingsTapped: (() -> Void)?
     
     var body: some View {
@@ -266,10 +269,15 @@ struct HistoryHeaderView: View {
             Spacer()
             
             HStack(spacing: 8) {
-                Image("passport")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 34)
+                Button(action: {
+                    onPassportTapped?()
+                }) {
+                    Image("passport")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 34)
+                }
+                .buttonStyle(.plain)
                 Button(action: {
                     onSettingsTapped?()
                 }) {

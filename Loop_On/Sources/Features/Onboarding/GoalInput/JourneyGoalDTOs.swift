@@ -1,39 +1,30 @@
 import Foundation
 
-//
-// 수정된 api 로직에서 사용할거
-struct UnifiedGoalResponse: Decodable {
-    let result: String
-    let message: String
-    let data: GoalRecommendationData
-}
-
 struct GoalRecommendationData: Decodable {
     let recommendations: [String]
+    
+    enum CodingKeys: String, CodingKey {
+        case recommendations
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.recommendations = (try? container.decode([String].self, forKey: .recommendations)) ?? []
+    }
 }
-//
-//
+
+// (/journeys/order) api에 사용
+struct JourneyOrderData: Decodable {
+    let order: Int
+}
 
 struct JourneyGoalRequest: Encodable {
     let goal: String
     let category: String
 }
 
-struct JourneyGoalResponse: Decodable {
-    let journeyId: Int
-
-    enum CodingKeys: String, CodingKey {
-        case journeyId = "journeyId"
-        case journeyIdSnake = "journey_id"
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.journeyId = (try? container.decode(Int.self, forKey: .journeyId))
-                      ?? (try? container.decode(Int.self, forKey: .journeyIdSnake))
-                      ?? 0
-    }
-}
+// /api/journeys/goals는 현재 recommendations를 내려주므로
+// 공통 BaseResponse<T>의 T는 GoalRecommendationData를 사용한다.
 
 struct LoopRecommendationRequest: Encodable {
     let goal: String

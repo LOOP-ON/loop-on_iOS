@@ -9,15 +9,13 @@ import SwiftUI
 struct InsightSelectView: View {
     @StateObject private var viewModel: InsightSelectViewModel
     @Environment(NavigationRouter.self) private var router
-    @Environment(SessionStore.self) private var session
 
-    init(goalText: String, category: String, insights: [String], journeyId: Int) {
+    init(goalText: String, category: String, insights: [String]) {
         _viewModel = StateObject(
             wrappedValue: InsightSelectViewModel(
                 goalText: goalText,
                 selectedCategory: category,
-                insights: insights,
-                journeyId: journeyId
+                insights: insights
             )
         )
     }
@@ -119,8 +117,6 @@ struct InsightSelectView: View {
         Button {
             // 인사이트 선택 결과로 루프 생성 흐름 시작
             viewModel.createLoop()
-            session.completeOnboarding()
-            router.reset()
         } label: {
             Text("루프 생성하기")
                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
@@ -179,15 +175,14 @@ private struct InsightCardView: View {
 
 #Preview("iPhone 15 Pro") {
     InsightSelectView(goalText: "건강한 생활 만들기", category: "ROUTINE",
-                      insights: ["아침 공복에 물 마시기", "10분 스트레칭"], journeyId: 1)
+                      insights: ["아침 공복에 물 마시기", "10분 스트레칭"])
         .environment(NavigationRouter())
         .environment(SessionStore())
 }
 
 #Preview("iPhone 16 Pro Max") {
     InsightSelectView(goalText: "역량 강화 목표", category: "SKILL",
-                      insights: ["매일 코딩 1시간", "기술 블로그 작성"], journeyId: 2)
+                      insights: ["매일 코딩 1시간", "기술 블로그 작성"])
         .environment(NavigationRouter())
         .environment(SessionStore())
 }
-

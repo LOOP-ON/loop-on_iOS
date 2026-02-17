@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import Moya
 
 struct RoutineCoach: Identifiable, Hashable, Codable {
     var id = UUID()
@@ -24,6 +25,8 @@ struct RoutineCoach: Identifiable, Hashable, Codable {
 }
 
 class RoutineCoachViewModel: ObservableObject {
+    @Published var journeyOrder: Int = 0 // API로 받아올 순서 값 (몇번째 여정인지)
+    @Published var errorMessage: String? // 에러 메시지 변수
     @Published var isLoading = false // 로딩 상태 추가
     @Published var isJourneyStarted = false // HomeView로 이동하기 위한 트리거
     @Published var routines: [RoutineCoach] = []
@@ -57,6 +60,44 @@ class RoutineCoachViewModel: ObservableObject {
             ]
         } else {
             self.routines = initialRoutines
+        }
+    }
+    
+    // 순서 조회 API 호출 함수
+//    func fetchJourneyOrder() {
+//        print("DEBUG: 여정 순서 조회 API 호출 시작")
+//        networkManager.request(
+//            target: .getJourneyOrder,
+//            decodingType: JourneyOrderResponse.self
+//        ) { [weak self] result in
+//            guard let self = self else { return }
+//            _Concurrency.Task { @MainActor in
+//                switch result {
+//                case .success(let response):
+//                    self.journeyOrder = response.data.order
+//                case .failure(let error):
+//                    self.errorMessage = error.localizedDescription
+//                }
+//            }
+//        }
+//    }
+    func fetchJourneyOrder() {
+        print("DEBUG: 여정 순서 조회 API 호출 시작") // 로그 추가
+        networkManager.request(
+            target: .getJourneyOrder,
+            decodingType: JourneyOrderData.self
+        ) { [weak self] result in
+            guard let self = self else { return }
+            _Concurrency.Task { @MainActor in
+                switch result {
+                case .success(let data):
+                    print("DEBUG: API 성공 - 수령한 순서: \(data.order)") // 로그 추가
+                    self.journeyOrder = data.order
+                case .failure(let error):
+                    print("DEBUG: API 실패 - 에러 내용: \(error.localizedDescription)") // 로그 추가
+                    self.errorMessage = error.localizedDescription
+                }
+            }
         }
     }
     
@@ -138,40 +179,54 @@ class RoutineCoachViewModel: ObservableObject {
     func startJourney() {
         isLoading = true
         
+        let sanitizedGoal = sanitizeText(goal_text)
+
         // 현재 화면에 표시된 routines 데이터를 API 형식으로 변환
         let routineRequests = routines.map { routine in
             RoutineContentRequest(
-                content: routine.name,
-                notificationTime: formatDateForServer(routine.alarmTime)
+                content: sanitizeText(routine.name),
+                time: formatDateForServer(routine.alarmTime)
             )
         }
         
-        let selectedLoop = selected_insights.first ?? (routines.first?.name ?? "")
+        let selectedLoop = sanitizeText(selected_insights.first ?? (routines.first?.name ?? sanitizedGoal))
+        let requestCategory = normalizedCategory(category)
 
         // 요청 객체 생성
         let request = RoutineCreateRequest(
-            goal: goal_text,
-            category: category,
+            goal: sanitizedGoal,
+            category: requestCategory,
             selectedLoop: selectedLoop,
             routines: routineRequests
         )
+        
+        if let encoded = try? JSONEncoder().encode(request),
+           let requestBody = String(data: encoded, encoding: .utf8) {
+            print("createRoutines request body: \(requestBody)")
+        }
 
         // 실제 API 호출
-        networkManager.request(
-            target: .createRoutines(request: request),
-            decodingType: RoutineCreateResponse.self
-        ) { [weak self] result in
+        // 실패 시 서버의 raw 응답 body를 그대로 로그로 남겨 검증 메시지를 확인한다.
+        networkManager.provider.request(.createRoutines(request: request)) { [weak self] result in
             guard let self else { return }
-            Task { @MainActor in
+            _Concurrency.Task { @MainActor in
                 switch result {
                 case .success(let response):
-                    print("루틴 서버 저장 성공, journeyId: \(response.data.journeyId)")
+                    if (200...299).contains(response.statusCode) {
+                        print("루틴 서버 저장 성공")
+                        self.isLoading = false
+                        self.isJourneyStarted = true // HomeView로 이동
+                    } else {
+                        let rawBody = String(data: response.data, encoding: .utf8) ?? "<response body decode failed>"
+                        print("루틴 저장 실패(status: \(response.statusCode))")
+                        print("루틴 저장 실패 raw body: \(rawBody)")
+                        self.errorMessage = "서버 오류 \(response.statusCode)"
+                        self.isLoading = false
+                    }
+                case .failure(let moyaError):
+                    print("루틴 저장 네트워크 실패: \(moyaError.localizedDescription)")
+                    self.errorMessage = moyaError.localizedDescription
                     self.isLoading = false
-                    self.isJourneyStarted = true // HomeView로 이동
-                case .failure(let error):
-                    print("루틴 저장 실패: \(error.localizedDescription)")
-                    self.isLoading = false
-                    // 에러 처리 알럿 로직 추가 가능
                 }
             }
         }
@@ -179,7 +234,7 @@ class RoutineCoachViewModel: ObservableObject {
     
     // API 통신 시뮬레이션
     private func saveJourneyToServer(data: [String: Any]) async throws {
-        try await Task.sleep(nanoseconds: 2_000_000_000) // 2초 대기
+        try await _Concurrency.Task.sleep(nanoseconds: 2_000_000_000) // 2초 대기
         // 실제 통신 시에는 여기서 URLSession 등을 사용
     }
         
@@ -187,6 +242,28 @@ class RoutineCoachViewModel: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
+    }
+
+    private func normalizedCategory(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch trimmed.uppercased() {
+        case "ROUTINE", "생활 루틴", "생활루틴":
+            return "ROUTINE"
+        case "SKILL", "역량 강화", "역량강화":
+            return "GROWTH"
+        case "MENTAL", "내면 관리", "내면관리":
+            return "MENTAL"
+        default:
+            return trimmed
+        }
+    }
+    
+    private func sanitizeText(_ raw: String) -> String {
+        let noMarkdown = raw
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "__", with: "")
+            .replacingOccurrences(of: "`", with: "")
+        return noMarkdown.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     func openTimePicker(for index: Int) {

@@ -20,7 +20,10 @@ final class KeychainService {
     private let service = "com.loopon.auth"
 
     /// 현재 키체인에 accessToken이 있는지 여부 (로그인 유효 세션 판단용).
-    var hasAccessToken: Bool { loadToken() != nil }
+    var hasAccessToken: Bool {
+        guard let token = loadToken()?.trimmingCharacters(in: .whitespacesAndNewlines) else { return false }
+        return !token.isEmpty
+    }
 
     @discardableResult
     func saveToken(_ token: String) -> OSStatus {

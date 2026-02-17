@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ChallengeExpeditionView: View {
+    @Environment(NavigationRouter.self) private var router
     @ObservedObject var viewModel: ChallengeExpeditionViewModel
 
     init(viewModel: ChallengeExpeditionViewModel = ChallengeExpeditionViewModel()) {
@@ -15,42 +16,43 @@ struct ChallengeExpeditionView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            searchBar
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                searchBar
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
 
-            filterSection
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
+                filterSection
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if viewModel.isShowingSearchResults {
-                        sectionHeader("탐험대 리스트")
-                        searchResultSection
-                    } else {
-                        sectionHeader("내 탐험대")
-                        myExpeditionSection
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if viewModel.isShowingSearchResults {
+                            sectionHeader("탐험대 리스트")
+                            searchResultSection
+                        } else {
+                            sectionHeader("내 탐험대")
+                            myExpeditionSection
+                        }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 140 + safeAreaBottomHeight)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-                .padding(.bottom, 24)
-            }
-            .scrollIndicators(.hidden)
-            .refreshable {
-                if viewModel.isShowingSearchResults {
-                    viewModel.searchExpeditions()
-                } else {
-                    viewModel.refreshMyExpeditions()
+                .scrollIndicators(.hidden)
+                .refreshable {
+                    if viewModel.isShowingSearchResults {
+                        viewModel.searchExpeditions()
+                    } else {
+                        viewModel.refreshMyExpeditions()
+                    }
                 }
             }
 
             createButton
                 .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(Color(.systemGroupedBackground))
+                .padding(.bottom, 72 + safeAreaBottomHeight)
         }
         .fullScreenCover(isPresented: $viewModel.isShowingCreateModal) {
             ChallengeExpeditionCreateView(
@@ -137,6 +139,12 @@ struct ChallengeExpeditionView: View {
         .onChange(of: viewModel.searchText) { _, newValue in
             if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 viewModel.clearSearchResults()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .expeditionListNeedsRefresh)) { _ in
+            viewModel.refreshMyExpeditions()
+            if viewModel.isShowingSearchResults {
+                viewModel.searchExpeditions()
             }
         }
     }
@@ -280,7 +288,14 @@ private extension ChallengeExpeditionView {
                     expedition: expedition,
                     isSearchMode: isSearchMode,
                     onRowTap: {
-                        // TODO: 라우팅 연결 (탐험대 상세 화면 이동)
+                        router.push(.app(.expeditionDetail(
+                            expeditionId: expedition.id,
+                            expeditionName: expedition.name,
+                            isPrivate: expedition.isPrivate,
+                            isJoined: expedition.isMember,
+                            isAdmin: expedition.isOwner,
+                            canJoin: expedition.canJoin
+                        )))
                     },
                     onActionTap: { viewModel.handleAction(expedition) }
                 )
@@ -299,6 +314,13 @@ private extension ChallengeExpeditionView {
                         .fill(Color(.primaryColorVarient65))
                 )
         }
+    }
+
+    var safeAreaBottomHeight: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes
+        let windowScene = scenes.first as? UIWindowScene
+        let window = windowScene?.windows.first
+        return window?.safeAreaInsets.bottom ?? 0
     }
 }
 

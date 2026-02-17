@@ -10,7 +10,11 @@ import SwiftUI
 
 struct RoutineCoachView: View {
     @StateObject private var viewModel: RoutineCoachViewModel
+    @Environment(NavigationRouter.self) private var router
+    @Environment(SessionStore.self) private var session
     @EnvironmentObject var homeViewModel: HomeViewModel
+    @State private var showContinuationPopup: Bool = false
+    private let shouldShowContinuationPopupOnAppear: Bool
     
     // 브랜드 컬러 정의
     let pointColor = Color(.primaryColorVarient65)
@@ -23,9 +27,18 @@ struct RoutineCoachView: View {
     @State private var scrollOffset: CGFloat = 0        // 현재 스크롤 위치(y, 아래로 갈수록 +)
     @State private var contentHeight: CGFloat = 0       // 전체 콘텐츠 높이
     
-    init(routines: [RoutineCoach], journeyId: Int) {
+    init(
+        routines: [RoutineCoach],
+        goal: String,
+        category: String,
+        selectedInsights: [String],
+        showContinuationPopup: Bool = false
+    ) {
         let vm = RoutineCoachViewModel(initialRoutines: routines)
-        vm.loop_id = journeyId // ViewModel의 loop_id에 전달받은 ID 할당
+        vm.goal_text = goal
+        vm.category = category
+        vm.selected_insights = selectedInsights
+        self.shouldShowContinuationPopupOnAppear = showContinuationPopup
         _viewModel = StateObject(wrappedValue: vm)
     }
     
@@ -46,9 +59,19 @@ struct RoutineCoachView: View {
                     Text("여정을 떠날 계획을 세워볼까요?")
                         .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
                     
-                    Text("\(viewModel.loop_id)번째 여정의 루틴을 생성했어요")
-                        .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
-                        .padding(.top, 30)
+//                    Text("\(viewModel.journeyOrder)번째 여정의 루틴을 생성했어요")
+//                        .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
+//                        .padding(.top, 30)
+                    if viewModel.journeyOrder > 0 {
+                            Text("\(viewModel.journeyOrder)번째 여정의 루틴을 생성했어요")
+                                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
+                                .padding(.top, 30)
+                        } else {
+                            // 데이터 로딩 중일 때 표시할 텍스트나 ProgressView
+                            Text("여정 정보를 불러오고 있어요...")
+                                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 20))
+                                .padding(.top, 30)
+                        }
                 }
                 .padding(.bottom, 20)
                 HStack(alignment: .top, spacing: -10) {
@@ -80,7 +103,7 @@ struct RoutineCoachView: View {
                         .padding(.horizontal, 20)
                     }
                     .scrollIndicators(.hidden)
-                    .frame(height: 290)
+                    .frame(height: 340)
                     // iOS 최신 SwiftUI API: 실제 UIScrollView의 contentOffset/contentSize를 그대로 받음
                     .onScrollGeometryChange(for: CGFloat.self, of: { geo in
                         geo.contentOffset.y
@@ -102,7 +125,7 @@ struct RoutineCoachView: View {
                 }
 
                 // 하단 버튼 섹션
-                VStack(spacing: 16) {
+                VStack(spacing: 6) {
                     HStack(spacing: 12) {
                         Button(action: {
                             if viewModel.isRegenerating {
@@ -171,15 +194,32 @@ struct RoutineCoachView: View {
             if viewModel.isLoading {
                 CommonLoadingView(
                     message: "2박 3일 여정으로 떠나고 있습니다",
-                    lottieFileName: "Loading 51 _ Monoplane"
+                    lottieFileName: "TriPriend"
                 )
                 .transition(.opacity)
                 .zIndex(1)
             }
+
+            if showContinuationPopup {
+                CommonPopupView(
+                    isPresented: $showContinuationPopup,
+                    title: "이전 여정을 100% 완수해서 루틴이 하나 추가되었어요!",
+                    message: "필요 없다면 변경할 수 있습니다.",
+                    leftButtonText: "확인",
+                    leftAction: {
+                        showContinuationPopup = false
+                    },
+                    onClose: {
+                        showContinuationPopup = false
+                    }
+                )
+                .zIndex(2)
+            }
         }
-        // 여정 시작 성공 시 HomeView로 이동
-        .fullScreenCover(isPresented: $viewModel.isJourneyStarted) {
-            HomeView() // 이동할 메인 화면
+        .onChange(of: viewModel.isJourneyStarted) { _, started in
+            guard started else { return }
+            session.completeOnboarding()
+            router.reset()
         }
         
         .alert("루틴 이름 수정", isPresented: $viewModel.isShowingNameEditor) {
@@ -205,6 +245,15 @@ struct RoutineCoachView: View {
             )
             .presentationDetents([.height(280)])
             .presentationDragIndicator(.hidden)
+        }
+        .onAppear {
+            // 화면 진입 시 API 호출
+            viewModel.fetchJourneyOrder()
+            if shouldShowContinuationPopupOnAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    showContinuationPopup = true
+                }
+            }
         }
     }
 }
@@ -253,7 +302,13 @@ extension RoutineCoachView {
 
 // MARK: - Preview
 #Preview{
-    RoutineCoachView(routines: [], journeyId: 1)
-            .environmentObject(HomeViewModel())
+    RoutineCoachView(
+        routines: [],
+        goal: "건강한 생활 만들기",
+        category: "ROUTINE",
+        selectedInsights: []
+    )
+    .environmentObject(HomeViewModel())
+    .environment(NavigationRouter())
+    .environment(SessionStore())
 }
-

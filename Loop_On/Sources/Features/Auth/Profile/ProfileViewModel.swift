@@ -253,24 +253,43 @@ final class ProfileViewModel: ObservableObject {
             agreedTermIds: flowStore.agreedTermIds
         )
         
+        networkManager.requestStatusCode(target: .signUp(request: request)) { [weak self] result in
+            guard let self else { return }
+
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    // 회원가입 응답의 data가 숫자(userId)인 경우가 있어 상태코드 성공만 확인하고,
+                    // 이후 동일 계정으로 로그인해 토큰을 발급받는다.
+                    self.loginAfterSignUp(email: flowStore.email, password: flowStore.password)
+
+                case .failure(let error):
+                    self.isLoading = false
+                    self.errorMessage = error.localizedDescription
+                    print("DEBUG: 회원가입 API 실패 - \(error)")
+                }
+            }
+        }
+    }
+
+    private func loginAfterSignUp(email: String, password: String) {
         networkManager.request(
-            target: .signUp(request: request),
-            decodingType: LoginData.self // AuthViewModel에 정의된 LoginData 사용
+            target: .login(email: email, password: password),
+            decodingType: LoginData.self
         ) { [weak self] result in
             guard let self else { return }
-            
+
             Task { @MainActor in
                 self.isLoading = false
                 switch result {
                 case .success(let loginData):
-                    // 가입 성공 시 받은 토큰을 키체인에 저장
                     KeychainService.shared.saveToken(loginData.accessToken)
                     self.isProfileSaved = true
-                    print("DEBUG: 회원가입 성공 및 토큰 저장 완료")
-                    
+                    print("DEBUG: 회원가입 성공 후 자동 로그인 및 토큰 저장 완료")
+
                 case .failure(let error):
-                    self.errorMessage = error.localizedDescription
-                    print("DEBUG: 회원가입 API 실패 - \(error)")
+                    self.errorMessage = "회원가입은 완료됐지만 자동 로그인에 실패했어요. 로그인 화면에서 다시 로그인해주세요."
+                    print("DEBUG: 회원가입 후 자동 로그인 실패 - \(error)")
                 }
             }
         }

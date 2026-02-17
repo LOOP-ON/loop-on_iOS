@@ -32,9 +32,14 @@ struct ChallengeView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                HomeHeaderView(onSettingsTapped: {
-                    router.push(.app(.settings))
-                })
+                HomeHeaderView(
+                    onPassportTapped: {
+                        router.push(.app(.passport))
+                    },
+                    onSettingsTapped: {
+                        router.push(.app(.settings))
+                    }
+                )
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
 
@@ -113,7 +118,12 @@ struct ChallengeView: View {
             }
             .presentationBackground(.clear)
         }
-        .fullScreenCover(isPresented: $isShowingShareJourney, onDismiss: { editChallengeId = nil }) {
+        .fullScreenCover(isPresented: $isShowingShareJourney, onDismiss: {
+            editChallengeId = nil
+            // 여정 광장에서 연 공유 흐름은 닫힌 뒤에도 여정 광장 탭 유지
+            selectedTopTab = .plaza
+            selectedTopTabRawValue = ChallengeTopTab.plaza.rawValue
+        }) {
             ShareJourneyView(editChallengeId: editChallengeId)
         }
         .onAppear {

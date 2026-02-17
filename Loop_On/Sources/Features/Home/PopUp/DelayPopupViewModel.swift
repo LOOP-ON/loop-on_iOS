@@ -13,8 +13,11 @@ class DelayPopupViewModel: ObservableObject {
     @Published var selectedReason: DelayReason? = nil
     @Published var customReason: String = ""
     @Published var isSubmitting: Bool = false // API 통신 중 로딩 상태 관리
+    @Published var isLoadingReason: Bool = false
+    @Published var errorMessage: String?
     
     let reasons: [DelayReason] = delayReasonsData
+    private let networkManager = DefaultNetworkManager<HomeAPI>()
     
     // MARK: - Logic
     
@@ -32,10 +35,14 @@ class DelayPopupViewModel: ObservableObject {
         }
         return ""
     }
-    
+
     // MARK: - API Integration (준비 단계)
-    func submitDelay(routineIndex: Int, completion: @escaping (Bool) -> Void) {
+    func submitDelay(journeyId: Int, progressId: Int, completion: @escaping (Bool) -> Void) {
         guard canSubmit else { return }
+        guard journeyId > 0, progressId > 0 else {
+            completion(false)
+            return
+        }
         
         isSubmitting = true
         
@@ -48,14 +55,86 @@ class DelayPopupViewModel: ObservableObject {
         }
         #endif
         
-        // TODO: 실제 API 연동 시 URLSession이나 Moya 등을 여기서 호출
-        print("API 요청 전송 중... [루틴: \(routineIndex), 사유: \(finalReason)]")
-        
-        // 가상의 네트워크 지연 처리 (2초 후 성공 가정)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.isSubmitting = false
-            print("API 요청 성공")
-            completion(true)
+        let request = RoutinePostponeRequest(
+            progressIds: [progressId],
+            reason: finalReason
+        )
+
+        networkManager.requestStatusCode(
+            target: .postponeRoutine(journeyId: journeyId, request: request)
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isSubmitting = false
+                switch result {
+                case .success:
+                    completion(true)
+                case .failure(let error):
+                    print("루틴 미루기 실패: \(error.localizedDescription)")
+                    self.errorMessage = error.localizedDescription
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    func fetchPostponeReason(progressId: Int, completion: ((Bool) -> Void)? = nil) {
+        guard progressId > 0 else {
+            completion?(false)
+            return
+        }
+
+        isLoadingReason = true
+        errorMessage = nil
+
+        networkManager.request(
+            target: .fetchPostponeReason(progressId: progressId),
+            decodingType: RoutinePostponeReasonData.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isLoadingReason = false
+                switch result {
+                case .success(let data):
+                    self.setupInitialReason(data.reason)
+                    completion?(true)
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                    completion?(false)
+                }
+            }
+        }
+    }
+
+    func updatePostponeReason(progressId: Int, completion: @escaping (Bool) -> Void) {
+        guard canSubmit else {
+            completion(false)
+            return
+        }
+        guard progressId > 0 else {
+            completion(false)
+            return
+        }
+
+        isSubmitting = true
+        errorMessage = nil
+
+        let request = RoutinePostponeReasonUpdateRequest(reason: finalReason)
+        networkManager.request(
+            target: .updatePostponeReason(progressId: progressId, request: request),
+            decodingType: RoutinePostponeReasonUpdateData.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isSubmitting = false
+                switch result {
+                case .success:
+                    completion(true)
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                    completion(false)
+                }
+            }
         }
     }
     

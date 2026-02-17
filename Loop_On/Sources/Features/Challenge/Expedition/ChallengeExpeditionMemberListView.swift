@@ -8,46 +8,112 @@
 import SwiftUI
 
 struct ChallengeExpeditionMember: Identifiable {
-    let id = UUID()
+    let id: Int
     let name: String
+    let profileImageUrl: String?
     let isSelf: Bool
     let isLeader: Bool
-    let isFriend: Bool
     let isKickPending: Bool
 }
 
 extension ChallengeExpeditionMember {
     static let sampleMembers: [ChallengeExpeditionMember] = [
-        ChallengeExpeditionMember(name: "서리 (나)", isSelf: true, isLeader: true, isFriend: true, isKickPending: false),
-        ChallengeExpeditionMember(name: "쥬디 (탐험대장)", isSelf: false, isLeader: true, isFriend: true, isKickPending: false),
-        ChallengeExpeditionMember(name: "키미", isSelf: false, isLeader: false, isFriend: true, isKickPending: false),
-        ChallengeExpeditionMember(name: "써니", isSelf: false, isLeader: false, isFriend: false, isKickPending: false),
-        ChallengeExpeditionMember(name: "핀", isSelf: false, isLeader: false, isFriend: false, isKickPending: false),
-        ChallengeExpeditionMember(name: "허니", isSelf: false, isLeader: false, isFriend: false, isKickPending: true),
-        ChallengeExpeditionMember(name: "엠제이", isSelf: false, isLeader: false, isFriend: false, isKickPending: false),
-        ChallengeExpeditionMember(name: "우니", isSelf: false, isLeader: false, isFriend: false, isKickPending: false),
-        ChallengeExpeditionMember(name: "매티", isSelf: false, isLeader: false, isFriend: false, isKickPending: false)
+        ChallengeExpeditionMember(id: 1, name: "서리", profileImageUrl: nil, isSelf: true, isLeader: true, isKickPending: false),
+        ChallengeExpeditionMember(id: 2, name: "쥬디", profileImageUrl: nil, isSelf: false, isLeader: false, isKickPending: false),
+        ChallengeExpeditionMember(id: 3, name: "키미", profileImageUrl: nil, isSelf: false, isLeader: false, isKickPending: false),
+        ChallengeExpeditionMember(id: 4, name: "써니", profileImageUrl: nil, isSelf: false, isLeader: false, isKickPending: false),
+        ChallengeExpeditionMember(id: 5, name: "핀", profileImageUrl: nil, isSelf: false, isLeader: false, isKickPending: true)
     ]
 }
 
 struct ChallengeExpeditionMemberListView: View {
     let title: String
     let memberCountText: String
-    let isOwner: Bool
+    let isHost: Bool
     let members: [ChallengeExpeditionMember]
+    let isLoading: Bool
+    let errorMessage: String?
     var onClose: () -> Void
-    var onKick: (UUID) -> Void
-    var onKickCancel: (UUID) -> Void
-    var onFriendRequest: (UUID) -> Void
+    var onRefresh: () -> Void
+    var onKick: (Int) -> Void
+    var onKickCancel: (Int) -> Void
     private var sortedMembers: [ChallengeExpeditionMember] {
         members.sorted { lhs, rhs in
-            switch (lhs.isKickPending, rhs.isKickPending) {
-            case (true, false):
-                return false
-            case (false, true):
-                return true
-            default:
-                return false
+            if lhs.isSelf != rhs.isSelf { return lhs.isSelf }
+            if lhs.isKickPending != rhs.isKickPending { return !lhs.isKickPending }
+            if lhs.isLeader != rhs.isLeader { return lhs.isLeader }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+    }
+
+    private var hasKickedMembers: Bool {
+        sortedMembers.contains { $0.isKickPending }
+    }
+
+    private var approvedMembers: [ChallengeExpeditionMember] {
+        sortedMembers.filter { !$0.isKickPending }
+    }
+
+    private var kickedMembers: [ChallengeExpeditionMember] {
+        sortedMembers.filter { $0.isKickPending }
+    }
+
+    private func memberDisplayName(_ member: ChallengeExpeditionMember) -> String {
+        if member.isSelf {
+            return "\(member.name) (나)"
+        }
+        if member.isLeader {
+            return "\(member.name) (탐험대장)"
+        }
+        return member.name
+    }
+
+    @ViewBuilder
+    private var memberListContent: some View {
+        if isLoading {
+            ProgressView()
+                .frame(maxWidth: .infinity, minHeight: 140)
+                .padding(.top, 20)
+        } else if let errorMessage {
+            Text(errorMessage)
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                .foregroundStyle(Color("25-Text"))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: 140)
+                .padding(.top, 20)
+        } else if sortedMembers.isEmpty {
+            Text("탐험대원이 없습니다.")
+                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                .foregroundStyle(Color("25-Text"))
+                .frame(maxWidth: .infinity, minHeight: 140)
+                .padding(.top, 20)
+        } else {
+            VStack(spacing: 0) {
+                ForEach(approvedMembers) { member in
+                    MemberRow(
+                        member: member,
+                        isHost: isHost,
+                        onKick: onKick,
+                        onKickCancel: onKickCancel,
+                        displayName: memberDisplayName(member)
+                    )
+                }
+
+                if hasKickedMembers {
+                    Divider()
+                        .background(Color.gray.opacity(0.15))
+                        .padding(.vertical, 2)
+
+                    ForEach(kickedMembers) { member in
+                        MemberRow(
+                            member: member,
+                            isHost: isHost,
+                            onKick: onKick,
+                            onKickCancel: onKickCancel,
+                            displayName: memberDisplayName(member)
+                        )
+                    }
+                }
             }
         }
     }
@@ -65,27 +131,15 @@ struct ChallengeExpeditionMemberListView: View {
 
                 ScrollView {
                     VStack(spacing: 0) {
-                        ForEach(sortedMembers.indices, id: \.self) { index in
-                            let member = sortedMembers[index]
-                            MemberRow(
-                                member: member,
-                                isOwner: isOwner,
-                                onKick: onKick,
-                                onKickCancel: onKickCancel,
-                                onFriendRequest: onFriendRequest
-                            )
-
-                            if index < sortedMembers.count - 1,
-                               member.isKickPending != sortedMembers[index + 1].isKickPending {
-                                Divider()
-                                    .background(Color.gray.opacity(0.15))
-                            }
-                        }
+                        memberListContent
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 12)
                 }
                 .scrollIndicators(.hidden)
+                .refreshable {
+                    onRefresh()
+                }
 
                 Divider()
 
@@ -115,7 +169,7 @@ private extension ChallengeExpeditionMemberListView {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(memberCountText)
-                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
+                .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 16))
                 .foregroundStyle(Color(.primaryColorVarient65))
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -125,10 +179,10 @@ private extension ChallengeExpeditionMemberListView {
 
 private struct MemberRow: View {
     let member: ChallengeExpeditionMember
-    let isOwner: Bool
-    var onKick: (UUID) -> Void
-    var onKickCancel: (UUID) -> Void
-    var onFriendRequest: (UUID) -> Void
+    let isHost: Bool
+    let onKick: (Int) -> Void
+    let onKickCancel: (Int) -> Void
+    let displayName: String
 
     var body: some View {
         HStack(spacing: 12) {
@@ -140,7 +194,7 @@ private struct MemberRow: View {
                         .foregroundStyle(Color.white)
                 )
 
-            Text(memberDisplayName)
+            Text(displayName)
                 .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
                 .foregroundStyle(Color("5-Text"))
 
@@ -151,15 +205,11 @@ private struct MemberRow: View {
         .padding(.vertical, 10)
     }
 
-    private var memberDisplayName: String {
-        member.name
-    }
-
     @ViewBuilder
     private var actionButton: some View {
-        if member.isSelf {
+        if !isHost || member.isSelf {
             EmptyView()
-        } else if isOwner {
+        } else {
             Button(member.isKickPending ? "퇴출 해제" : "퇴출") {
                 if member.isKickPending {
                     onKickCancel(member.id)
@@ -168,16 +218,6 @@ private struct MemberRow: View {
                 }
             }
             .buttonStyle(ExpeditionMemberActionStyle(isHighlighted: true))
-        } else {
-            if member.isFriend {
-                Text("친구")
-                    .buttonStyle(ExpeditionMemberActionStyle(isHighlighted: false))
-            } else {
-                Button("친구 신청") {
-                    onFriendRequest(member.id)
-                }
-                .buttonStyle(ExpeditionMemberActionStyle(isHighlighted: true))
-            }
         }
     }
 }
@@ -203,11 +243,13 @@ private struct ExpeditionMemberActionStyle: ButtonStyle {
     ChallengeExpeditionMemberListView(
         title: "탐험대 명단",
         memberCountText: "8/10",
-        isOwner: true,
+        isHost: true,
         members: ChallengeExpeditionMember.sampleMembers,
+        isLoading: false,
+        errorMessage: nil,
         onClose: {},
+        onRefresh: {},
         onKick: { _ in },
-        onKickCancel: { _ in },
-        onFriendRequest: { _ in }
+        onKickCancel: { _ in }
     )
 }
