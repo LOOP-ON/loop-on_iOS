@@ -38,6 +38,8 @@ class ShareJourneyViewModel: ObservableObject {
     var editChallengeId: Int?
     @Published var isLoadingDetail: Bool = false
     @Published var loadDetailError: String?
+    @Published var isUploading: Bool = false
+    @Published var uploadErrorMessage: String?
 
     private let challengeNetworkManager = DefaultNetworkManager<ChallengeAPI>()
 
@@ -126,6 +128,19 @@ class ShareJourneyViewModel: ObservableObject {
     
     // POST /api/challenges 또는 PUT /api/challenges/{id} 연동
     func uploadChallenge() {
+        guard !isUploading else { return }
+        guard journeyId > 0 else {
+            uploadErrorMessage = "여정 정보를 확인할 수 없어 업로드할 수 없습니다."
+            return
+        }
+        guard !photos.isEmpty else {
+            uploadErrorMessage = "사진을 1장 이상 추가해주세요."
+            return
+        }
+
+        isUploading = true
+        uploadErrorMessage = nil
+
         let hashtagList = Array(selectedHashtags)
         let dto = CreateChallengeRequestDTO(
             hashtagList: hashtagList,
@@ -143,12 +158,14 @@ class ShareJourneyViewModel: ObservableObject {
                 decodingType: CreateChallengeDataDTO.self
             ) { [weak self] result in
                 DispatchQueue.main.async {
+                    self?.isUploading = false
                     switch result {
                     case .success:
                         print("[챌린지 수정] 성공")
                         self?.dismiss?()
                     case .failure(let error):
                         print("[챌린지 수정] 실패: \(error)")
+                        self?.uploadErrorMessage = error.localizedDescription
                     }
                 }
             }
@@ -159,12 +176,14 @@ class ShareJourneyViewModel: ObservableObject {
                 decodingType: CreateChallengeDataDTO.self
             ) { [weak self] result in
                 DispatchQueue.main.async {
+                    self?.isUploading = false
                     switch result {
                     case .success(let data):
                         print("[챌린지 업로드] 성공 — challengeId: \(data.challengeId)")
                         self?.dismiss?()
                     case .failure(let error):
                         print("[챌린지 업로드] 실패: \(error)")
+                        self?.uploadErrorMessage = error.localizedDescription
                     }
                 }
             }

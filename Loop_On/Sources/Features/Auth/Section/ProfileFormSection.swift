@@ -17,7 +17,7 @@ struct ProfileFormSection: View {
                 HStack(spacing: 10) {
                     ProfileTextField(
                         text: $vm.nickname,
-                        placeholder: "닉네임 (한글 7자 이내 영문 10자 이내)",
+                        placeholder: "닉네임 입력",
                         textColorName: "25-Text",
                         placeholderColorName: "45-Text",
                         backgroundColorName: "background"
@@ -50,8 +50,7 @@ struct ProfileFormSection: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    // 비밀번호 재설정 화면과 동일하게, 색은 유지하고 터치만 막기
-                    .allowsHitTesting(vm.nicknameCheckState != .checking && vm.isNicknameValid)
+                    .disabled(vm.nicknameCheckState == .checking || vm.isLoading)
                 }
             }
             .padding(.bottom, 8)

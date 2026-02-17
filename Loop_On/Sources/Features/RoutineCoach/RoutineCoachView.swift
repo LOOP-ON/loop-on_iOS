@@ -85,6 +85,7 @@ struct RoutineCoachView: View {
                                     isEditing: viewModel.isEditing,
                                     totalCount: viewModel.routines.count,
                                     isRegenerating: viewModel.isRegenerating,
+                                    isRegeneratingThisRoutine: viewModel.regeneratingRoutineIDs.contains(routine.id),
                                     onTimeTap: {
                                         viewModel.openTimePicker(for: index)
                                     },
@@ -219,6 +220,8 @@ struct RoutineCoachView: View {
         .onChange(of: viewModel.isJourneyStarted) { _, started in
             guard started else { return }
             session.completeOnboarding()
+            // 루틴 저장 성공 직후 홈 데이터를 최신 여정 기준으로 갱신
+            homeViewModel.fetchHomeData()
             router.reset()
         }
         

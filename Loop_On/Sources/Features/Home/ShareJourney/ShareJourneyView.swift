@@ -12,20 +12,36 @@ import PhotosUI
 struct ShareJourneyView: View {
     /// 수정 모드일 때 기존 챌린지 ID (nil이면 새로 올리기)
     private let editChallengeId: Int?
+    private let bottomContentInset: CGFloat
+    private let onClose: (() -> Void)?
     @StateObject private var viewModel: ShareJourneyViewModel
     @Environment(\.dismiss) private var dismiss
 
-    init(editChallengeId: Int? = nil) {
+    init(
+        editChallengeId: Int? = nil,
+        journeyId: Int = 0,
+        expeditionId: Int = 0,
+        bottomContentInset: CGFloat = 0,
+        onClose: (() -> Void)? = nil
+    ) {
         self.editChallengeId = editChallengeId
-        _viewModel = StateObject(wrappedValue: ShareJourneyViewModel(editChallengeId: editChallengeId))
+        self.bottomContentInset = bottomContentInset
+        self.onClose = onClose
+        let vm = ShareJourneyViewModel(editChallengeId: editChallengeId)
+        vm.journeyId = journeyId
+        vm.expeditionId = expeditionId
+        _viewModel = StateObject(wrappedValue: vm)
     }
 
     private var isEditMode: Bool { editChallengeId != nil }
+    private var screenBackgroundColor: Color {
+        Color(red: 0.98, green: 0.98, blue: 0.98)
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.98, green: 0.98, blue: 0.98)
+                screenBackgroundColor
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
@@ -49,13 +65,18 @@ struct ShareJourneyView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
+            .toolbarBackground(
+                screenBackgroundColor,
+                for: .navigationBar
+            )
+            .toolbarBackground(.visible, for: .navigationBar)
             .onAppear {
-                viewModel.dismiss = { dismiss() }
+                viewModel.dismiss = { closeView() }
                 viewModel.loadChallengeDetailIfNeeded()
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
+                    Button(action: closeView) {
                         Image(systemName: "chevron.left")
                             .foregroundStyle(Color.black)
                             .font(.system(size: 18, weight: .medium))
@@ -68,28 +89,55 @@ struct ShareJourneyView: View {
                 }
             }
         }
+        .background(screenBackgroundColor.ignoresSafeArea())
+        .alert(
+            "챌린지 업로드 실패",
+            isPresented: Binding(
+                get: { viewModel.uploadErrorMessage != nil },
+                set: { if !$0 { viewModel.uploadErrorMessage = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) { viewModel.uploadErrorMessage = nil }
+        } message: {
+            Text(viewModel.uploadErrorMessage ?? "알 수 없는 오류가 발생했어요.")
+        }
+    }
+
+    private func closeView() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
     }
 
     // 하단 고정 버튼 섹션
     private var fixedBottomButton: some View {
         VStack {
             Button(action: viewModel.uploadChallenge) {
-                Text("챌린지 업로드")
-                    .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.primaryColorVarient65))
-                    )
-                    .foregroundStyle(Color.white)
+                HStack(spacing: 8) {
+                    if viewModel.isUploading {
+                        ProgressView()
+                            .tint(.white)
+                    }
+                    Text("챌린지 업로드")
+                        .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 18))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(viewModel.isUploading ? Color("85") : Color(.primaryColorVarient65))
+                )
+                .foregroundStyle(Color.white)
                     
             }
+            .disabled(viewModel.isUploading)
             .padding(.horizontal, 20)
             .padding(.top, 12)
-            .padding(.bottom, 10)
+            .padding(.bottom, 10 + bottomContentInset)
         }
-        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+        .background(screenBackgroundColor)
     }
 
     private var photoSection: some View {

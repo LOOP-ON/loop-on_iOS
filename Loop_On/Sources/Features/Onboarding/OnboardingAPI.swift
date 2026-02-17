@@ -17,6 +17,8 @@ enum OnboardingAPI {
     case generateLoops(request: LoopRecommendationRequest)
     // 11번 api (루틴 생성)
     case createRoutines(request: RoutineCreateRequest)
+    // 루프 1개 재생성
+    case regenerateRoutine(request: RoutineRegenerateRequest)
     // (/journey/order api)에 사용
     case getJourneyOrder
 }
@@ -40,6 +42,8 @@ extension OnboardingAPI: TargetType {
             return "/api/goals/loops"
         case .createRoutines:
             return "/api/routines"
+        case .regenerateRoutine:
+            return "/api/journeys/regenerate"
         case .getJourneyOrder:
             return "/api/journeys/order"
         }
@@ -49,7 +53,7 @@ extension OnboardingAPI: TargetType {
         switch self {
         case .getJourneyOrder:
             return .get
-        case .createJourneyGoal, .generateLoops, .createLoop, .createRoutines:
+        case .createJourneyGoal, .generateLoops, .createLoop, .createRoutines, .regenerateRoutine:
             return .post
         }
     }
@@ -65,6 +69,8 @@ extension OnboardingAPI: TargetType {
         case let .generateLoops(request):
             return .requestJSONEncodable(request)
         case let .createRoutines(request):
+            return .requestJSONEncodable(request)
+        case let .regenerateRoutine(request):
             return .requestJSONEncodable(request)
         
         }

@@ -16,6 +16,23 @@ struct SocialLoginRequest: Encodable {
     let accessToken: String
 }
 
+struct VerificationSendRequest: Encodable {
+    let email: String
+    let purpose: String
+}
+
+struct VerificationVerifyRequest: Encodable {
+    let email: String
+    let code: String
+    let purpose: String
+}
+
+struct PasswordResetRequest: Encodable {
+    let email: String
+    let resetToken: String
+    let newPassword: String
+}
+
 enum AuthAPI {
     case login(email: String, password: String)
     /// 소셜 로그인 (카카오/애플) - provider와 accessToken 전달. `/api/auth/login/social`
@@ -34,6 +51,12 @@ enum AuthAPI {
     /// 로그아웃. 서버 연동 후 엔드포인트 연결 시 사용. 로그아웃 시 KeychainService.deleteToken()은 SessionStore에서 호출됨.
     /// - parameter refreshToken: 서버 명세상 `refresh_token` 파라미터로 전달됩니다.
     case logout(refreshToken: String)
+    /// 인증번호 발송 (`/api/auth/verification/send`)
+    case sendVerification(request: VerificationSendRequest)
+    /// 인증번호 검증 (`/api/auth/verification/verify`)
+    case verifyVerification(request: VerificationVerifyRequest)
+    /// 비밀번호 재설정 (`/api/auth/verification/password-reset`)
+    case resetPassword(request: PasswordResetRequest)
     // 토큰 재발 (서버 명세 후 추가)
 }
 
@@ -62,12 +85,18 @@ extension AuthAPI: TargetType {
         case .logout:
             // 서버 명세: /api/auth/logout
             return "/api/auth/logout"
+        case .sendVerification:
+            return "/api/auth/verification/send"
+        case .verifyVerification:
+            return "/api/auth/verification/verify"
+        case .resetPassword:
+            return "/api/auth/verification/password-reset"
         }
     }
 
     var method: Moya.Method {
         switch self {
-        case .login, .socialLogin, .signUp, .checkEmail, .checkNickname, .uploadProfileImage:
+        case .login, .socialLogin, .signUp, .checkEmail, .checkNickname, .uploadProfileImage, .sendVerification, .verifyVerification, .resetPassword:
             return .post
         case .logout:
             return .post
@@ -114,6 +143,12 @@ extension AuthAPI: TargetType {
                 parameters: ["refresh_token": refreshToken],
                 encoding: JSONEncoding.default
             )
+        case let .sendVerification(request):
+            return .requestJSONEncodable(request)
+        case let .verifyVerification(request):
+            return .requestJSONEncodable(request)
+        case let .resetPassword(request):
+            return .requestJSONEncodable(request)
         }
     }
 
