@@ -738,12 +738,17 @@ private extension ChallengeExpeditionDetailView {
     }
 
     func expeditionDeleteComment(challengeId: Int, commentId: Int, completion: @escaping (Bool) -> Void) {
-        networkManager.request(
-            target: ChallengeAPI.deleteComment(challengeId: challengeId, commentId: commentId),
-            decodingType: String.self
-        ) { result in
+        print("📤 [댓글 삭제] DELETE /api/challenges/\(challengeId)/comments/\(commentId) 요청 (탐험대)")
+        networkManager.requestStatusCode(target: ChallengeAPI.deleteComment(challengeId: challengeId, commentId: commentId)) { result in
             Task { @MainActor in
-                completion((try? result.get()) != nil)
+                switch result {
+                case .success:
+                    print("✅ [댓글 삭제] success: commentId=\(commentId)")
+                    completion(true)
+                case .failure(let error):
+                    print("❌ [댓글 삭제] failed: commentId=\(commentId), error=\(error)")
+                    completion(false)
+                }
             }
         }
     }

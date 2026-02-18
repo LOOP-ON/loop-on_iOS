@@ -261,21 +261,20 @@ final class ChallengePlazaViewModel: ObservableObject {
 
     /// 댓글 삭제
     func deleteComment(challengeId: Int, commentId: Int, completion: @escaping (Result<Void, NetworkError>) -> Void) {
+        print("📤 [댓글 삭제] DELETE /api/challenges/\(challengeId)/comments/\(commentId) 요청")
         let target = ChallengeAPI.deleteComment(challengeId: challengeId, commentId: commentId)
-        networkManager.request(
-            target: target,
-            decodingType: String.self,
-            completion: { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success:
-                        completion(.success(()))
-                    case .failure(let error):
-                        completion(.failure(error))
-                    }
+        networkManager.requestStatusCode(target: target) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("✅ [댓글 삭제] success: commentId=\(commentId)")
+                    completion(.success(()))
+                case .failure(let error):
+                    print("❌ [댓글 삭제] failed: commentId=\(commentId), error=\(error)")
+                    completion(.failure(error))
                 }
             }
-        )
+        }
     }
 
     /// 댓글 좋아요/취소
