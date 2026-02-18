@@ -193,7 +193,7 @@ final class ChallengePlazaViewModel: ObservableObject {
                         print("📥 [댓글 목록] 응답 성공: \(comments.count)개")
                     case .failure(let error):
                         print("❌ [댓글 목록] 응답 실패: \(error)")
-                        comments = ChallengeComment.sample
+                        comments = []
                     }
                     completion(comments)
                 }
@@ -304,7 +304,7 @@ final class ChallengePlazaViewModel: ObservableObject {
     }
 
     /// top-level + children를 평탄화하여 [부모, 대댓글들, 다음 부모, ...] 순으로 반환
-    private static func flattenComments(from dtos: [ChallengeCommentItemDTO]) -> [ChallengeComment] {
+    static func flattenComments(from dtos: [ChallengeCommentItemDTO]) -> [ChallengeComment] {
         var result: [ChallengeComment] = []
         for dto in dtos {
             result.append(challengeComment(from: dto, replyToName: nil))
@@ -315,7 +315,7 @@ final class ChallengePlazaViewModel: ObservableObject {
         return result
     }
 
-    private static func challengeComment(from dto: ChallengeCommentItemDTO, replyToName: String? = nil) -> ChallengeComment {
+    static func challengeComment(from dto: ChallengeCommentItemDTO, replyToName: String? = nil) -> ChallengeComment {
         ChallengeComment(
             commentId: dto.commentId,
             authorName: dto.nickName,

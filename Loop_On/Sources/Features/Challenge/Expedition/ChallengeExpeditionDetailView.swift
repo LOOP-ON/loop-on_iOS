@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ChallengeExpeditionDetailView: View {
     @Environment(NavigationRouter.self) private var router
+    @Environment(SessionStore.self) private var session
 
     let expeditionId: Int
     let expeditionName: String
@@ -167,9 +168,13 @@ private extension ChallengeExpeditionDetailView {
                 ForEach($cards) { $card in
                     ChallengeCardView(
                         card: $card,
-                        onDelete: { id in
-                            deleteTargetId = id
-                        }
+                        onLikeTap: { id, isLiked in expeditionDidToggleLike(id: id, isLiked: isLiked) },
+                        onDelete: { id in deleteTargetId = id },
+                        onCommentTap: expeditionLoadComments,
+                        onLoadMoreComments: expeditionLoadMoreComments,
+                        onCommentLike: expeditionLikeComment,
+                        onPostComment: expeditionPostComment,
+                        onDeleteComment: expeditionDeleteComment
                     )
                     .onAppear {
                         handleCardAppear(currentId: $card.wrappedValue.challengeId)
@@ -616,7 +621,7 @@ private extension ChallengeExpeditionDetailView {
         let tags = dto.hashtags.map { $0.hasPrefix("#") ? $0 : "#\($0)" }
         return ChallengeCard(
             challengeId: dto.challengeId,
-            title: "\(dto.journeyNumber) 번째 여정",
+            title: "\(dto.journeyNumber)번째 여정",
             subtitle: dto.content,
             dateText: formatExpeditionDate(dto.createdAt),
             hashtags: tags,
@@ -624,7 +629,8 @@ private extension ChallengeExpeditionDetailView {
             imageUrls: dto.imageUrls,
             profileImageUrl: dto.profileImageUrl,
             isLiked: dto.isLiked,
-            likeCount: dto.likeCount
+            likeCount: dto.likeCount,
+            isMine: false
         )
     }
 
@@ -640,6 +646,124 @@ private extension ChallengeExpeditionDetailView {
         formatter.dateFormat = "yyyy.MM.dd"
         formatter.locale = Locale(identifier: "ko_KR")
         return formatter.string(from: date)
+    }
+
+    // MARK: - 댓글/좋아요 (ChallengeAPI)
+
+    func expeditionDidToggleLike(id: Int, isLiked: Bool) {
+        guard let idx = cards.firstIndex(where: { $0.challengeId == id }) else { return }
+        cards[idx].isLiked = isLiked
+        let apiIsLiked = !isLiked
+        let request = ChallengeLikeRequestDTO(isLiked: apiIsLiked)
+        networkManager.request(
+            target: ChallengeAPI.likeChallenge(challengeId: id, request: request),
+            decodingType: ChallengeLikeDataDTO.self
+        ) { result in
+            Task { @MainActor in
+                guard let idx = cards.firstIndex(where: { $0.challengeId == id }) else { return }
+                switch result {
+                case .success:
+                    if isLiked {
+                        cards[idx].likeCount += 1
+                    } else {
+                        cards[idx].likeCount = max(0, cards[idx].likeCount - 1)
+                    }
+                case .failure:
+                    cards[idx].isLiked.toggle()
+                }
+            }
+        }
+    }
+
+    func expeditionLoadComments(for cardId: Int, completion: @escaping ([ChallengeComment]) -> Void) {
+        networkManager.request(
+            target: ChallengeAPI.getChallengeComments(challengeId: cardId, page: 0, size: 50, sort: nil),
+            decodingType: ChallengeCommentsPageDTO.self
+        ) { result in
+            Task { @MainActor in
+                switch result {
+                case .success(let page):
+                    completion(ChallengePlazaViewModel.flattenComments(from: page.content))
+                case .failure:
+                    completion([])
+                }
+            }
+        }
+    }
+
+    func expeditionLoadMoreComments(challengeId: Int, page: Int, completion: @escaping ([ChallengeComment], Bool) -> Void) {
+        networkManager.request(
+            target: ChallengeAPI.getChallengeComments(challengeId: challengeId, page: page, size: 20, sort: nil),
+            decodingType: ChallengeCommentsPageDTO.self
+        ) { result in
+            Task { @MainActor in
+                switch result {
+                case .success(let pageDto):
+                    let comments = ChallengePlazaViewModel.flattenComments(from: pageDto.content)
+                    let hasMore = pageDto.hasNext ?? !(pageDto.last ?? true)
+                    completion(comments, hasMore)
+                case .failure:
+                    completion([], false)
+                }
+            }
+        }
+    }
+
+    func expeditionPostComment(challengeId: Int, content: String, parentId: Int, replyToName: String?, completion: @escaping (Result<ChallengeComment, Error>) -> Void) {
+        let request = CommentPostRequestDTO(content: content, parentId: parentId == 0 ? nil : parentId)
+        networkManager.request(
+            target: ChallengeAPI.postComment(challengeId: challengeId, request: request),
+            decodingType: CommentPostDataDTO.self
+        ) { result in
+            Task { @MainActor in
+                switch result {
+                case .success(let data):
+                    let author = (session.currentUserNickname.trimmingCharacters(in: .whitespacesAndNewlines)).isEmpty ? "나" : session.currentUserNickname
+                    let comment = ChallengeComment(
+                        commentId: data.commentId,
+                        authorName: author,
+                        content: content,
+                        isReply: parentId != 0,
+                        replyToName: parentId != 0 ? replyToName : nil,
+                        isMine: true,
+                        isLiked: false,
+                        likeCount: 0
+                    )
+                    completion(.success(comment))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+
+    func expeditionDeleteComment(challengeId: Int, commentId: Int, completion: @escaping (Bool) -> Void) {
+        networkManager.request(
+            target: ChallengeAPI.deleteComment(challengeId: challengeId, commentId: commentId),
+            decodingType: String.self
+        ) { result in
+            Task { @MainActor in
+                completion((try? result.get()) != nil)
+            }
+        }
+    }
+
+    func expeditionLikeComment(commentId: Int, isLiked: Bool, completion: @escaping (Bool) -> Void) {
+        let apiIsLiked = !isLiked
+        let request = ChallengeLikeRequestDTO(isLiked: apiIsLiked)
+        networkManager.request(
+            target: ChallengeAPI.likeComment(commentId: commentId, request: request),
+            decodingType: CommentLikeDataDTO.self
+        ) { result in
+            Task { @MainActor in
+                switch result {
+                case .success:
+                    completion(true)
+                case .failure:
+                    completion(false)
+                }
+            }
+        }
     }
 
     func handleTopActionTap() {
@@ -1147,4 +1271,5 @@ private struct ChallengeExpeditionSettingModalView: View {
         canJoin: false
     )
     .environment(NavigationRouter())
+    .environment(SessionStore())
 }

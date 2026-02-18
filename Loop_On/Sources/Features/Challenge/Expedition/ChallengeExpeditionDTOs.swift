@@ -93,38 +93,59 @@ struct ExpeditionChallengeItemDTO: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case challengeId
+        case challengeIdSnake = "challenge_id"
         case journeyNumber
         case journeySequence
+        case journeyNumberSnake = "journey_number"
         case imageUrls
+        case imageUrlsSnake = "image_urls"
         case content
         case hashtags
         case hashtagList
         case createdAt
+        case createdAtSnake = "created_at"
         case nickName
         case nickname
+        case nickNameSnake = "nick_name"
         case profileImageUrl
+        case profileImageUrlSnake = "profile_image_url"
         case isLiked
+        case isLikedSnake = "is_liked"
         case likeCount
+        case likeCountSnake = "like_count"
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        challengeId = (try? c.decode(Int.self, forKey: .challengeId)) ?? 0
+        challengeId = (try? c.decode(Int.self, forKey: .challengeId))
+            ?? (try? c.decode(Int.self, forKey: .challengeIdSnake))
+            ?? 0
         journeyNumber = (try? c.decode(Int.self, forKey: .journeyNumber))
             ?? (try? c.decode(Int.self, forKey: .journeySequence))
+            ?? (try? c.decode(Int.self, forKey: .journeyNumberSnake))
             ?? 0
-        imageUrls = (try? c.decode([String].self, forKey: .imageUrls)) ?? []
+        imageUrls = (try? c.decode([String].self, forKey: .imageUrls))
+            ?? (try? c.decode([String].self, forKey: .imageUrlsSnake))
+            ?? []
         content = (try? c.decode(String.self, forKey: .content)) ?? ""
         hashtags = (try? c.decode([String].self, forKey: .hashtags))
             ?? (try? c.decode([String].self, forKey: .hashtagList))
             ?? []
-        createdAt = (try? c.decode(String.self, forKey: .createdAt)) ?? ""
+        createdAt = (try? c.decode(String.self, forKey: .createdAt))
+            ?? (try? c.decode(String.self, forKey: .createdAtSnake))
+            ?? ""
         nickName = (try? c.decode(String.self, forKey: .nickName))
             ?? (try? c.decode(String.self, forKey: .nickname))
+            ?? (try? c.decode(String.self, forKey: .nickNameSnake))
             ?? "사용자"
-        profileImageUrl = try? c.decodeIfPresent(String.self, forKey: .profileImageUrl)
-        isLiked = (try? c.decode(Bool.self, forKey: .isLiked)) ?? false
-        likeCount = (try? c.decode(Int.self, forKey: .likeCount)) ?? 0
+        profileImageUrl = (try? c.decodeIfPresent(String.self, forKey: .profileImageUrl))
+            ?? (try? c.decodeIfPresent(String.self, forKey: .profileImageUrlSnake))
+        isLiked = (try? c.decode(Bool.self, forKey: .isLiked))
+            ?? (try? c.decode(Bool.self, forKey: .isLikedSnake))
+            ?? false
+        likeCount = (try? c.decode(Int.self, forKey: .likeCount))
+            ?? (try? c.decode(Int.self, forKey: .likeCountSnake))
+            ?? 0
     }
 }
 
