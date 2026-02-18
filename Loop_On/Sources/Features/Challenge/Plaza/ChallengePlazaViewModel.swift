@@ -76,7 +76,7 @@ final class ChallengePlazaViewModel: ObservableObject {
         let hashtags = dto.hashtags.map { $0.hasPrefix("#") ? $0 : "#\($0)" }
         return ChallengeCard(
             challengeId: dto.challengeId,
-            title: "여정 \(dto.journeySequence)",
+            title: "\(dto.journeySequence)번째 여정",
             subtitle: dto.content,
             dateText: dateText,
             hashtags: hashtags,
@@ -279,8 +279,11 @@ final class ChallengePlazaViewModel: ObservableObject {
     }
 
     /// 댓글 좋아요/취소
+    /// API: true=취소(이미 좋아요O→해제), false=추가(좋아요X→좋아요)
     func likeComment(commentId: Int, isLiked: Bool, completion: @escaping (Bool) -> Void) {
-        let request = ChallengeLikeRequestDTO(isLiked: isLiked)
+        let apiIsLiked = !isLiked
+        print("📤 [댓글 좋아요] POST /api/challenges/comment/\(commentId)/like 요청: isLiked=\(apiIsLiked) (UI=\(isLiked ? "좋아요" : "취소"))")
+        let request = ChallengeLikeRequestDTO(isLiked: apiIsLiked)
         let target = ChallengeAPI.likeComment(commentId: commentId, request: request)
         networkManager.request(
             target: target,
@@ -288,9 +291,11 @@ final class ChallengePlazaViewModel: ObservableObject {
             completion: { result in
                 DispatchQueue.main.async {
                     switch result {
-                    case .success:
+                    case .success(let data):
+                        print("📥 [댓글 좋아요] 응답 성공: commentLikeId=\(data.commentLikeId.map { "\($0)" } ?? "nil")")
                         completion(true)
-                    case .failure:
+                    case .failure(let error):
+                        print("❌ [댓글 좋아요] 응답 실패: \(error)")
                         completion(false)
                     }
                 }
