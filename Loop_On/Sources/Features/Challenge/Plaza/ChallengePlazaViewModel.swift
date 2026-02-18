@@ -76,7 +76,7 @@ final class ChallengePlazaViewModel: ObservableObject {
         let hashtags = dto.hashtags.map { $0.hasPrefix("#") ? $0 : "#\($0)" }
         return ChallengeCard(
             challengeId: dto.challengeId,
-            title: "여정 \(dto.journeySequence)",
+            title: "\(dto.journeySequence)번째 여정",
             subtitle: dto.content,
             dateText: dateText,
             hashtags: hashtags,
@@ -193,7 +193,7 @@ final class ChallengePlazaViewModel: ObservableObject {
                         print("📥 [댓글 목록] 응답 성공: \(comments.count)개")
                     case .failure(let error):
                         print("❌ [댓글 목록] 응답 실패: \(error)")
-                        comments = ChallengeComment.sample
+                        comments = []
                     }
                     completion(comments)
                 }
@@ -261,26 +261,28 @@ final class ChallengePlazaViewModel: ObservableObject {
 
     /// 댓글 삭제
     func deleteComment(challengeId: Int, commentId: Int, completion: @escaping (Result<Void, NetworkError>) -> Void) {
+        print("📤 [댓글 삭제] DELETE /api/challenges/\(challengeId)/comments/\(commentId) 요청")
         let target = ChallengeAPI.deleteComment(challengeId: challengeId, commentId: commentId)
-        networkManager.request(
-            target: target,
-            decodingType: String.self,
-            completion: { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success:
-                        completion(.success(()))
-                    case .failure(let error):
-                        completion(.failure(error))
-                    }
+        networkManager.requestStatusCode(target: target) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    print("✅ [댓글 삭제] success: commentId=\(commentId)")
+                    completion(.success(()))
+                case .failure(let error):
+                    print("❌ [댓글 삭제] failed: commentId=\(commentId), error=\(error)")
+                    completion(.failure(error))
                 }
             }
-        )
+        }
     }
 
     /// 댓글 좋아요/취소
+    /// API: true=취소(이미 좋아요O→해제), false=추가(좋아요X→좋아요)
     func likeComment(commentId: Int, isLiked: Bool, completion: @escaping (Bool) -> Void) {
-        let request = ChallengeLikeRequestDTO(isLiked: isLiked)
+        let apiIsLiked = !isLiked
+        print("📤 [댓글 좋아요] POST /api/challenges/comment/\(commentId)/like 요청: isLiked=\(apiIsLiked) (UI=\(isLiked ? "좋아요" : "취소"))")
+        let request = ChallengeLikeRequestDTO(isLiked: apiIsLiked)
         let target = ChallengeAPI.likeComment(commentId: commentId, request: request)
         networkManager.request(
             target: target,
@@ -288,9 +290,11 @@ final class ChallengePlazaViewModel: ObservableObject {
             completion: { result in
                 DispatchQueue.main.async {
                     switch result {
-                    case .success:
+                    case .success(let data):
+                        print("📥 [댓글 좋아요] 응답 성공: commentLikeId=\(data.commentLikeId.map { "\($0)" } ?? "nil")")
                         completion(true)
-                    case .failure:
+                    case .failure(let error):
+                        print("❌ [댓글 좋아요] 응답 실패: \(error)")
                         completion(false)
                     }
                 }
@@ -299,7 +303,7 @@ final class ChallengePlazaViewModel: ObservableObject {
     }
 
     /// top-level + children를 평탄화하여 [부모, 대댓글들, 다음 부모, ...] 순으로 반환
-    private static func flattenComments(from dtos: [ChallengeCommentItemDTO]) -> [ChallengeComment] {
+    static func flattenComments(from dtos: [ChallengeCommentItemDTO]) -> [ChallengeComment] {
         var result: [ChallengeComment] = []
         for dto in dtos {
             result.append(challengeComment(from: dto, replyToName: nil))
@@ -310,7 +314,7 @@ final class ChallengePlazaViewModel: ObservableObject {
         return result
     }
 
-    private static func challengeComment(from dto: ChallengeCommentItemDTO, replyToName: String? = nil) -> ChallengeComment {
+    static func challengeComment(from dto: ChallengeCommentItemDTO, replyToName: String? = nil) -> ChallengeComment {
         ChallengeComment(
             commentId: dto.commentId,
             authorName: dto.nickName,

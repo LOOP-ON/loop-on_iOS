@@ -180,8 +180,9 @@ struct ChallengeCommentsPageDTO: Decodable {
 }
 
 /// POST /api/challenges/comment/{commentId}/like 응답 data
+/// unlike 시 commentLikeId는 null로 옴
 struct CommentLikeDataDTO: Decodable {
-    let commentLikeId: Int
+    let commentLikeId: Int?
 }
 
 /// POST /api/challenges/{challengeId}/comments 응답 data

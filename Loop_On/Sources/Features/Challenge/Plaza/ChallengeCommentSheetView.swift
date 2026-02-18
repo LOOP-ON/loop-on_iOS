@@ -306,7 +306,6 @@ private struct CommentRowView: View {
                             titleVisibility: .hidden
                         ) {
                             Button("댓글 삭제", role: .destructive) {
-                                // TODO: API 연결 시 댓글 삭제 요청 처리 (comment.id)
                                 onDelete()
                             }
                             Button("취소", role: .cancel) { }

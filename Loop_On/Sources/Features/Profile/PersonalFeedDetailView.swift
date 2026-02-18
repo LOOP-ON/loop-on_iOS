@@ -127,7 +127,7 @@ final class PersonalFeedDetailViewModel: ObservableObject {
         let hashtags = dto.hashtags.map { $0.hasPrefix("#") ? $0 : "#\($0)" }
         return ChallengeCard(
             challengeId: dto.challengeId,
-            title: "여정 \(dto.journeySequence)",
+            title: "\(dto.journeySequence)번째 여정",
             subtitle: dto.content,
             dateText: dateText,
             hashtags: hashtags,
