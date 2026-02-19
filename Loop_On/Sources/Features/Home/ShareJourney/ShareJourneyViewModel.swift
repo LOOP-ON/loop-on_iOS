@@ -34,7 +34,7 @@ class ShareJourneyViewModel: ObservableObject {
     @Published var expeditionSetting: String = "없음"
     /// API 연동 시 사용. 화면 진입 시 주입 가능 (기본 0)
     @Published var journeyId: Int = 0
-    @Published var expeditionId: Int = 0
+    @Published var expeditionId: Int? = nil
 
     /// 수정 모드: 값이 있으면 기존 챌린지 로드 후 수정 API 호출
     var editChallengeId: Int?
@@ -218,7 +218,7 @@ class ShareJourneyViewModel: ObservableObject {
         hashtags = tags
         selectedHashtags = Set(tags)
         expeditionId = dto.expeditionId
-        expeditionSetting = dto.expeditionId == 0 ? "없음" : "탐험대 \(dto.expeditionId)"
+        expeditionSetting = (dto.expeditionId == nil) ? "없음" : "탐험대 \(dto.expeditionId!)"
         loadImages(from: dto.imageList)
     }
 
@@ -310,15 +310,16 @@ class ShareJourneyViewModel: ObservableObject {
     private func handleUploadResult(_ result: Result<CreateChallengeDataDTO, NetworkError>) {
         switch result {
         case .success(let data):
-            print("[챌린지 업로드] 성공 — challengeId: \(data.challengeId)")
+            print("[쳄린지 업로드] 성공 — challengeId: \(data.challengeId)")
+            NotificationCenter.default.post(name: .challengeUploaded, object: nil)
             self.dismiss?()
         case .failure(let error):
-            print("[챌린지 업로드] 실패: \(error)")
+            print("[쳄린지 업로드] 실패: \(error)")
             
             // 400 Bad Request & 특정 메시지 확인
             if case .serverError(let statusCode, let message) = error,
                statusCode == 400,
-               message == "해당 여정은 이미 챌린지가 존재합니다." {
+               message == "해당 여정은 이미 쳄린지가 존재합니다." {
                 self.isShowingDuplicateChallengeAlert = true
             }
         }
@@ -332,4 +333,10 @@ private extension Array {
     }
 }
 
-
+// MARK: - Notification
+extension Notification.Name {
+    /// 체린지 업로드/수정 성공
+    static let challengeUploaded = Notification.Name("challengeUploaded")
+    /// 챌린지 삭제 성공
+    static let challengeDeleted = Notification.Name("challengeDeleted")
+}

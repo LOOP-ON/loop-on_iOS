@@ -15,6 +15,7 @@ import Moya
 final class PersonalProfileViewModel: ObservableObject {
     @Published var user: UserModel?
     @Published var isLoading: Bool = false
+    @Published var isUploadingImage: Bool = false
     @Published var errorMessage: String?
 
     /// 개인이 올린 챌린지 이미지 URL 목록 (GET /api/challenges/users/me 연동)
@@ -23,7 +24,9 @@ final class PersonalProfileViewModel: ObservableObject {
     @Published var myChallengeItems: [MyChallengeItemDTO] = []
 
     private let challengeNetworkManager = DefaultNetworkManager<ChallengeAPI>()
-    private let profileNetworkManager = DefaultNetworkManager<ProfileAPI>()
+    private let profileNetworkManager = DefaultNetworkManager<ProfileAPI>(
+        plugins: [NetworkLoggerPlugin(configuration: .init(logOptions: .verbose))]
+    )
     
     // 내 챌린지 피드 페이지네이션 상태
     private var myChallengesPage: Int = 0
@@ -31,7 +34,15 @@ final class PersonalProfileViewModel: ObservableObject {
     private var isLoadingMyChallenges: Bool = false
     private var hasMoreMyChallenges: Bool = true
 
-    init() {
+    private var targetNickname: String?
+
+    // 프로필 정보 수정을 위한 현재 데이터 저장
+    private var currentNickname: String = ""
+    private var currentBio: String = ""
+    private var currentStatusMessage: String = ""
+
+    init(nickname: String? = nil) {
+        self.targetNickname = nickname
         loadProfile()
     }
 
@@ -39,8 +50,17 @@ final class PersonalProfileViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
 
+        let target: ProfileAPI
+        if let nickname = targetNickname {
+            print("🔍 [loadProfile] 타인 프로필: nickname=\(nickname)")
+            target = .getUser(nickname: nickname, page: 0, size: 20, sort: ["createdAt,desc"])
+        } else {
+            print("🔍 [loadProfile] 내 프로필 (getMe)")
+            target = .getMe(page: 0, size: 20, sort: ["createdAt,desc"])
+        }
+
         profileNetworkManager.request(
-            target: .getMe(page: 0, size: 20, sort: ["createdAt,desc"]),
+            target: target,
             decodingType: UserMeResponseDTO.self
         ) { [weak self] result in
             DispatchQueue.main.async {
@@ -52,9 +72,13 @@ final class PersonalProfileViewModel: ObservableObject {
                     let bio = profile.bio?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     let statusMessage = profile.statusMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     
-                    print("✅ [Profile] /api/users/me 연동 성공: 닉네임(\(nickname)), 한줄소개(\(bio)), 상태메시지(\(statusMessage))")
+                    // 수정용 데이터 저장
+                    self.currentNickname = nickname
+                    self.currentBio = bio
+                    self.currentStatusMessage = statusMessage
                     
-                    // 한줄소개(bio)가 먼저 오고, 그 다음 줄에 상태메시지가 오도록 구성 (요청사항 반영)
+                    print("✅ [Profile] 연동 성공: 닉네임(\(nickname))")
+                    
                     let composedBio = [bio, statusMessage]
                         .filter { !$0.isEmpty }
                         .joined(separator: "\n")
@@ -66,14 +90,38 @@ final class PersonalProfileViewModel: ObservableObject {
                         bio: composedBio.isEmpty ? "소개가 아직 없어요." : composedBio
                     )
 
-                    let thumbItems = profile.thumbnailResponse?.content ?? []
-                    if !thumbItems.isEmpty {
-                        self.myChallengeItems = thumbItems.map {
+                    print("✅ [loadProfile] 응답 nickname: \(profile.nickname)")
+
+                    // 타인 프로필/내 프로필 공통: thumbnailResponse가 있으면 그걸 사용
+                    if let thumbPage = profile.thumbnailResponse {
+                        let newItems = thumbPage.content.map {
                             MyChallengeItemDTO(challengeId: $0.challengeId, imageUrl: $0.repImageUrl)
                         }
-                        self.challengeImages = self.myChallengeItems.map(\.imageUrl)
+                        print("📸 [loadProfile] thumbnails: \(newItems.count)개, last: \(thumbPage.last ?? false)")
+                        for item in newItems {
+                            print("  ↪ challengeId=\(item.challengeId), url=\(item.imageUrl)")
+                        }
+                        
+                        // 첫 로딩이므로 리셋
+                        self.myChallengeItems = newItems
+                        self.challengeImages = newItems.map(\.imageUrl)
+                        
+                        // 페이징 초기화
+                        self.myChallengesPage = 0
+                        let isLast = thumbPage.last ?? newItems.isEmpty
+                        self.hasMoreMyChallenges = !isLast
+                        if !newItems.isEmpty {
+                            self.myChallengesPage += 1
+                        }
                     } else {
-                        self.loadMyChallenges(reset: true)
+                        // thumbnailResponse가 없으면 (구버전 API 등) 기존 방식 시도 (내 프로필인 경우만 유효)
+                        if self.targetNickname == nil {
+                            self.loadMyChallenges(reset: true)
+                        } else {
+                            // 타인 프로필인데 썸네일 없으면 빈 상태
+                            self.myChallengeItems = []
+                            self.challengeImages = []
+                        }
                     }
                     self.isLoading = false
 
@@ -86,68 +134,127 @@ final class PersonalProfileViewModel: ObservableObject {
                         profileImageURL: nil,
                         bio: "프로필을 불러오지 못했어요."
                     )
-                    self.loadMyChallenges(reset: true)
-                    print("❌ [Profile] /api/users/me failed: \(error)")
+                    // 실패 시 목록 초기화
+                    self.myChallengeItems = []
+                    self.challengeImages = []
+                    print("❌ [Profile] API failed: \(error)")
                 }
             }
         }
     }
 
-    /// GET /api/challenges/users/me — 내 챌린지 목록을 가져와 이미지 URL로 표시
+    /// 챌린지 목록 더 불러오기 (내 프로필 & 타인 프로필 공용)
     func loadMyChallenges(reset: Bool = false) {
-        // 이미 로딩 중이면 중복 요청 방지
         guard !isLoadingMyChallenges else { return }
         
         if reset {
             myChallengesPage = 0
             hasMoreMyChallenges = true
         } else {
-            // 더 가져올 페이지가 없으면 종료
             guard hasMoreMyChallenges else { return }
         }
         
         isLoadingMyChallenges = true
+        print("🔄 [loadMyChallenges] targetNickname: \(targetNickname ?? "nil"), page: \(myChallengesPage), reset: \(reset)")
         
-        let target = ChallengeAPI.getMyChallenges(
-            page: myChallengesPage,
-            size: myChallengesPageSize,
-            sort: nil
-        )
-        challengeNetworkManager.request(
-            target: target,
-            decodingType: MyChallengesPageDTO.self,
-            completion: { [weak self] (result: Result<MyChallengesPageDTO, NetworkError>) in
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    self.isLoadingMyChallenges = false
-                    switch result {
-                    case .success(let page):
-                        let newItems = page.content
-                        let newImages = newItems.map(\.imageUrl)
-                        
-                        if reset {
-                            self.myChallengeItems = newItems
-                            self.challengeImages = newImages
-                        } else {
-                            self.myChallengeItems.append(contentsOf: newItems)
-                            self.challengeImages.append(contentsOf: newImages)
-                        }
-                        
-                        let isLast = page.last ?? newItems.isEmpty
-                        self.hasMoreMyChallenges = !isLast
-                        
-                        if !newItems.isEmpty {
-                            self.myChallengesPage += 1
-                        }
-                    case .failure:
-                        if reset {
-                            self.myChallengeItems = []
-                            self.challengeImages = []
+        // 내 프로필이면서 기존 방식(별도 API)을 써야 하는 경우 -> getMyChallenges
+        // 타인 프로필이거나 내 프로필의 getMe 방식 페이징 -> getUser/getMe 재호출
+        
+        if let nickname = targetNickname {
+            // 타인 프로필: getUser 재호출하여 다음 페이지 썸네일 가져오기
+            fetchChallengesViaProfileAPI(target: .getUser(nickname: nickname, page: myChallengesPage, size: myChallengesPageSize, sort: ["createdAt,desc"]), reset: reset)
+        } else {
+            // 내 프로필: getMe 재호출 (또는 기존 getMyChallenges 사용)
+            // 기존 getMyChallenges API가 있다면 그걸 쓰는 게 더 명확할 수 있으나,
+            // getMe 응답에 thumbnailResponse가 포함되므로 통일성을 위해 getMe를 쓸 수도 있음.
+            // 하지만 기존 코드는 ChallengeAPI.getMyChallenges를 쓰고 있었음.
+            // 여기서는 '내 프로필'일 땐 기존 로직 유지를 위해 ChallengeAPI 사용
+            
+            // 기존 로직 유지 (ChallengeAPI)
+            let target = ChallengeAPI.getMyChallenges(
+                page: myChallengesPage,
+                size: myChallengesPageSize,
+                sort: nil
+            )
+            challengeNetworkManager.request(
+                target: target,
+                decodingType: MyChallengesPageDTO.self,
+                completion: { [weak self] (result: Result<MyChallengesPageDTO, NetworkError>) in
+                    DispatchQueue.main.async {
+                        guard let self = self else { return }
+                        self.isLoadingMyChallenges = false
+                        switch result {
+                        case .success(let page):
+                            let newItems = page.content
+                            let newImages = newItems.map(\.imageUrl)
+                            
+                            if reset {
+                                self.myChallengeItems = newItems
+                                self.challengeImages = newImages
+                            } else {
+                                self.myChallengeItems.append(contentsOf: newItems)
+                                self.challengeImages.append(contentsOf: newImages)
+                            }
+                            
+                            let isLast = page.last ?? newItems.isEmpty
+                            self.hasMoreMyChallenges = !isLast
+                            
+                            if !newItems.isEmpty {
+                                self.myChallengesPage += 1
+                            }
+                        case .failure:
+                            if reset {
+                                self.myChallengeItems = []
+                                self.challengeImages = []
+                            }
                         }
                     }
                 }
+            )
+        }
+    }
+    
+    /// 프로필 API를 통해 챌린지(썸네일) 페이징 처리
+    private func fetchChallengesViaProfileAPI(target: ProfileAPI, reset: Bool) {
+        profileNetworkManager.request(target: target, decodingType: UserMeResponseDTO.self) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.isLoadingMyChallenges = false
+                
+                switch result {
+                case .success(let profile):
+                    let thumbPage = profile.thumbnailResponse
+                    let newThumbnails = thumbPage?.content ?? []
+                    
+                    let newItems = newThumbnails.map {
+                         MyChallengeItemDTO(challengeId: $0.challengeId, imageUrl: $0.repImageUrl)
+                    }
+                    let newImages = newItems.map(\.imageUrl)
+                    
+                    if reset {
+                        self.myChallengeItems = newItems
+                        self.challengeImages = newImages
+                    } else {
+                        self.myChallengeItems.append(contentsOf: newItems)
+                        self.challengeImages.append(contentsOf: newImages)
+                    }
+                    
+                    // 페이징 판단: API 응답의 last 필드 사용
+                    let isLast = thumbPage?.last ?? (newItems.isEmpty || newItems.count < self.myChallengesPageSize)
+                    if isLast || newItems.isEmpty {
+                        self.hasMoreMyChallenges = false
+                    } else {
+                        self.myChallengesPage += 1
+                    }
+                    
+                case .failure:
+                     if reset {
+                         self.myChallengeItems = []
+                         self.challengeImages = []
+                     }
+                }
             }
-        )
+        }
     }
     
     /// 스크롤이 끝에 가까워졌을 때 다음 페이지를 로드
@@ -155,6 +262,77 @@ final class PersonalProfileViewModel: ObservableObject {
         let thresholdIndex = max(challengeImages.count - 4, 0)
         if currentIndex >= thresholdIndex {
             loadMyChallenges(reset: false)
+        }
+    }
+
+    /// 프로필 이미지 업로드 (1. 파일 업로드 -> 2. 프로필 정보 수정)
+    func uploadProfileImage(imageData: Data, completion: @escaping (Bool) -> Void) {
+        isUploadingImage = true
+        // 1단계: 이미지 파일 업로드
+        print("🚀 1단계: 이미지 파일 업로드 시작...")
+        profileNetworkManager.request(
+            target: .updateProfileImage(imageData: imageData),
+            decodingType: String.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                switch result {
+                case .success(let imageUrl):
+                    print("✅ 1단계: 이미지 업로드 성공. URL: \(imageUrl)")
+                    // 2단계: 프로필 정보 수정 호출
+                    self.updateProfileWithImage(url: imageUrl, completion: completion)
+                    
+                case .failure(let error):
+                    print("❌ 1단계: 이미지 업로드 실패: \(error)")
+                    self.isUploadingImage = false
+                    completion(false)
+                }
+            }
+        }
+    }
+    
+    /// 이미지 URL을 포함하여 프로필 정보 수정 (PATCH /api/users/profile)
+    private func updateProfileWithImage(url: String, completion: @escaping (Bool) -> Void) {
+        let request = ProfileUpdateRequestDTO(
+            nickname: currentNickname,
+            bio: currentBio,
+            statusMessage: currentStatusMessage,
+            profileImageUrl: url,
+            visibility: "PUBLIC" // 기본값 설정
+        )
+        
+        print("🚀 2단계: 프로필 정보 수정 요청 시작... (URL: \(url))")
+        print("   📦 요청 데이터: 닉네임=\(currentNickname), Bio=\(currentBio)")
+        
+        profileNetworkManager.request(
+            target: .updateUserProfile(request: request),
+            decodingType: UserMeResponseDTO.self
+        ) { [weak self] result in
+             DispatchQueue.main.async {
+                 guard let self = self else { return }
+                 self.isUploadingImage = false
+                 
+                 switch result {
+                 case .success(let profile):
+                     print("✅ 2단계: 프로필 수정 완료! 최종 URL: \(profile.profileImageUrl ?? "nil")")
+                     
+                     // UI 갱신
+                     if let current = self.user {
+                         self.user = UserModel(
+                            id: current.id,
+                            name: current.name,
+                            profileImageURL: profile.profileImageUrl,
+                            bio: current.bio // Bio 등은 기존 UI 데이터 유지 (또는 profile 값 사용 가능)
+                         )
+                     }
+                     completion(true)
+                     
+                 case .failure(let error):
+                     print("❌ 2단계: 프로필 수정 실패: \(error)")
+                     completion(false)
+                 }
+             }
         }
     }
 
@@ -169,6 +347,7 @@ private struct UserMeResponseDTO: Decodable {
     let bio: String?
     let statusMessage: String?
     let profileImageUrl: String?
+    let isFriend: Bool?
     let thumbnailResponse: UserMeThumbnailPageDTO?
 
     enum CodingKeys: String, CodingKey {
@@ -179,6 +358,7 @@ private struct UserMeResponseDTO: Decodable {
         case profileImageUrl
         case profileImage
         case profileImageURL = "profile_image_url"
+        case isFriend
         case thumbnailResponse
     }
 
@@ -188,6 +368,7 @@ private struct UserMeResponseDTO: Decodable {
         nickname = try c.decode(String.self, forKey: .nickname)
         bio = try c.decodeIfPresent(String.self, forKey: .bio)
         statusMessage = try c.decodeIfPresent(String.self, forKey: .statusMessage)
+        isFriend = try c.decodeIfPresent(Bool.self, forKey: .isFriend)
 
         if let url = try c.decodeIfPresent(String.self, forKey: .profileImageUrl) {
             profileImageUrl = url
@@ -205,6 +386,12 @@ private struct UserMeResponseDTO: Decodable {
 
 private struct UserMeThumbnailPageDTO: Decodable {
     let content: [UserMeThumbnailDTO]
+    let pageNumber: Int?
+    let pageSize: Int?
+    let totalElements: Int?
+    let totalPages: Int?
+    let first: Bool?
+    let last: Bool?
 }
 
 private struct UserMeThumbnailDTO: Decodable {

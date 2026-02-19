@@ -37,7 +37,20 @@ struct CreateChallengeRequestDTO: Encodable {
     let hashtagList: [String]
     let content: String
     let journeyId: Int
-    let expeditionId: Int
+    let expeditionId: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case hashtagList, content, journeyId, expeditionId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(hashtagList, forKey: .hashtagList)
+        try container.encode(content, forKey: .content)
+        try container.encode(journeyId, forKey: .journeyId)
+        // nil이면 "expeditionId": null 로 전송 (encodeIfPresent는 키 자체를 생략함)
+        try container.encode(expeditionId, forKey: .expeditionId)
+    }
 }
 
 /// PATCH /api/challenges/{challengeId} 요청 바디 (multipart의 requestDto)
@@ -48,7 +61,23 @@ struct UpdateChallengeRequestDTO: Encodable {
     let hashtagList: [String]
     let content: String
     let journeyId: Int
-    let expeditionId: Int
+    let expeditionId: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case newImagesSequence, remainImages, remainImagesSequence
+        case hashtagList, content, journeyId, expeditionId
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(newImagesSequence, forKey: .newImagesSequence)
+        try container.encode(remainImages, forKey: .remainImages)
+        try container.encode(remainImagesSequence, forKey: .remainImagesSequence)
+        try container.encode(hashtagList, forKey: .hashtagList)
+        try container.encode(content, forKey: .content)
+        try container.encode(journeyId, forKey: .journeyId)
+        try container.encode(expeditionId, forKey: .expeditionId)
+    }
 }
 
 // MARK: - Response DTOs
@@ -70,7 +99,7 @@ struct ChallengeDetailDataDTO: Decodable {
     let imageList: [String]
     let hashtagList: [String]
     let content: String
-    let expeditionId: Int
+    let expeditionId: Int?
 }
 
 /// GET /api/challenges/users/me 응답 data (페이지 형태)

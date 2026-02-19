@@ -12,7 +12,7 @@ import UIKit
 struct ChallengeView: View {
     @Environment(NavigationRouter.self) private var router
     /// 프로필 탭 시 타인뷰 오버레이로 열기 (RootTabView에서 설정 → 하단 탭바 유지)
-    var onOpenOtherProfile: ((Int) -> Void)? = nil
+    var onOpenOtherProfile: ((String) -> Void)? = nil
 
     @SceneStorage("challenge.selectedTopTab") private var selectedTopTabRawValue: Int = ChallengeTopTab.plaza.rawValue
     @State private var selectedTopTab: ChallengeTopTab = .plaza

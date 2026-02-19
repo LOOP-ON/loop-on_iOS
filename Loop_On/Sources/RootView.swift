@@ -121,9 +121,9 @@ struct RootView: View {
                     )
                     .navigationBarBackButtonHidden(true)
 
-                case let .app(.profile(userID)):
+                case let .app(.profile(nickname)):
                     // 타인 프로필: 뒤로가기는 커스텀 헤더, 하단 탭바 유지
-                    PersonalProfileView(isOwnProfile: false)
+                    PersonalProfileView(isOwnProfile: false, nickname: nickname)
                         .navigationBarBackButtonHidden(true)
                         .toolbar(.visible, for: .tabBar)
                 }

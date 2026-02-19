@@ -98,6 +98,7 @@ struct HistoryRoutineReport: Identifiable {
 enum HistoryRoutineStatus {
     case completed
     case postponed
+    case pending
     
     var displayText: String {
         switch self {
@@ -105,6 +106,8 @@ enum HistoryRoutineStatus {
             return "완료"
         case .postponed:
             return "미룸"
+        case .pending:
+            return "진행중"
         }
     }
 }
@@ -323,8 +326,15 @@ class HistoryViewModel: ObservableObject {
                 self.isLoadingDailyReport = false
                 switch result {
                 case .success(let dto):
-                    let report = self.mapDailyReportDTO(dto, date: dateKey)
-                    self.journeyReports[dateKey] = report
+                    print("📊 [DailyReport] Rates - Day1: \(String(describing: dto.day1Rate)), Day2: \(String(describing: dto.day2Rate)), Day3: \(String(describing: dto.day3Rate)), Total: \(String(describing: dto.totalRate))")
+                    let hasRecords = dto.completedRoutineCount > 0 || !(dto.routines?.isEmpty ?? true)
+                    if hasRecords {
+                        let report = self.mapDailyReportDTO(dto, date: dateKey)
+                        self.journeyReports[dateKey] = report
+                    } else {
+                        // 루틴 실행 기록이 없으면 리포트 미표시
+                        self.journeyReports[dateKey] = nil
+                    }
                 case .failure(let error):
                     print("❌ loadDailyReport failed: \(error)")
                 }
@@ -340,8 +350,26 @@ class HistoryViewModel: ObservableObject {
     }
 
     private func mapDailyReportDTO(_ dto: DailyReportDataDTO, date: Date) -> HistoryJourneyReport {
+        let isToday = Calendar.current.isDateInToday(date)
+        
         let routines: [HistoryRoutineReport] = (dto.routines ?? []).enumerated().map { index, item in
-            let status: HistoryRoutineStatus = item.status.uppercased().contains("COMPLETED") || item.status.contains("완료") ? .completed : .postponed
+            let statusString = item.status.uppercased()
+            let status: HistoryRoutineStatus
+            
+            if statusString.contains("COMPLETED") || statusString.contains("완료") {
+                status = .completed
+            } else if statusString.contains("POSTPONED") || statusString.contains("미룸") {
+                status = .postponed
+            } else {
+                // 그 외 상태 (WAITING 등)
+                if isToday {
+                    status = .pending
+                } else {
+                    // 과거 날짜는 미룸(실패) 처리
+                    status = .postponed
+                }
+            }
+
             // 루틴 ID를 서버 ID(25, 26, 27...) 대신 순서대로 1, 2, 3...으로 변환
             return HistoryRoutineReport(id: index + 1, name: item.content, status: status)
         }

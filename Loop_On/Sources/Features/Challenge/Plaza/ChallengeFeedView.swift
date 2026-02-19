@@ -26,7 +26,7 @@ struct ChallengeFeedView: View {
     /// (challengeId, commentId, completion(success)) — 댓글 삭제
     var onDeleteComment: ((Int, Int, @escaping (Bool) -> Void) -> Void)?
     /// 타인 프로필 열기 (오버레이 시 탭바 유지)
-    var onOpenOtherProfile: ((Int) -> Void)? = nil
+    var onOpenOtherProfile: ((String) -> Void)? = nil
 
     var body: some View {
         ScrollView {

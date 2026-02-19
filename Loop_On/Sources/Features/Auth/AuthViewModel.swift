@@ -87,6 +87,8 @@ final class AuthViewModel: ObservableObject {
             switch result {
             case .success(let loginData):
                 KeychainService.shared.saveToken(loginData.accessToken)
+                // 일반 이메일 로그인이므로 소셜 정보 삭제
+                UserDefaults.standard.removeObject(forKey: "loginProvider")
                 self?.isLoggedIn = true
                 print("로그인 성공!")
                     
@@ -146,6 +148,7 @@ final class AuthViewModel: ObservableObject {
                             // print("isMainThread:", Thread.isMainThread)
                             DispatchQueue.main.async {
                                 KeychainService.shared.saveToken(loginData.accessToken)
+                                UserDefaults.standard.set("KAKAO", forKey: "loginProvider")
                                 self.isLoggedIn = true
                                 print("✅ isLoggedIn set to true")
                             }
@@ -225,6 +228,7 @@ final class AuthViewModel: ObservableObject {
                 switch result {
                 case .success(let loginData):
                     KeychainService.shared.saveToken(loginData.accessToken)
+                    UserDefaults.standard.set("APPLE", forKey: "loginProvider")
                     self?.isLoggedIn = true
                     print("✅ [Apple] 로그인 성공, isLoggedIn = true")
                 case .failure(let error):

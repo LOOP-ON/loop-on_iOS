@@ -147,7 +147,7 @@ final class SignUpViewModel: ObservableObject {
 
 
     var canGoNext: Bool {
-        emailCheckState == .available && isPasswordValid && isPasswordMatch
+        emailCheckState == .available && isPasswordValid && isPasswordMatch && isAllRequiredAgreed
     }
 
     func checkEmailDuplicate() async {
