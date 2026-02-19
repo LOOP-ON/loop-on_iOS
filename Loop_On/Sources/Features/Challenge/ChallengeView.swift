@@ -147,97 +147,35 @@ struct ChallengeView: View {
                 selectedTopTab = tab
             }
         }
-        // 게시물 삭제 확인 팝업: 전체 화면(세이프에어리어·탭바 포함) 덮고, 팝업은 화면 정중앙
+        // 게시물 삭제 확인 팝업: CommonPopupView와 동일한 디자인으로 통일
         .fullScreenCover(isPresented: Binding(
             get: { deleteTargetId != nil },
             set: { if !$0 { deleteTargetId = nil; deleteAction = nil } }
         )) {
-            deleteConfirmFullScreen
-        }
-    }
-}
-
-// MARK: - Delete Confirm Popup (Challenge Tab) — 전체 화면 + 정중앙
-
-extension ChallengeView {
-    private var deleteConfirmFullScreen: some View {
-        ZStack {
-            // 회색 오버레이: 노치·상태바·하단 탭바·홈인디케이터까지 전부 덮음
-            Color.black.opacity(0.35)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    deleteTargetId = nil
-                    deleteAction = nil
-                }
-
-            if let targetId = deleteTargetId {
-                // 팝업 카드: 전체 화면 기준 가로·세로 정중앙
-                VStack(spacing: 16) {
-                    Text("정말로 게시물을 삭제하시겠습니까?")
-                        .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 17))
-                        .foregroundStyle(Color("5-Text"))
-
-                    Text("삭제 시 게시물이 영구적으로 삭제되며, 복구할 수 없으며, 다시 되돌릴 수 없습니다.")
-                        .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
-                        .foregroundStyle(Color("45-Text"))
-                        .multilineTextAlignment(.center)
-
-                    // 텍스트와 버튼 영역을 시각적으로 구분하는 상단 구분선 (카드 양끝까지)
-                    Rectangle()
-                        .fill(Color(.systemGray5))
-                        .frame(height: 1)
-                        .padding(.top, 4)
-                        // VStack 전체에 걸린 .padding(.horizontal, 24)를 상쇄해서 팝업 안쪽 양끝까지 라인 확장
-                        .padding(.horizontal, -24)
-
-                    HStack(spacing: 8) {
-                        Button {
-                            deleteTargetId = nil
-                            deleteAction = nil
-                        } label: {
-                            Text("취소")
-                                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
-                                .foregroundStyle(Color("5-Text"))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(Color("100"))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .stroke(Color(.systemGray4), lineWidth: 1)
-                                )
-                        }
-
-                        Button {
-                            if let action = deleteAction {
-                                action(targetId)
-                            }
-                            deleteTargetId = nil
-                            deleteAction = nil
-                        } label: {
-                            Text("삭제")
-                                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 16))
-                                .foregroundStyle(Color.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color(red: 0.95, green: 0.45, blue: 0.35))
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
+            ZStack {
+                CommonPopupView(
+                    isPresented: Binding(
+                        get: { deleteTargetId != nil },
+                        set: { if !$0 { deleteTargetId = nil; deleteAction = nil } }
+                    ),
+                    title: "정말로 게시물을 삭제하시겠습니까?",
+                    message: "삭제 시 게시물이 영구적으로 삭제되며, 복구할 수 없습니다.",
+                    leftButtonText: "취소",
+                    rightButtonText: "삭제",
+                    leftAction: {
+                        deleteTargetId = nil
+                        deleteAction = nil
+                    },
+                    rightAction: {
+                        if let id = deleteTargetId, let action = deleteAction { action(id) }
+                        deleteTargetId = nil
+                        deleteAction = nil
                     }
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color.white)
                 )
-                .padding(.horizontal, 32)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .presentationBackground(.clear)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .presentationBackground(.clear)
     }
 }
 

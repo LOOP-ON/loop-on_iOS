@@ -15,6 +15,27 @@ struct CalendarHeightPreferenceKey: PreferenceKey {
     }
 }
 
+// 달력 하단 ~ 네비 상단 구간의 세로 중앙에 콘텐츠 배치
+private struct MessageMidpointContainer<Content: View>: View {
+    @ViewBuilder let content: Content
+    var body: some View {
+        GeometryReader { geo in
+            let areaHeight = geo.size.height - geo.safeAreaInsets.bottom
+            let midY = areaHeight / 2
+            let contentHalfHeight: CGFloat = 28
+            let topPadding = max(0, midY - contentHalfHeight)
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                    .frame(height: topPadding)
+                content
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 struct HistoryView: View {
     @Environment(NavigationRouter.self) private var router
     @StateObject private var viewModel = HistoryViewModel()
@@ -26,6 +47,11 @@ struct HistoryView: View {
     
     private let calendar = Calendar.current
     
+    // 선택한 날짜가 오늘 이후인지 (미래 날짜)
+    private var isSelectedDateInFuture: Bool {
+        calendar.startOfDay(for: selectedDate) > calendar.startOfDay(for: Date())
+    }
+
     // 현재 달에 루틴 수행 기록이 있는지 확인
     private var hasRoutineRecordsInCurrentMonth: Bool {
         guard let firstDayOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: currentMonth)) else {
@@ -68,7 +94,7 @@ struct HistoryView: View {
                     Spacer()
                         .frame(height: 16)
                     
-                    // 달력 섹션 (흰색 배경) - 홈뷰의 "1번째 여정" 텍스트 위치와 정확히 맞춤
+                    // 달력 섹션 (흰색 배경) — 화면 양끝에서 살짝 띄우고 네 모서리 둥글게
                     VStack(spacing: 0) {
                         CustomCalendarView(
                             selectedDate: $selectedDate,
@@ -87,7 +113,7 @@ struct HistoryView: View {
                                 calendarProgress = isWeekMode ? 0.0 : 1.0
                             }
                         } label: {
-                            Image(systemName: calendarProgress < 0.5 ? "chevron.up" : "chevron.down")
+                            Image(systemName: isWeekMode ? "chevron.up" : "chevron.down")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundStyle(Color("45-Text"))
                                 .padding(.vertical, 4)
@@ -105,75 +131,34 @@ struct HistoryView: View {
                                 )
                         }
                     )
-                    .clipShape(
-                        UnevenRoundedRectangle(
-                            cornerRadii: .init(
-                                topLeading: 0,
-                                bottomLeading: 20,
-                                bottomTrailing: 20,
-                                topTrailing: 0
-                            )
-                        )
-                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .background(
                         // 상단과 하단에 그림자가 있는 레이어 (clipShape 밖에 배치)
                         VStack(spacing: 0) {
                             // 상단 그림자
-                            UnevenRoundedRectangle(
-                                cornerRadii: .init(
-                                    topLeading: 0,
-                                    bottomLeading: 20,
-                                    bottomTrailing: 20,
-                                    topTrailing: 0
-                                )
-                            )
-                            .fill(Color.white)
-                            .frame(height: 60)
-                            .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: -3) // 상단 그림자
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(Color.white)
+                                .frame(height: 60)
+                                .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: -3) // 상단 그림자
                             
                             Spacer()
                             
                             // 하단 그림자
-                            UnevenRoundedRectangle(
-                                cornerRadii: .init(
-                                    topLeading: 0,
-                                    bottomLeading: 20,
-                                    bottomTrailing: 20,
-                                    topTrailing: 0
-                                )
-                            )
-                            .fill(Color.white)
-                            .frame(height: 60)
-                            .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3) // 하단 그림자
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(Color.white)
+                                .frame(height: 60)
+                                .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3) // 하단 그림자
                         }
                         .allowsHitTesting(false)
                     )
+                    .padding(.horizontal, 20) // 화면 양끝에서 살짝 띄움
                     .zIndex(1) // 달력이 항상 리포트 위에 오도록
 
-                    // 하단 영역 (연한 회색 배경, 전체 공간 차지)
+                    // 하단 영역 (리포트 또는 안내 메시지)
                     Group {
-                        if let report = viewModel.getReport(for: selectedDate) {
-                            // 선택된 날짜에 리포트가 있으면 리포트 표시
-                            HistoryJourneyReportView(
-                                report: report,
-                                isWeekMode: $isWeekMode,
-                                calendarHeight: calendarHeight
-                            )
-                            .background(Color(red: 0.97, green: 0.97, blue: 0.97))
-                        } else if hasRoutineRecordsInCurrentMonth {
-                            // 현재 달에 기록이 있지만 선택된 날짜에는 없으면 안내 메시지
-                            VStack {
-                                Spacer()
-                                Text("날짜를 선택하면 리포트 확인이 가능합니다 :)")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(Color("25-Text"))
-                                Spacer()
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            // 현재 달에 기록이 없으면 안내 메시지
-                            VStack {
-                                Spacer()
+                        if isSelectedDateInFuture {
+                            // 오늘 이후 날짜 선택 시: 기록 없음과 동일한 안내
+                            MessageMidpointContainer {
                                 VStack(spacing: 8) {
                                     Text("아직 루틴을 수행한 기록이 없어요.")
                                         .font(.system(size: 16, weight: .medium))
@@ -183,12 +168,34 @@ struct HistoryView: View {
                                         .font(.system(size: 16, weight: .medium))
                                         .foregroundStyle(Color("25-Text"))
                                 }
-                                Spacer()
                             }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else if let report = viewModel.getReport(for: selectedDate) {
+                            // 선택된 날짜에 리포트가 있으면 리포트 표시 (남은 높이만 차지 → 내부만 스크롤)
+                            HistoryJourneyReportView(
+                                report: report,
+                                isWeekMode: $isWeekMode,
+                                calendarHeight: calendarHeight
+                            )
+                            .frame(minHeight: 0, maxHeight: .infinity)
+                            .background(Color(.systemGroupedBackground))
+
+                        } else {
+                            // 현재 달에 기록이 없으면 안내 메시지
+                            MessageMidpointContainer {
+                                VStack(spacing: 8) {
+                                    Text("아직 루틴을 수행한 기록이 없어요.")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundStyle(Color("25-Text"))
+
+                                    Text("루틴을 수행하면 통계를 확인할 수 있어요 :)")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundStyle(Color("25-Text"))
+                                }
+                            }
                         }
                     }
-                    .background(Color(red: 0.97, green: 0.97, blue: 0.97))
+                    .frame(minHeight: 0, maxHeight: .infinity)
+                    .background(Color(.systemGroupedBackground))
                     .zIndex(0) // 리포트는 달력 아래 레이어
                 }
             }
@@ -196,6 +203,8 @@ struct HistoryView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .onAppear {
+                viewModel.loadMonth(currentMonth)
+                viewModel.loadDailyReport(for: selectedDate)
                 // #region agent log
                 let payload: [String: Any] = [
                     "sessionId": "debug-session",
@@ -222,6 +231,12 @@ struct HistoryView: View {
                     }.resume()
                 }
                 // #endregion
+            }
+            .onChange(of: currentMonth) { _, newMonth in
+                viewModel.loadMonth(newMonth)
+            }
+            .onChange(of: selectedDate) { _, newDate in
+                viewModel.loadDailyReport(for: newDate)
             }
             .onPreferenceChange(CalendarHeightPreferenceKey.self) { height in
                 // 달력 섹션 높이 업데이트 (애니메이션과 함께)

@@ -11,13 +11,7 @@ import AuthenticationServices
 import KakaoSDKAuth
 import KakaoSDKUser
 
-struct BaseResponse<T: Decodable>: Decodable {
-    let result: String?
-    let code: String?
-    let message: String?
-    let data: T?
-    let timestamp: String?
-}
+
 
 // 실제 로그인 데이터 모델
 struct LoginData: Decodable {

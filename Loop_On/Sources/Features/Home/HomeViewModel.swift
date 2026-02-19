@@ -131,12 +131,18 @@ class HomeViewModel: ObservableObject {
             todayRoutineCount: data.todayProgress.completedCount,
             yesterdayRoutineCount: 0
         )
+        // SessionStore에 현재 여정 ID 업데이트
+        DispatchQueue.main.async {
+            // HomeViewModel은 SessionStore를 직접 참조하지 않으므로, HomeView의 onReceive 등으로 처리하거나
+            // HomeViewModel이 SessionStore를 주입받아야 함.
+            // 여기서는 HomeView.swift에서 viewModel.journeyInfo가 변경될 때 session.currentJourneyId를 업데이트하도록 수정.
+        }
             
         // 루틴 리스트 매핑
         self.routines = data.routines.map { dto in
             RoutineModel(
                 id: dto.routineId,
-                routineProgressId: dto.routineProgressId,
+                routineProgressId: dto.routineProgressId ?? 0,
                 title: dto.content,
                 time: "\(dto.notificationTime) 알림 예정",
                 isCompleted: dto.isCompleted,

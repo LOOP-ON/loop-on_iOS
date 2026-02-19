@@ -39,7 +39,7 @@ struct ProgressDTO: Codable {
 
 struct RoutineDTO: Codable {
     let routineId: Int
-    let routineProgressId: Int
+    let routineProgressId: Int?
     let content: String           // 기존 title 역할
     let notificationTime: String  // 기존 alarmTime 역할
     let status: String            // "IN_PROGRESS", "COMPLETED" 등

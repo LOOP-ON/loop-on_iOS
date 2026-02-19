@@ -14,6 +14,7 @@ struct RootTabView: View {
     /// 타인 프로필 오버레이: 설정 시 이전 화면 위에 타인뷰를 올리고, 그 위에 탭바가 항상 보이게 함
     @State private var overlayUserId: Int? = nil
     @EnvironmentObject var homeViewModel: HomeViewModel
+    @Environment(SessionStore.self) private var session
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -82,6 +83,12 @@ struct RootTabView: View {
         .ignoresSafeArea(.container, edges: .bottom)
         // 탭이 바뀔 때 전체적으로 부드러운 애니메이션 부여
         .animation(.easeInOut(duration: 0.3), value: selectedTab)
+        .onAppear {
+            if session.selectHistoryTabOnNextAppear {
+                selectedTab = .history
+                session.selectHistoryTabOnNextAppear = false
+            }
+        }
     }
 }
 

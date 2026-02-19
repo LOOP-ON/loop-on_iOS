@@ -15,6 +15,24 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
     }
 }
 
+// 리포트 상단 위치 추적 (스크롤 좌표계 기준)
+struct ReportTopPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+/// 달력 하단 ~ 리포트 상단 간격(첫 번째 간격). 여정 기록 하단 ~ 네비 상단(두 번째 간격)과 동일하게 맞춤.
+private let calendarReportGap: CGFloat = 16
+/// 하단 탭바 콘텐츠 높이 (HomeBottomTabView: padding 12 + 아이콘/라벨 ~36)
+private let tabBarContentHeight: CGFloat = 48
+/// 리포트 상단이 원래 위치(캘린더와의 기본 간격)로 돌아왔다고 판단하는 기준값 (minY가 0 근처)
+private let reportTopAtOriginThreshold: CGFloat = 6
+/// 접기: 헤더가 맨 위에 도달한 상태에서 위로 당긴 거리
+private let collapseMinPullDelta: CGFloat = 45
+/// 펴기: 헤더가 맨 위에 도달한 상태에서 아래로 당긴 거리
+private let expandMinPullDelta: CGFloat = 45
+
 struct HistoryJourneyReportView: View {
     let report: HistoryJourneyReport
     @Binding var isWeekMode: Bool
@@ -24,6 +42,9 @@ struct HistoryJourneyReportView: View {
     @State private var lastScrollOffset: CGFloat = 0
     @State private var dragStartLocation: CGPoint = .zero
     @State private var isDragging: Bool = false
+    @State private var didReachOriginDuringDrag: Bool = false
+    @State private var reportTopOffset: CGFloat = 0
+    @State private var initialReportTopOffset: CGFloat? = nil
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -32,9 +53,18 @@ struct HistoryJourneyReportView: View {
         return formatter
     }()
     
-    // 온보딩에서 설정한 목표가 비어 있으면 placeholder 사용
+    // 온보딩에서 설정한 목표가 비어 있으면 placeholder 사용 -> API에서 빈 문자열이면 빈 문자열 그대로 표시
     private var goalText: String {
-        report.goal.isEmpty ? "건강한 생활 만들기" : report.goal
+        report.goal // .isEmpty 체크 제거 (요청사항: 텍스트 없을 때 placeholder 제거)
+    }
+    
+    /// API에서 journeyDay가 있으면 "2월 12일 · 3일차 여정 리포트", 없으면 "2월 12일 여정 리포트"
+    private var reportTitleText: String {
+        let dateStr = dateFormatter.string(from: report.date)
+        if let day = report.journeyDay {
+            return "\(dateStr) · \(day)일차 여정 리포트"
+        }
+        return "\(dateStr) 여정 리포트"
     }
     
     var body: some View {
@@ -43,10 +73,10 @@ struct HistoryJourneyReportView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     // 상단 타이틀 + 여정의 목표 블록 (간격 8)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("\(dateFormatter.string(from: report.date)) 여정 리포트")
+                        Text(reportTitleText)
                             .font(.system(size: 20, weight: .bold))
                             .foregroundStyle(Color("25-Text"))
-                            .padding(.top, 16) // 달력과의 간격을 16pt로 설정 (기존보다 총 8pt 감소)
+                            .padding(.top, calendarReportGap) // 첫 번째 간격: 달력 하단 ~ 리포트
                         
                         // 여정의 목표: 텍스트 아래에만 2pt 여유를 둔 하이라이트
                         VStack(alignment: .leading, spacing: 4) {
@@ -70,6 +100,15 @@ struct HistoryJourneyReportView: View {
                         }
                     }
                     .padding(.bottom, -8) // 전체 VStack spacing(24)에서 16으로 조정하기 위해 -8 추가
+                    .background(
+                        GeometryReader { topGeometry in
+                            Color.clear
+                                .preference(
+                                    key: ReportTopPreferenceKey.self,
+                                    value: topGeometry.frame(in: .named("scroll")).minY
+                                )
+                        }
+                    )
                     
                     // 루틴 요약 (Figma 스타일 카드)
                     VStack(alignment: .leading, spacing: 12) {
@@ -101,10 +140,41 @@ struct HistoryJourneyReportView: View {
                         
                         GrowthTrendGraph(data: growthData)
                     }
+                    
+                    // 여정 기록 (작성된 내용) — 루틴 요약과 동일하게 흰색 카드 안에 기록 + 사진
+                    // 기록 내용이 없으면 섹션 자체를 숨김
+                    if let content = report.recordContent, !content.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("여정 기록")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color("25-Text"))
+                                .padding(.leading, 4)
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                // 기록 텍스트
+                                Text(content)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Color("5-Text"))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .multilineTextAlignment(.leading)
+                                    .padding(.bottom, 8)
+                                    
+                                // TODO: API에 사진 URL 목록이 추가되면 여기에 표시. 현재는 텍스트만 표시하거나 사진이 없으면 숨김.
+                                // 사진이 없는데 placeholder가 들어가 있어서 제거함.
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.white)
+                            )
+                            .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
+                        }
+                    }
                 }
                 .padding(.horizontal, 24) // 여정 리포트 영역 전체 양옆 패딩 4씩 증가
-                .padding(.bottom, isWeekMode ? 0 : 32) // 달력이 접혔을 때는 하단 패딩 제거
-                .safeAreaPadding(.bottom) // 네비게이션 바 공간 확보
+                // 탭바보다 살짝 덜: 하단이 탭바에 살짝 가려져도 더 줄인 상태
+                .padding(.bottom, tabBarContentHeight + geometry.safeAreaInsets.bottom - 12)
                 .background(
                     GeometryReader { scrollGeometry in
                         Color.clear
@@ -115,89 +185,108 @@ struct HistoryJourneyReportView: View {
                     }
                 )
             }
+            .frame(height: geometry.size.height) // 높이 고정해 스크롤이 끝까지 동작하도록
             .coordinateSpace(name: "scroll")
             .scrollIndicators(.hidden) // 스크롤 인디케이터 숨기기
             .scrollContentBackground(.hidden) // 배경 숨기기
-            .scrollDisabled(isWeekMode) // 달력이 접혔을 때는 스크롤 비활성화
+            // 달력 접힌/펼친 상태 모두에서 리포트 영역만 스크롤 가능
+            // 접기: 헤더가 맨 위에 있을 때만 위로 스와이프 시 접힘
+            // 펴기: preference(overscroll) 또는 제스처. 시뮬레이터는 overscroll을 안 주므로, preference로 '맨 위 도달' 기록 후 제스처로 펴기
             .simultaneousGesture(
-                DragGesture(minimumDistance: 20)
+                DragGesture(minimumDistance: 10)
                     .onChanged { value in
                         let dy = value.translation.height
+                        let isHeaderAtOrigin = {
+                            guard let initial = initialReportTopOffset else { return false }
+                            return abs(reportTopOffset - initial) <= reportTopAtOriginThreshold
+                        }()
+
+                        if !isDragging {
+                            isDragging = true
+                            didReachOriginDuringDrag = false
+                        }
+                        if isHeaderAtOrigin {
+                            didReachOriginDuringDrag = true
+                        }
                         
-                        // 위로 스와이프 (dy < 0) → 달력 접기
-                        // 아래로 스와이프 (dy > 0) → 달력 펴기
-                        if abs(dy) > 50 {
+                        if dy < -collapseMinPullDelta, !isWeekMode, isHeaderAtOrigin, didReachOriginDuringDrag {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                                if dy < -50 {
-                                    // 위로 충분히 스와이프 → 달력 접기 (첫 번째 사진처럼)
-                                    isWeekMode = true
-                                } else if dy > 50 {
-                                    // 아래로 충분히 스와이프 → 달력 펴기 (두 번째 사진처럼)
-                                    isWeekMode = false
-                                }
+                                isWeekMode = true
                             }
                         }
                     }
+                    .onEnded { value in
+                        let dy = value.translation.height
+                        let isHeaderAtOrigin = {
+                            guard let initial = initialReportTopOffset else { return false }
+                            return abs(reportTopOffset - initial) <= reportTopAtOriginThreshold
+                        }()
+                        if dy > expandMinPullDelta, isWeekMode, isHeaderAtOrigin, didReachOriginDuringDrag {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                                isWeekMode = false
+                            }
+                        }
+                        isDragging = false
+                    }
             )
             .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offset in
-                // 초기 상태에서는 lastScrollOffset이 설정되지 않았을 수 있으므로 처리
                 if abs(lastScrollOffset) < 0.1 && abs(offset) > 0.1 {
                     lastScrollOffset = offset
                     scrollOffset = offset
                     return
                 }
-                
-                let delta = offset - lastScrollOffset
-                
-                // 스크롤 변화가 충분히 클 때만 반응 (DragGesture가 작동하지 않을 때를 대비)
-                if abs(delta) > 40 {
-                    lastScrollOffset = offset
-                    scrollOffset = offset
-                    
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                        if delta < -40 {
-                            // 위로 충분히 스크롤 (내용이 아래로 내려감) → 달력 접기
-                            isWeekMode = true
-                        } else if delta > 40 {
-                            // 아래로 충분히 스크롤 (내용이 위로 올라감) → 달력 펴기
-                            isWeekMode = false
-                        }
-                    }
-                } else {
-                    lastScrollOffset = offset
-                    scrollOffset = offset
+
+                lastScrollOffset = offset
+                scrollOffset = offset
+            }
+            .onPreferenceChange(ReportTopPreferenceKey.self) { topOffset in
+                reportTopOffset = topOffset
+                if initialReportTopOffset == nil, !isWeekMode {
+                    initialReportTopOffset = topOffset
+                }
+            }
+            .onChange(of: isWeekMode) { _, newValue in
+                didReachOriginDuringDrag = false
+                if !newValue {
+                    initialReportTopOffset = reportTopOffset
                 }
             }
         }
     }
     
-    // MARK: - 성장 추이 그래프용 더미 데이터
-    /// 현재는 API 연동 전이므로, 임의의 6일치 데이터를 사용하되,
-    /// "선택한 날짜"가 마지막 Day로 오도록 구성
-    /// - X축: 총 6개 포인트, 마지막이 선택한 날짜의 Day (Day1/Day2/Day3)
-    /// - Y축: 실행률(0.0 ~ 1.0) = 완료 루틴 수 / 전체 루틴 수(여기서는 3개로 가정)
+    // MARK: - 성장 추이 그래프
+    /// API에서 day1Rate, day2Rate, day3Rate가 있으면 사용하고, 없으면 임시 로직(연중 일자 기반)으로 6포인트 생성
     private var growthData: [GrowthDataPoint] {
-        let calendar = Calendar.current
-        // 연중 몇 번째 날인지 기준으로 Day1/2/3를 순환 결정 (임시 로직)
-        let dayOfYear = calendar.ordinality(of: .day, in: .year, for: report.date) ?? 1
-        let selectedDayIndex = (dayOfYear - 1) % 3 // 0 → Day1, 1 → Day2, 2 → Day3
+        var rates = [report.day1Rate, report.day2Rate, report.day3Rate].compactMap { $0 }
         
-        // 더미 완료 개수 패턴 (0~3 사이 값 반복)
+        // journeyDay가 존재하면 해당 일차까지만 데이터 사용
+        if let currentDay = report.journeyDay, currentDay > 0 {
+            let limit = min(currentDay, rates.count)
+            rates = Array(rates.prefix(limit))
+        }
+
+        if rates.count >= 1 {
+            // API 데이터: Day1~DayN 실행률을 그대로 사용 (마지막이 현재 보고 있는 날짜)
+            return rates.enumerated().map { offset, rate in
+                GrowthDataPoint(
+                    index: offset,
+                    label: "Day\(offset + 1)",
+                    rate: min(1.0, max(0, rate))
+                )
+            }
+        }
+        // API 미제공 시: 연중 일자 기반 임시 로직
+        let calendar = Calendar.current
+        let dayOfYear = calendar.ordinality(of: .day, in: .year, for: report.date) ?? 1
+        let selectedDayIndex = (dayOfYear - 1) % 3
         let completedPattern = [0, 1, 2, 3]
         let totalRoutinesPerDay = 3.0
-        
-        // 총 6개의 포인트를 생성. index 5가 "선택한 날짜"에 해당.
         return (0..<6).map { offset in
-            // offset: 0~5, 5가 선택 날짜
             let stepsFromSelected = 5 - offset
-            // Day 라벨 인덱스 계산 (0~2 → Day1~3)
             let dayLabelIndex = (selectedDayIndex - stepsFromSelected % 3 + 300) % 3
-            
-            // 더미 완료 개수 (날짜/offset을 섞어서 약간 변화 주기)
             let patternIndex = (dayOfYear + offset) % completedPattern.count
             let completed = completedPattern[patternIndex]
             let rate = Double(completed) / totalRoutinesPerDay
-            
             return GrowthDataPoint(
                 index: offset,
                 label: "Day\(dayLabelIndex + 1)",
@@ -367,6 +456,12 @@ struct HistoryJourneyReportView: View {
                 report: HistoryJourneyReport(
                     date: Date(),
                     goal: "건강한 생활 만들기",
+                    journeyDay: nil,
+                    day1Rate: nil,
+                    day2Rate: nil,
+                    day3Rate: nil,
+                    totalRate: nil,
+                    recordContent: nil,
                     routines: [
                         HistoryRoutineReport(id: 1, name: "루틴 이름", status: .completed),
                         HistoryRoutineReport(id: 2, name: "루틴 이름", status: .postponed),

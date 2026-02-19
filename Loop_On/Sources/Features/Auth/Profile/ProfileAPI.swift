@@ -12,7 +12,8 @@ enum ProfileAPI {
     case createProfile(profile: ProfileDTO)
     case updateProfile(profile: ProfileDTO)
     case getProfile
-    case getMe
+    case getMe(page: Int, size: Int, sort: [String]?)
+    case updateUserProfile(request: ProfileUpdateRequestDTO)
 }
 
 extension ProfileAPI: TargetType {
@@ -24,6 +25,8 @@ extension ProfileAPI: TargetType {
             return "/profile"
         case .getMe:
             return "/api/users/me"
+        case .updateUserProfile:
+            return "/api/users/profile"
         }
     }
     
@@ -33,6 +36,8 @@ extension ProfileAPI: TargetType {
             return .post
         case .updateProfile:
             return .put
+        case .updateUserProfile:
+            return .patch
         case .getProfile:
             return .get
         case .getMe:
@@ -44,11 +49,20 @@ extension ProfileAPI: TargetType {
         switch self {
         case let .createProfile(profile), let .updateProfile(profile):
             return .requestJSONEncodable(profile)
+        case let .updateUserProfile(request):
+            return .requestJSONEncodable(request)
         case .getProfile:
             return .requestPlain
-        case .getMe:
+        case let .getMe(page, size, sort):
+            var params: [String: Any] = [
+                "page": page,
+                "size": size
+            ]
+            if let sort = sort, !sort.isEmpty {
+                params["sort"] = sort.joined(separator: ",")
+            }
             return .requestParameters(
-                parameters: ["page": 0, "size": 10, "sort": "createdAt,desc"],
+                parameters: params,
                 encoding: URLEncoding.queryString
             )
         }

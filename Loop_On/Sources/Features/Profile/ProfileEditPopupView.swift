@@ -76,8 +76,11 @@ struct ProfileEditPopupView: View {
                         .frame(height: 56)
                     
                     Button {
-                        viewModel.saveProfile()
-                        isPresented = false
+                        viewModel.saveProfile { success in
+                            if success {
+                                isPresented = false
+                            }
+                        }
                     } label: {
                         Text("저장")
                             .font(.system(size: 16, weight: .medium))
