@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct PersonalProfileView: View {
     /// true: 내 프로필, false: 타인 프로필
@@ -16,15 +17,18 @@ struct PersonalProfileView: View {
     @Environment(NavigationRouter.self) private var router
     @Environment(SessionStore.self) var session // SessionStore 주입
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel = PersonalProfileViewModel()
+    @StateObject private var viewModel: PersonalProfileViewModel
     @State private var isShowingProfileEdit = false
     @State private var isShowingShareJourney = false
     /// 그리드에서 탭한 썸네일 인덱스 → 피드 상세 화면에서 해당 피드가 최상단에 오도록
     @State private var feedDetailSelectedIndex: Int? = nil
+    /// PhotosPicker 선택 항목
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
 
-    init(isOwnProfile: Bool = true, onClose: (() -> Void)? = nil) {
+    init(isOwnProfile: Bool = true, nickname: String? = nil, onClose: (() -> Void)? = nil) {
         self.isOwnProfile = isOwnProfile
         self.onClose = onClose
+        _viewModel = StateObject(wrappedValue: PersonalProfileViewModel(nickname: nickname))
     }
     
     var body: some View {
@@ -121,10 +125,25 @@ struct PersonalProfileView: View {
         .onAppear {
             session.syncCurrentJourneyId()
         }
+        // 어느 화면에서 챌린지를 업로드해도 내 프로필 즉시 갱신
+        .onReceive(NotificationCenter.default.publisher(for: .challengeUploaded)) { _ in
+            if isOwnProfile {
+                viewModel.refreshProfile()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .challengeDeleted)) { _ in
+            if isOwnProfile && feedDetailSelectedIndex == nil {
+                viewModel.refreshProfile()
+            }
+        }
         .fullScreenCover(isPresented: Binding(
             get: { feedDetailSelectedIndex != nil },
             set: { if !$0 { feedDetailSelectedIndex = nil } }
-        )) {
+        ), onDismiss: {
+            if isOwnProfile {
+                viewModel.refreshProfile()
+            }
+        }) {
             if
                 let index = feedDetailSelectedIndex,
                 index < viewModel.myChallengeItems.count,
@@ -134,6 +153,7 @@ struct PersonalProfileView: View {
                 PersonalFeedDetailView(
                     nickname: user.name,
                     selectedChallengeId: item.challengeId,
+                    isOwnFeed: isOwnProfile,
                     onClose: { feedDetailSelectedIndex = nil }
                 )
             }
@@ -191,16 +211,18 @@ struct PersonalProfileView: View {
                         .frame(width: 110, height: 110)
                     }
                     
-                    // 카메라 아이콘 (내 프로필에서만)
+                    // 카메라 아이콘 (내 프로필에서만) - PhotosPicker 연결
                     if isOwnProfile {
-                        Button {
-                            // TODO: 프로필 이미지 편집
-                        } label: {
+                        PhotosPicker(
+                            selection: $selectedPhotoItem,
+                            matching: .images,
+                            photoLibrary: .shared()
+                        ) {
                             ZStack {
                                 Circle()
                                     .fill(Color.black)
                                     .frame(width: 36, height: 36)
-                                
+
                                 Image("photo_camera")
                                     .resizable()
                                     .renderingMode(.template)
@@ -211,6 +233,26 @@ struct PersonalProfileView: View {
                         }
                         .buttonStyle(.plain)
                         .offset(x: -2, y: -2)
+                        .onChange(of: selectedPhotoItem) { _, newItem in
+                            guard let newItem else { return }
+                            Task {
+                                if let data = try? await newItem.loadTransferable(type: Data.self) {
+                                    viewModel.uploadProfileImage(imageData: data) { _ in }
+                                }
+                            }
+                        }
+                    }
+                }
+                .overlay {
+                    if viewModel.isUploadingImage {
+                        ZStack {
+                            Color.black.opacity(0.3)
+                            ProgressView()
+                                .tint(.white)
+                        }
+                        .frame(width: 110, height: 110)
+                        .clipShape(Circle())
+                        .allowsHitTesting(false)
                     }
                 }
                 
@@ -259,54 +301,95 @@ struct PersonalProfileView: View {
     }
     
     // MARK: - Content Grid
+    @ViewBuilder
     private var contentGrid: some View {
-        let columns = [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12)
-        ]
-        
-        return LazyVGrid(columns: columns, spacing: 12) {
-            ForEach(0..<viewModel.challengeImages.count, id: \.self) { index in
-                Button {
-                    feedDetailSelectedIndex = index
-                } label: {
-                    challengeImageCell(imageURL: viewModel.challengeImages[index])
-                }
-                .buttonStyle(.plain)
-                .onAppear {
-                    viewModel.loadMoreChallengesIfNeeded(currentIndex: index)
+        if viewModel.challengeImages.isEmpty {
+            emptyStateView
+        } else {
+            let columns = [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ]
+            
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(0..<viewModel.challengeImages.count, id: \.self) { index in
+                    Button {
+                        feedDetailSelectedIndex = index
+                    } label: {
+                        challengeImageCell(imageURL: viewModel.challengeImages[index])
+                    }
+                    .buttonStyle(.plain)
+                    .onAppear {
+                        viewModel.loadMoreChallengesIfNeeded(currentIndex: index)
+                    }
                 }
             }
         }
     }
     
-    private func challengeImageCell(imageURL: String?) -> some View {
-        ZStack {
-            // 흰색 배경 카드 (검은 테두리 제거, 외곽 그림자 추가)
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color("100"))
-                .aspectRatio(1, contentMode: .fit)
-                .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "camera.circle") // 사용자 요청으로 다시 카메라 아이콘 사용
+                .resizable()
+                .scaledToFit()
+                .frame(width: 60, height: 60)
+                .font(.system(size: 60, weight: .light))
+                .foregroundStyle(Color.black)
+                .padding(.bottom, 8)
             
-            if let imageURL = imageURL, !imageURL.isEmpty {
-                AsyncImage(url: URL(string: imageURL)) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    // 산 아이콘 플레이스홀더
-                    Image(systemName: "mountain.2")
-                        .font(.system(size: 24))
-                        .foregroundStyle(Color("5-Text"))
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            } else {
-                // 산 아이콘 플레이스홀더
-                Image(systemName: "mountain.2")
-                    .font(.system(size: 24))
-                    .foregroundStyle(Color("5-Text"))
+            Text("챌린지 공유")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(Color.black)
+            
+            Text("챌린지를 공유하면 회원님의 프로필에 표시됩니다.")
+                .font(.system(size: 15))
+                .foregroundStyle(Color("45-Text"))
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 8)
+            
+            Button {
+                isShowingShareJourney = true
+            } label: {
+                Text("첫 챌린지 공유하기")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color(red: 0.95, green: 0.45, blue: 0.35)) // Loop-On Orange
             }
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+        .padding(.bottom, 60)
+    }
+    
+    private func challengeImageCell(imageURL: String?) -> some View {
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay(
+                Group {
+                    if let imageURL = imageURL, !imageURL.isEmpty, let url = URL(string: imageURL) {
+                        AsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } placeholder: {
+                            Color.gray.opacity(0.15)
+                                .overlay(
+                                    Image(systemName: "mountain.2")
+                                        .font(.system(size: 24))
+                                        .foregroundStyle(Color("5-Text"))
+                                )
+                        }
+                    } else {
+                        Color("100")
+                            .overlay(
+                                Image(systemName: "mountain.2")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(Color("5-Text"))
+                            )
+                    }
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
     }
 }
 

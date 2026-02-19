@@ -24,7 +24,7 @@ struct ShareJourneyView: View {
     init(
         journeyId: Int = 0,
         editChallengeId: Int? = nil,
-        expeditionId: Int = 0,
+        expeditionId: Int? = nil,
         bottomContentInset: CGFloat = 0,
         onClose: (() -> Void)? = nil
     ) {
@@ -369,7 +369,7 @@ struct ShareJourneyView: View {
                 // 없음
                 Button {
                     viewModel.expeditionSetting = "없음"
-                    viewModel.expeditionId = 0
+                    viewModel.expeditionId = nil
                     isShowingExpeditionPopup = false
                 } label: {
                     HStack {

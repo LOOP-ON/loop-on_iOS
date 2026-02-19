@@ -12,7 +12,7 @@ import SwiftUI
 struct RootTabView: View {
     @State private var selectedTab: TabItem = .home
     /// 타인 프로필 오버레이: 설정 시 이전 화면 위에 타인뷰를 올리고, 그 위에 탭바가 항상 보이게 함
-    @State private var overlayUserId: Int? = nil
+    @State private var overlayNickname: String? = nil
     @EnvironmentObject var homeViewModel: HomeViewModel
     @Environment(SessionStore.self) private var session
 
@@ -29,7 +29,7 @@ struct RootTabView: View {
                 HistoryView()
                     .tag(TabItem.history)
 
-                ChallengeView(onOpenOtherProfile: { overlayUserId = $0 })
+                ChallengeView(onOpenOtherProfile: { overlayNickname = $0 })
                     .tag(TabItem.challenge)
 
                 PersonalProfileView()
@@ -39,8 +39,8 @@ struct RootTabView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // 2) 타인뷰 오버레이 (이전 화면 위에 올림)
-            if overlayUserId != nil {
-                PersonalProfileView(isOwnProfile: false, onClose: { overlayUserId = nil })
+            if overlayNickname != nil {
+                PersonalProfileView(isOwnProfile: false, nickname: overlayNickname, onClose: { overlayNickname = nil })
                     .transition(.opacity)
                     .zIndex(1)
             }
@@ -53,7 +53,7 @@ struct RootTabView: View {
             .zIndex(2)
             .onChange(of: selectedTab) { oldValue, newValue in
                 // 타인뷰 오버레이 중에 다른 탭을 누르면 오버레이 닫고 해당 탭으로 이동
-                overlayUserId = nil
+                overlayNickname = nil
                 // #region agent log
                 let payload: [String: Any] = [
                     "sessionId": "debug-session",

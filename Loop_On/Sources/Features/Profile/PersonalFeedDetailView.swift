@@ -17,6 +17,7 @@ final class PersonalFeedDetailViewModel: ObservableObject {
     @Published var loadError: String?
 
     private let nickname: String
+    private let isOwner: Bool
     private let networkManager = DefaultNetworkManager<ChallengeAPI>()
 
     private var page: Int = 0
@@ -24,8 +25,9 @@ final class PersonalFeedDetailViewModel: ObservableObject {
     private var hasMore: Bool = true
     private var isLoadingPage: Bool = false
 
-    init(nickname: String) {
+    init(nickname: String, isOwner: Bool = false) {
         self.nickname = nickname
+        self.isOwner = isOwner
     }
 
     func loadInitial() {
@@ -74,7 +76,7 @@ final class PersonalFeedDetailViewModel: ObservableObject {
 
                 switch result {
                 case .success(let pageDTO):
-                    let newCards = pageDTO.content.map { Self.challengeCard(from: $0) }
+                    let newCards = pageDTO.content.map { Self.challengeCard(from: $0, isOwner: self.isOwner) }
                     if reset {
                         self.cards = newCards
                     } else {
@@ -102,6 +104,7 @@ final class PersonalFeedDetailViewModel: ObservableObject {
                 switch result {
                 case .success:
                     self?.cards.removeAll { $0.challengeId == challengeId }
+                    NotificationCenter.default.post(name: .challengeDeleted, object: nil)
                     completion(.success(()))
                 case .failure(let error):
                     completion(.failure(error))
@@ -110,8 +113,7 @@ final class PersonalFeedDetailViewModel: ObservableObject {
         }
     }
 
-    /// DTO → 카드 변환 (ChallengePlazaViewModel과 동일한 스타일)
-    private static func challengeCard(from dto: ChallengeFeedItemDTO) -> ChallengeCard {
+    private static func challengeCard(from dto: ChallengeFeedItemDTO, isOwner: Bool) -> ChallengeCard {
         let dateText = formatFeedDate(dto.createdAt)
         let hashtags = dto.hashtags.map { $0.hasPrefix("#") ? $0 : "#\($0)" }
         return ChallengeCard(
@@ -125,7 +127,7 @@ final class PersonalFeedDetailViewModel: ObservableObject {
             profileImageUrl: dto.profileImageUrl,
             isLiked: dto.isLiked,
             likeCount: dto.likeCount,
-            isMine: dto.isMine ?? false
+            isMine: isOwner || (dto.isMine ?? false)
         )
     }
 
@@ -157,11 +159,11 @@ struct PersonalFeedDetailView: View {
     /// 게시물 삭제 확인 팝업용 타겟 ID
     @State private var deleteTargetId: Int? = nil
 
-    init(nickname: String, selectedChallengeId: Int, onClose: @escaping () -> Void) {
+    init(nickname: String, selectedChallengeId: Int, isOwnFeed: Bool = false, onClose: @escaping () -> Void) {
         self.nickname = nickname
         self.selectedChallengeId = selectedChallengeId
         self.onClose = onClose
-        _viewModel = StateObject(wrappedValue: PersonalFeedDetailViewModel(nickname: nickname))
+        _viewModel = StateObject(wrappedValue: PersonalFeedDetailViewModel(nickname: nickname, isOwner: isOwnFeed))
     }
 
     var body: some View {
@@ -228,7 +230,14 @@ struct PersonalFeedDetailView: View {
                     leftAction: { deleteTargetId = nil },
                     rightAction: {
                         if let id = deleteTargetId {
-                            viewModel.deleteChallenge(challengeId: id) { _ in deleteTargetId = nil }
+                            viewModel.deleteChallenge(challengeId: id) { result in
+                                deleteTargetId = nil
+                                if case .success = result {
+                                    if viewModel.cards.isEmpty {
+                                        onClose()
+                                    }
+                                }
+                            }
                         }
                     }
                 )

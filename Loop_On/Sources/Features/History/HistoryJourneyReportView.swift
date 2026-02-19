@@ -136,7 +136,7 @@ struct HistoryJourneyReportView: View {
                         Text("성장 추이 그래프")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Color("25-Text"))
-                            .padding(.leading, 4) // 루틴 요약 텍스트와 동일한 x 위치
+                            .padding(.leading, 4)
                         
                         GrowthTrendGraph(data: growthData)
                     }
@@ -255,42 +255,43 @@ struct HistoryJourneyReportView: View {
     }
     
     // MARK: - 성장 추이 그래프
-    /// API에서 day1Rate, day2Rate, day3Rate가 있으면 사용하고, 없으면 임시 로직(연중 일자 기반)으로 6포인트 생성
     private var growthData: [GrowthDataPoint] {
-        var rates = [report.day1Rate, report.day2Rate, report.day3Rate].compactMap { $0 }
+        let isToday = Calendar.current.isDateInToday(report.date)
         
-        // journeyDay가 존재하면 해당 일차까지만 데이터 사용
-        if let currentDay = report.journeyDay, currentDay > 0 {
-            let limit = min(currentDay, rates.count)
-            rates = Array(rates.prefix(limit))
-        }
-
-        if rates.count >= 1 {
-            // API 데이터: Day1~DayN 실행률을 그대로 사용 (마지막이 현재 보고 있는 날짜)
-            return rates.enumerated().map { offset, rate in
-                GrowthDataPoint(
-                    index: offset,
-                    label: "Day\(offset + 1)",
-                    rate: min(1.0, max(0, rate))
-                )
+        // journeyDay가 있으면 우선 사용 (1-based -> 0-based)
+        var currentDayIndex = (report.journeyDay ?? 0) - 1
+        
+        // journeyDay가 nil인 경우, rates에서 첫 번째로 nil인 인덱스를 현재 진행 중인 날짜로 추론
+        if report.journeyDay == nil {
+            let rates = [report.day1Rate, report.day2Rate, report.day3Rate]
+            if let firstNilIndex = rates.firstIndex(where: { $0 == nil }) {
+                currentDayIndex = firstNilIndex
+            } else {
+                // 모두 값이 있으면 진행할 날짜가 없거나 이미 완료됨
+                currentDayIndex = 3
             }
         }
-        // API 미제공 시: 연중 일자 기반 임시 로직
-        let calendar = Calendar.current
-        let dayOfYear = calendar.ordinality(of: .day, in: .year, for: report.date) ?? 1
-        let selectedDayIndex = (dayOfYear - 1) % 3
-        let completedPattern = [0, 1, 2, 3]
-        let totalRoutinesPerDay = 3.0
-        return (0..<6).map { offset in
-            let stepsFromSelected = 5 - offset
-            let dayLabelIndex = (selectedDayIndex - stepsFromSelected % 3 + 300) % 3
-            let patternIndex = (dayOfYear + offset) % completedPattern.count
-            let completed = completedPattern[patternIndex]
-            let rate = Double(completed) / totalRoutinesPerDay
+
+        let allRates: [Double?] = [report.day1Rate, report.day2Rate, report.day3Rate]
+        
+        // 항상 Day1, Day2, Day3 반환 (값은 nil일 수 있음)
+        return allRates.enumerated().map { offset, rate in
+            var finalRate: Double? = rate
+            
+            // 값이 없는데 오늘 해당 차례라면 0.0으로 처리
+            if finalRate == nil && isToday && offset == currentDayIndex {
+                finalRate = 0.0
+            }
+            
+            // 0.0~1.0 클램핑
+            if let v = finalRate {
+                finalRate = min(1.0, max(0, v))
+            }
+            
             return GrowthDataPoint(
                 index: offset,
-                label: "Day\(dayLabelIndex + 1)",
-                rate: rate
+                label: "Day\(offset + 1)",
+                rate: finalRate
             )
         }
     }
@@ -299,7 +300,7 @@ struct HistoryJourneyReportView: View {
         let id = UUID()
         let index: Int
         let label: String
-        let rate: Double // 0.0 ~ 1.0
+        let rate: Double? // 0.0 ~ 1.0 or nil
     }
     
     // MARK: - 성장 추이 그래프 View
@@ -350,41 +351,46 @@ struct HistoryJourneyReportView: View {
                                 .position(x: geometry.size.width / 2, y: y)
                             }
                             
-                            // 선 + 포인트
+                            // 선 + 포인트 (유효한 데이터만 연결)
                             Path { path in
-                                guard let first = data.first else { return }
-                                let firstRatio = CGFloat(1.0 - min(max(first.rate / maxRate, 0), 1))
-                                let startX = leftPadding + 0.5 * stepX
+                                // 유효한 데이터만 추출
+                                let validPoints = data.filter { $0.rate != nil }
+                                guard let first = validPoints.first, let firstRate = first.rate else { return }
+                                
+                                let firstRatio = CGFloat(1.0 - min(max(firstRate / maxRate, 0), 1))
+                                let startX = leftPadding + (CGFloat(first.index) + 0.5) * stepX
                                 let startY = topPadding + firstRatio * clampedPlotHeight
                                 path.move(to: CGPoint(x: startX, y: startY))
                                 
-                                for index in 0..<data.count {
-                                    let point = data[index]
-                                    let ratio = CGFloat(1.0 - min(max(point.rate / maxRate, 0), 1))
-                                    let x = leftPadding + (CGFloat(index) + 0.5) * stepX
+                                for point in validPoints.dropFirst() {
+                                    guard let rate = point.rate else { continue }
+                                    let ratio = CGFloat(1.0 - min(max(rate / maxRate, 0), 1))
+                                    let x = leftPadding + (CGFloat(point.index) + 0.5) * stepX
                                     let y = topPadding + ratio * clampedPlotHeight
                                     path.addLine(to: CGPoint(x: x, y: y))
                                 }
                             }
                             .stroke(Color("PrimaryColor55"), lineWidth: 1.5)
                             
-                            // 포인트 원
+                            // 포인트 원 (유효한 데이터만 표시)
                             ForEach(Array(data.enumerated()), id: \.1.id) { index, point in
-                                let ratio = CGFloat(1.0 - min(max(point.rate / maxRate, 0), 1))
-                                let x = leftPadding + (CGFloat(index) + 0.5) * stepX
-                                let y = topPadding + ratio * clampedPlotHeight
-                                
-                                Circle()
-                                    .fill(Color.white)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color("PrimaryColor55"), lineWidth: 2)
-                                    )
-                                    .frame(width: 6, height: 6)
-                                    .position(x: x, y: y)
+                                if let rate = point.rate {
+                                    let ratio = CGFloat(1.0 - min(max(rate / maxRate, 0), 1))
+                                    let x = leftPadding + (CGFloat(index) + 0.5) * stepX
+                                    let y = topPadding + ratio * clampedPlotHeight
+                                    
+                                    Circle()
+                                        .fill(Color.white)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(Color("PrimaryColor55"), lineWidth: 2)
+                                        )
+                                        .frame(width: 6, height: 6)
+                                        .position(x: x, y: y)
+                                }
                             }
                             
-                            // X축 라벨 (각 포인트 아래에 개별 배치)
+                            // X축 라벨 (데이터 유무와 관계없이 항상 표시)
                             ForEach(Array(data.enumerated()), id: \.1.id) { index, point in
                                 let x = leftPadding + (CGFloat(index) + 0.5) * stepX
                                 

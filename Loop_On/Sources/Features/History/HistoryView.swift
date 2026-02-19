@@ -51,6 +51,11 @@ struct HistoryView: View {
     private var isSelectedDateInFuture: Bool {
         calendar.startOfDay(for: selectedDate) > calendar.startOfDay(for: Date())
     }
+    
+    // 선택한 날짜가 오늘 이전인지 (과거 날짜)
+    private var isSelectedDateInPast: Bool {
+        calendar.startOfDay(for: selectedDate) < calendar.startOfDay(for: Date())
+    }
 
     // 현재 달에 루틴 수행 기록이 있는지 확인
     private var hasRoutineRecordsInCurrentMonth: Bool {
@@ -183,7 +188,7 @@ struct HistoryView: View {
                             // 현재 달에 기록이 없으면 안내 메시지
                             MessageMidpointContainer {
                                 VStack(spacing: 8) {
-                                    Text("아직 루틴을 수행한 기록이 없어요.")
+                                    Text(isSelectedDateInPast ? "루틴을 수행한 기록이 없어요." : "아직 루틴을 수행한 기록이 없어요.")
                                         .font(.system(size: 16, weight: .medium))
                                         .foregroundStyle(Color("25-Text"))
 

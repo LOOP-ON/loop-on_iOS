@@ -24,7 +24,7 @@ struct ChallengeCardView: View {
     /// (challengeId, commentId, completion(success))
     var onDeleteComment: ((Int, Int, @escaping (Bool) -> Void) -> Void)?
     /// 타인 프로필 열기 (제공 시 오버레이로 열어 탭바 유지)
-    var onOpenOtherProfile: ((Int) -> Void)? = nil
+    var onOpenOtherProfile: ((String) -> Void)? = nil
     @State private var isShowingMenu = false
     @State private var isShowingCommentSheet = false
     @State private var comments: [ChallengeComment] = []
@@ -76,20 +76,40 @@ struct ChallengeCardView: View {
                 HStack(spacing: 8) {
                     Button {
                         if let onOpenOtherProfile = onOpenOtherProfile {
-                            onOpenOtherProfile(card.challengeId)
+                            onOpenOtherProfile(card.authorName)
                         } else {
-                            router.push(.app(.profile(userID: card.challengeId)))
+                            router.push(.app(.profile(nickname: card.authorName)))
                         }
                     } label: {
                         HStack(spacing: 8) {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
+                            if let urlString = card.profileImageUrl,
+                               !urlString.isEmpty,
+                               let url = URL(string: urlString) {
+                                AsyncImage(url: url) { image in
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                } placeholder: {
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.3))
+                                        .overlay(
+                                            Image(systemName: "person.fill")
+                                                .font(.system(size: 14))
+                                                .foregroundStyle(Color.white)
+                                        )
+                                }
                                 .frame(width: 28, height: 28)
-                                .overlay(
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(Color.white)
-                                )
+                                .clipShape(Circle())
+                            } else {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 28, height: 28)
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .font(.system(size: 14))
+                                            .foregroundStyle(Color.white)
+                                    )
+                            }
 
                             Text(card.authorName)
                                 .font(LoopOnFontFamily.Pretendard.medium.swiftUIFont(size: 14))

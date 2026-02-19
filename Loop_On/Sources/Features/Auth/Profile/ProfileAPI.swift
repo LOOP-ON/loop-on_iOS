@@ -13,7 +13,10 @@ enum ProfileAPI {
     case updateProfile(profile: ProfileDTO)
     case getProfile
     case getMe(page: Int, size: Int, sort: [String]?)
+    case getUser(nickname: String, page: Int, size: Int, sort: [String]?)
     case updateUserProfile(request: ProfileUpdateRequestDTO)
+    /// PATCH /api/users/profile/image — multipart
+    case updateProfileImage(imageData: Data)
 }
 
 extension ProfileAPI: TargetType {
@@ -25,8 +28,12 @@ extension ProfileAPI: TargetType {
             return "/profile"
         case .getMe:
             return "/api/users/me"
+        case .getUser(let nickname, _, _, _):
+            return "/api/users/\(nickname)"
         case .updateUserProfile:
             return "/api/users/profile"
+        case .updateProfileImage:
+            return "/api/users/upload-profile-image"
         }
     }
     
@@ -38,9 +45,13 @@ extension ProfileAPI: TargetType {
             return .put
         case .updateUserProfile:
             return .patch
+        case .updateProfileImage:
+            return .post
         case .getProfile:
             return .get
         case .getMe:
+            return .get
+        case .getUser:
             return .get
         }
     }
@@ -65,19 +76,43 @@ extension ProfileAPI: TargetType {
                 parameters: params,
                 encoding: URLEncoding.queryString
             )
+        case let .getUser(_, page, size, sort):
+            var params: [String: Any] = [
+                "page": page,
+                "size": size
+            ]
+            if let sort = sort, !sort.isEmpty {
+                params["sort"] = sort.joined(separator: ",")
+            }
+            return .requestParameters(
+                parameters: params,
+                encoding: URLEncoding.queryString
+            )
+        case let .updateProfileImage(imageData):
+            let part = MultipartFormData(
+                provider: .data(imageData),
+                name: "file",
+                fileName: "profile.jpg",
+                mimeType: "image/jpeg"
+            )
+            return .uploadMultipart([part])
         }
     }
     
     var headers: [String: String]? {
-        var header = ["Content-Type": "application/json"]
-            
-        if let token = KeychainService.shared.loadToken() {
-            header["Authorization"] = "Bearer \(token)"
-            print("DEBUG: ProfileAPI - 인증 헤더 추가됨")
-        } else {
-            print("DEBUG: ProfileAPI - 헤더에 넣을 토큰이 없습니다.")
+        let token = KeychainService.shared.loadToken()
+        let auth = token.map { "Bearer \($0)" }
+
+        switch self {
+        case .updateProfileImage:
+            // multipart 업로드 시 Content-Type은 Moya가 boundary와 함께 자동 설정
+            var header: [String: String] = [:]
+            if let auth { header["Authorization"] = auth }
+            return header
+        default:
+            var header = ["Content-Type": "application/json"]
+            if let auth { header["Authorization"] = auth }
+            return header
         }
-            
-        return header
     }
 }

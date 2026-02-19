@@ -12,8 +12,21 @@ struct AccountView: View {
     @Environment(SessionStore.self) private var session
 
     // TODO: Replace with real user/session data
-    private let email = "seoly@soongsil.ac.kr"
-    private let socialLoginStatus = "없음"
+    private var email: String {
+        session.currentUserEmail.isEmpty ? "불러오는 중..." : session.currentUserEmail
+    }
+    private var socialLoginStatus: String {
+        guard let provider = session.socialProvider, !provider.isEmpty else {
+            return "없음"
+        }
+        switch provider.uppercased() {
+        case "KAKAO": return "카카오"
+        case "APPLE": return "애플"
+        case "GOOGLE": return "구글"
+        case "NAVER": return "네이버"
+        default: return provider
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -23,12 +36,8 @@ struct AccountView: View {
                     accountSectionTitle("로그인 정보")
                         .padding(.top, 20)
                         .padding(.bottom, 10)
-                    AccountCardRow(title: "이메일 변경", trailing: email, isDestructive: false, showsChevron: true) {
-                            // TODO: 이메일 변경 화면
-                        }
-                        AccountCardRow(title: "소셜로그인 연결", trailing: socialLoginStatus, isDestructive: false, showsChevron: true) {
-                            // TODO: 소셜 로그인 연결 화면
-                        }
+                AccountCardRow(title: "이메일", trailing: email, showsChevron: false)
+                AccountCardRow(title: "소셜로그인 연결", trailing: socialLoginStatus, showsChevron: false)
                         AccountCardRow(title: "비밀번호 재설정", trailing: nil, isDestructive: false, showsChevron: true) {
                             router.push(.auth(.findPassword))
                         }
@@ -85,6 +94,11 @@ struct AccountView: View {
                 }
             }
         }
+        .onAppear {
+            if session.currentUserEmail.isEmpty {
+                session.fetchUserProfile()
+            }
+        }
     }
 
     private func accountSectionTitle(_ text: String) -> some View {
@@ -100,30 +114,46 @@ private struct AccountCardRow: View {
     let trailing: String?
     let isDestructive: Bool
     let showsChevron: Bool
-    let action: () -> Void
+    let action: (() -> Void)?
+
+    init(title: String, trailing: String? = nil, isDestructive: Bool = false, showsChevron: Bool = true, action: (() -> Void)? = nil) {
+        self.title = title
+        self.trailing = trailing
+        self.isDestructive = isDestructive
+        self.showsChevron = showsChevron
+        self.action = action
+    }
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Text(title)
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(isDestructive ? Color("StatusRed") : Color("25-Text"))
-                Spacer(minLength: 8)
-                if let trailing = trailing {
-                    Text(trailing)
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color("45-Text"))
-                        .lineLimit(1)
-                }
-                if showsChevron {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color("25-Text"))
-                }
+        if let action = action {
+            Button(action: action) {
+                content
             }
-            .padding(.vertical, 14)
+            .buttonStyle(.plain)
+        } else {
+            content
         }
-        .buttonStyle(.plain)
+    }
+    
+    private var content: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 16, weight: .regular))
+                .foregroundStyle(isDestructive ? Color("StatusRed") : Color("25-Text"))
+            Spacer(minLength: 8)
+            if let trailing = trailing {
+                Text(trailing)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color("45-Text"))
+            }
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color("25-Text"))
+            }
+        }
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
     }
 }
 

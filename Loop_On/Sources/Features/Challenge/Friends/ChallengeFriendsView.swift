@@ -11,6 +11,7 @@ struct ChallengeFriendsView: View {
     @ObservedObject var viewModel: ChallengeFriendsViewModel
     @State private var pendingDeleteFriend: ChallengeFriend?
     @State private var isShowingDeleteAlert = false
+    @State private var selectedFriendNickname: String?
     private let shouldLoadOnAppear: Bool
 
     init(
@@ -23,6 +24,7 @@ struct ChallengeFriendsView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
+            // ... (기존 내용)
             VStack(spacing: 12) {
                 searchBar
                     .padding(.horizontal, 20)
@@ -42,6 +44,10 @@ struct ChallengeFriendsView: View {
                                             viewModel.sendFriendRequest(userId: userId)
                                         }
                                     )
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        selectedFriendNickname = result.nickname
+                                    }
                                 }
                             }
                         } else {
@@ -57,6 +63,10 @@ struct ChallengeFriendsView: View {
                                             isShowingDeleteAlert = true
                                         }
                                     )
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        selectedFriendNickname = friend.name
+                                    }
                                 }
                             }
                         }
@@ -73,6 +83,18 @@ struct ChallengeFriendsView: View {
             requestButton
                 .padding(.trailing, 20)
                 .padding(.bottom, 30 + safeAreaBottomHeight)
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { selectedFriendNickname != nil },
+            set: { if !$0 { selectedFriendNickname = nil } }
+        )) {
+            if let nickname = selectedFriendNickname {
+                PersonalProfileView(
+                    isOwnProfile: false,
+                    nickname: nickname,
+                    onClose: { selectedFriendNickname = nil }
+                )
+            }
         }
         .alert(
             deleteAlertTitle,
@@ -315,20 +337,27 @@ private struct ChallengeFriendSearchRow: View {
 }
 
 #Preview("Empty") {
-    let emptyViewModel = ChallengeFriendsViewModel(
-        friends: [],
-        hasPendingRequests: false,
-        friendRequests: []
+    ChallengeFriendsView(
+        viewModel: ChallengeFriendsViewModel(
+            friends: [],
+            hasPendingRequests: false,
+            friendRequests: []
+        ),
+        shouldLoadOnAppear: false
     )
-    return ChallengeFriendsView(viewModel: emptyViewModel, shouldLoadOnAppear: false)
 }
 
 #Preview("Load Error") {
-    let errorViewModel = ChallengeFriendsViewModel(
-        friends: [],
-        hasPendingRequests: false,
-        friendRequests: []
+    ChallengeFriendsView(
+        viewModel: {
+            let vm = ChallengeFriendsViewModel(
+                friends: [],
+                hasPendingRequests: false,
+                friendRequests: []
+            )
+            vm.loadFriendsErrorMessage = "네트워크 상태를 확인한 뒤 다시 시도해 주세요.\n같은 현상이 지속될 경우 문의해 주세요."
+            return vm
+        }(),
+        shouldLoadOnAppear: false
     )
-    errorViewModel.loadFriendsErrorMessage = "네트워크 상태를 확인한 뒤 다시 시도해 주세요.\n같은 현상이 지속될 경우 문의해 주세요."
-    return ChallengeFriendsView(viewModel: errorViewModel, shouldLoadOnAppear: false)
 }

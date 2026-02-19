@@ -10,7 +10,7 @@ import SwiftUI
 struct ChallengePlazaView: View {
     @Environment(SessionStore.self) private var session
     @StateObject private var viewModel = ChallengePlazaViewModel()
-    var onOpenOtherProfile: ((Int) -> Void)? = nil
+    var onOpenOtherProfile: ((String) -> Void)? = nil
     /// 상위에서 삭제 팝업을 띄우고 싶을 때 호출되는 콜백 (id, 실제 삭제 실행 클로저)
     var onRequestDelete: ((Int, @escaping (Int) -> Void) -> Void)? = nil
     /// 게시물 수정 시 상위에서 챌린지 수정 화면을 열 때 사용 (id 전달)

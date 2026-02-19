@@ -17,7 +17,15 @@ final class SessionStore {
     private var hasValidatedSessionAtLaunch = false
     
     var isLoggedIn: Bool = false
-    var currentUserNickname: String = "" // 닉네임을 담을 변수
+    var currentUserNickname: String = ""
+    var currentUserEmail: String = ""
+
+    private let keyLoginProvider = "loginProvider" // 로그인 제공자 저장 키
+
+    var socialProvider: String? {
+        get { UserDefaults.standard.string(forKey: keyLoginProvider) }
+        set { UserDefaults.standard.set(newValue, forKey: keyLoginProvider) }
+    }
     var currentJourneyId: Int = 0 { // 현재 진행 중인 여정 ID (HomeViewModel 등에서 업데이트)
         didSet {
             print("DEBUG: [SessionStore] currentJourneyId updated: \(oldValue) -> \(currentJourneyId)")
@@ -88,6 +96,9 @@ final class SessionStore {
         isOnboardingCompleted = false
         hasValidatedSessionAtLaunch = false
         currentJourneyId = 0
+        currentUserNickname = ""
+        currentUserEmail = ""
+        socialProvider = nil
     }
     
     // 현재 여정 ID 동기화 함수
@@ -125,12 +136,15 @@ final class SessionStore {
             return
         }
         
+        // TODO: sort 파라미터가 필요한지 확인 필요. 단순히 내 정보 조회라면 getMe(plain)이 나을 수 있음
+        // 아래 코드는 기존 유지: page/size/sort 사용
         networkManager.request(target: .getMe(page: 0, size: 10, sort: ["createdAt,desc"]), decodingType: UserMeData.self) { [weak self] result in
             switch result {
             case .success(let userData):
                 DispatchQueue.main.async {
                     self?.currentUserNickname = userData.nickname
-                    print("DEBUG: 닉네임 불러오기 성공 - \(userData.nickname)")
+                    self?.currentUserEmail = userData.email
+                    print("DEBUG: 닉네임/이메일 불러오기 성공 - \(userData.nickname), \(userData.email)")
                 }
             case .failure(let error):
                 print("DEBUG: 프로필 조회 실패 - \(error.localizedDescription)")
