@@ -409,6 +409,69 @@ final class PersonalProfileViewModel: ObservableObject {
             }
         }
     }
+    
+    /// 친구 삭제 (DELETE /api/friend/{friendId})
+    /// 우선 친구 목록을 조회하여 해당 닉네임의 friendId를 찾은 뒤 삭제 요청
+    func deleteFriend(completion: @escaping (Bool, String?) -> Void) {
+        guard let user = user else {
+            completion(false, "사용자 정보를 찾을 수 없습니다.")
+            return
+        }
+        
+        let targetNickname = user.name
+        print("🗑 [Profile] 친구 삭제 시도: 닉네임=\(targetNickname)의 ID 찾기...")
+        
+        // 1. 친구 목록 조회
+        friendsNetworkManager.request(
+            target: .getFriends,
+            decodingType: FriendsPageDTO.self
+        ) { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let page):
+                // 2. 닉네임으로 매칭되는 친구 찾기
+                if let friend = page.content.first(where: { $0.friendNickname == targetNickname }) {
+                    let friendId = friend.friendId
+                    print("✅ [Profile] 삭제 대상 ID 발견: \(friendId) (API ID)")
+                    
+                    // 3. 찾은 ID로 삭제 요청
+                    self.performDeleteFriend(friendId: friendId, completion: completion)
+                } else {
+                    print("❌ [Profile] 친구 목록에서 해당 닉네임을 찾을 수 없음")
+                    // 목록에 없으면 이미 삭제된 것으로 간주할 수도 있음
+                    self.isFriend = false
+                    completion(true, nil)
+                }
+                
+            case .failure(let error):
+                print("❌ [Profile] 친구 목록 조회 실패: \(error)")
+                completion(false, "친구 목록을 불러오는데 실패했습니다.")
+            }
+        }
+    }
+    
+    private func performDeleteFriend(friendId: Int, completion: @escaping (Bool, String?) -> Void) {
+        print("🗑 [Profile] 실제 친구 삭제 요청 전송: friendId=\(friendId)")
+        
+        friendsNetworkManager.requestStatusCode(
+            target: .deleteFriend(friendId: friendId)
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                switch result {
+                case .success:
+                     print("✅ [Profile] 친구 삭제 성공")
+                     self.isFriend = false
+                     self.isFriendRequestSent = false
+                     completion(true, nil)
+                case .failure(let error):
+                     print("❌ [Profile] 친구 삭제 실패: \(error)")
+                     completion(false, error.localizedDescription)
+                }
+            }
+        }
+    }
 }
 
 private struct UserMeResponseDTO: Decodable {
