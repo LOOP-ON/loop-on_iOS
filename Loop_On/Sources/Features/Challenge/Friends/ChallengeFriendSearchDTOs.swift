@@ -32,12 +32,15 @@ struct ChallengeFriendSearchItemDTO: Decodable {
     let bio: String
     let profileImageURL: String?
     let userId: Int
+    /// PENDING: 친구 요청 보낸 상태, ACCEPTED: 친구, NOT_FRIENDS: 친구 아님
+    let friendStatus: String?
 
     enum CodingKeys: String, CodingKey {
         case nickname
         case bio
         case profileImageURL = "profile_image_url"
         case userId = "user_id"
+        case friendStatus
     }
 }
 
@@ -56,8 +59,8 @@ extension ChallengeFriendSearchResult {
         self.nickname = dto.nickname
         self.bio = dto.bio
         self.profileImageURL = dto.profileImageURL
-        self.isRequestSent = false
-        self.isFriend = false
+        self.isRequestSent = (dto.friendStatus == "PENDING")
+        self.isFriend = (dto.friendStatus == "ACCEPTED")
     }
 }
 

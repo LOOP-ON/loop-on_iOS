@@ -384,9 +384,17 @@ final class PersonalProfileViewModel: ObservableObject {
                     completion(true, nil)
                     
                 case .failure(let error):
-                    print("❌ [FriendRequest] 실패: \(error)")
-                    // 에러 메시지 추출 (서버 메시지가 있으면 사용)
-                    completion(false, error.localizedDescription)
+                    // 409 "이미 대기 중인 친구 요청" = 이미 신청한 상태 → UI를 '신청됨'으로 표시 + 알럿
+                    if case let .serverError(statusCode, message) = error,
+                       statusCode == 409,
+                       message.contains("대기 중인 친구 요청") {
+                        print("📨 [FriendRequest] 이미 대기 중 → isFriendRequestSent = true + 알럿")
+                        self.isFriendRequestSent = true
+                        completion(true, "이미 친구 신청을 보냈습니다.")
+                    } else {
+                        print("❌ [FriendRequest] 실패: \(error)")
+                        completion(false, error.localizedDescription)
+                    }
                 }
             }
         }
