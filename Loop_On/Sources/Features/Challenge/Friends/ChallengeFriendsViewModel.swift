@@ -90,7 +90,7 @@ final class ChallengeFriendsViewModel: ObservableObject {
         loadPendingRequestCount()
         networkManager.request(
             target: .getFriends,
-            decodingType: [ChallengeFriendListItemDTO].self
+            decodingType: FriendsPageDTO.self
         ) { [weak self] result in
             guard let self else { return }
             Task { @MainActor in
@@ -98,12 +98,12 @@ final class ChallengeFriendsViewModel: ObservableObject {
                 self.hasLoadedFriends = true
 
                 switch result {
-                case .success(let items):
+                case .success(let page):
                     self.loadFriendsErrorMessage = nil
+                    let items = page.content
                     print("✅ [Friends] loadFriends success: count=\(items.count)")
                     self.friends = items.map { ChallengeFriend(dto: $0) }
                 case .failure(let error):
-                    // TODO: API 연결 시 친구 목록 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] loadFriends failed: \(error)")
                     self.loadFriendsErrorMessage = "네트워크 상태를 확인한 뒤 다시 시도해 주세요.\n같은 현상이 지속될 경우 문의해 주세요."
                 }
@@ -144,7 +144,6 @@ final class ChallengeFriendsViewModel: ObservableObject {
                 case .success(let page):
                     self.searchResults = page.content.map { ChallengeFriendSearchResult(dto: $0) }
                 case .failure(let error):
-                    // TODO: API 연결 시 친구 검색 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] searchFriends failed: \(error)")
                     self.searchResults = []
                     self.searchErrorMessage = "검색 결과를 불러오지 못했어요.\n네트워크 상태를 확인해 주세요."
@@ -177,7 +176,6 @@ final class ChallengeFriendsViewModel: ObservableObject {
                     self.searchAlertMessage = "'\(nickname)'에게 친구 신청을 보냈습니다."
                     self.isShowingSearchAlert = true
                 case .failure(let error):
-                    // TODO: API 연결 시 친구 신청 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] sendFriendRequest failed: \(error)")
                     if case let .serverError(_, message) = error,
                        message.contains("이미 대기 중인 친구 요청") {
@@ -205,7 +203,6 @@ final class ChallengeFriendsViewModel: ObservableObject {
                     self.pendingRequestCount = max(self.pendingRequestCount - 1, 0)
                     self.updatePendingState()
                 case .failure(let error):
-                    // TODO: API 연결 시 친구 요청 수락 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] acceptFriendRequest failed: \(error)")
                 }
             }
@@ -225,7 +222,6 @@ final class ChallengeFriendsViewModel: ObservableObject {
                     self.pendingRequestCount = max(self.pendingRequestCount - 1, 0)
                     self.updatePendingState()
                 case .failure(let error):
-                    // TODO: API 연결 시 친구 요청 거절 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] rejectFriendRequest failed: \(error)")
                 }
             }
@@ -246,7 +242,6 @@ final class ChallengeFriendsViewModel: ObservableObject {
                     self.hasMoreFriendRequests = false
                     self.updatePendingState()
                 case .failure(let error):
-                    // TODO: API 연결 시 친구 요청 전체 수락 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] acceptAllFriendRequests failed: \(error)")
                 }
             }
@@ -267,7 +262,6 @@ final class ChallengeFriendsViewModel: ObservableObject {
                     self.hasMoreFriendRequests = false
                     self.updatePendingState()
                 case .failure(let error):
-                    // TODO: API 연결 시 친구 요청 전체 거절 실패 처리 (에러 메시지 노출 등)
                     print("❌ [Friends] rejectAllFriendRequests failed: \(error)")
                 }
             }
