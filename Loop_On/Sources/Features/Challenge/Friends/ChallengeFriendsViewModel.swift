@@ -40,6 +40,12 @@ final class ChallengeFriendsViewModel: ObservableObject {
         self.hasPendingRequests = hasPendingRequests
         self.friendRequests = friendRequests
         self.networkManager = networkManager
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(handleFriendRequestSent(_:)), name: .challengeFriendRequestSent, object: nil)
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     var filteredFriends: [ChallengeFriend] {
@@ -142,7 +148,13 @@ final class ChallengeFriendsViewModel: ObservableObject {
                 self.isSearching = false
                 switch result {
                 case .success(let page):
-                    self.searchResults = page.content.map { ChallengeFriendSearchResult(dto: $0) }
+                    self.searchResults = page.content.map { dto in
+                        var searchResult = ChallengeFriendSearchResult(dto: dto)
+                        if self.friends.contains(where: { $0.id == dto.userId }) {
+                            searchResult.isFriend = true
+                        }
+                        return searchResult
+                    }
                 case .failure(let error):
                     print("❌ [Friends] searchFriends failed: \(error)")
                     self.searchResults = []
@@ -173,6 +185,13 @@ final class ChallengeFriendsViewModel: ObservableObject {
                     print("✅ [Friends] sendFriendRequest success")
                     let nickname = self.searchResults[index].nickname
                     self.searchResults[index].isRequestSent = true
+                    
+                    NotificationCenter.default.post(
+                        name: .challengeFriendRequestSent,
+                        object: nil,
+                        userInfo: ["userId": userId]
+                    )
+                    
                     self.searchAlertMessage = "'\(nickname)'에게 친구 신청을 보냈습니다."
                     self.isShowingSearchAlert = true
                 case .failure(let error):
@@ -180,6 +199,13 @@ final class ChallengeFriendsViewModel: ObservableObject {
                     if case let .serverError(_, message) = error,
                        message.contains("이미 대기 중인 친구 요청") {
                         self.searchResults[index].isRequestSent = true
+                        
+                        NotificationCenter.default.post(
+                            name: .challengeFriendRequestSent,
+                            object: nil,
+                            userInfo: ["userId": userId]
+                        )
+                        
                         self.searchAlertMessage = "이미 친구 신청을 보냈습니다."
                     } else {
                         self.searchAlertMessage = "친구 신청을 보내지 못했어요.\n잠시 후 다시 시도해 주세요."
@@ -345,5 +371,20 @@ final class ChallengeFriendsViewModel: ObservableObject {
 
     private func updatePendingState() {
         hasPendingRequests = pendingRequestCount > 0
+    }
+    
+    @objc private func handleFriendRequestSent(_ notification: Notification) {
+        guard let userId = notification.userInfo?["userId"] as? Int else { return }
+        
+        DispatchQueue.main.async {
+            // 검색 결과 업데이트
+            if let index = self.searchResults.firstIndex(where: { $0.id == userId }) {
+                var item = self.searchResults[index]
+                if !item.isRequestSent {
+                    item.isRequestSent = true
+                    self.searchResults[index] = item
+                }
+            }
+        }
     }
 }
