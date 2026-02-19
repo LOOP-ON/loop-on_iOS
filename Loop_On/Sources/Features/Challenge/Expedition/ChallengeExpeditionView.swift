@@ -38,7 +38,7 @@ struct ChallengeExpeditionView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
-                    .padding(.bottom, 140 + safeAreaBottomHeight)
+                    .padding(.bottom, scrollContentBottomPadding)
                 }
                 .scrollIndicators(.hidden)
                 .refreshable {
@@ -52,7 +52,7 @@ struct ChallengeExpeditionView: View {
 
             createButton
                 .padding(.horizontal, 20)
-                .padding(.bottom, 72 + safeAreaBottomHeight)
+                .padding(.bottom, bottomPaddingAboveTabBar)
         }
         .fullScreenCover(isPresented: $viewModel.isShowingCreateModal) {
             ChallengeExpeditionCreateView(
@@ -306,9 +306,9 @@ private extension ChallengeExpeditionView {
     var createButton: some View {
         Button(action: viewModel.openCreateModal) {
             Text("새로운 탐험대 만들기")
-                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
+                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 18))
                 .foregroundStyle(Color.white)
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .frame(maxWidth: .infinity, minHeight: 56)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.primaryColorVarient65))
@@ -321,6 +321,15 @@ private extension ChallengeExpeditionView {
         let windowScene = scenes.first as? UIWindowScene
         let window = windowScene?.windows.first
         return window?.safeAreaInsets.bottom ?? 0
+    }
+
+    var bottomPaddingAboveTabBar: CGFloat {
+        let tabBarContentHeight: CGFloat = 42
+        return tabBarContentHeight + safeAreaBottomHeight
+    }
+
+    var scrollContentBottomPadding: CGFloat {
+        return bottomPaddingAboveTabBar + 68
     }
 }
 

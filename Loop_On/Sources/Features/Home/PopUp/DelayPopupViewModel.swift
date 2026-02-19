@@ -59,6 +59,7 @@ class DelayPopupViewModel: ObservableObject {
             progressIds: [progressId],
             reason: finalReason
         )
+        print("루틴 미루기 요청 - journeyId: \(journeyId), progressId: \(progressId), reason: \(finalReason)")
 
         networkManager.requestStatusCode(
             target: .postponeRoutine(journeyId: journeyId, request: request)

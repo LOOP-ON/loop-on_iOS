@@ -57,3 +57,8 @@ struct ProfileUpdateRequestDTO: Encodable {
     let profileImageUrl: String
     let visibility: String
 }
+
+struct NicknameCheckResponseDTO: Decodable {
+    let isAvailable: Bool
+    let message: String
+}

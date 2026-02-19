@@ -140,11 +140,12 @@ class HomeViewModel: ObservableObject {
             
         // 루틴 리스트 매핑
         self.routines = data.routines.map { dto in
-            RoutineModel(
+            let normalizedTime = formatNotificationTime(dto.notificationTime)
+            return RoutineModel(
                 id: dto.routineId,
                 routineProgressId: dto.routineProgressId ?? 0,
                 title: dto.content,
-                time: "\(dto.notificationTime) 알림 예정",
+                time: "\(normalizedTime) 알림 예정",
                 isCompleted: dto.isCompleted,
                 isDelayed: dto.isDelayed,
                 delayReason: "" // 필요 시 서버에서 확장하여 받아야 함
@@ -189,6 +190,15 @@ class HomeViewModel: ObservableObject {
         let todayStart = calendar.startOfDay(for: Date())
         let targetStart = calendar.startOfDay(for: parsedDate)
         return targetStart < todayStart
+    }
+
+    private func formatNotificationTime(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = trimmed.split(separator: ":")
+        if parts.count >= 2 {
+            return "\(parts[0]):\(parts[1])"
+        }
+        return trimmed
     }
     
     // MARK: - 루틴 완료 처리 (인증 버튼 클릭 시 호출)

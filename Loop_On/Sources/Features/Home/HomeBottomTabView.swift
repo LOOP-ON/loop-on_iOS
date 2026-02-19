@@ -15,7 +15,7 @@ struct HomeBottomTabView: View {
             HStack(alignment: .center) {
                 tabButton(tab: .home, icon: "bookmark.fill", title: "오늘의 루틴")
                 tabButton(tab: .history, icon: "calendar", title: "히스토리")
-                tabButton(tab: .challenge, icon: "flag", title: "챌린지")
+                tabButton(tab: .challenge, icon: "flag.fill", title: "챌린지")
                 tabButton(tab: .profile, icon: "person", title: "개인")
             }
             .padding(.horizontal, 28)

@@ -7,6 +7,17 @@
 
 import Foundation
 
+/// GET /api/friend 응답의 data (페이지 형태)
+struct FriendsPageDTO: Decodable {
+    let content: [ChallengeFriendListItemDTO]
+    let pageNumber: Int
+    let pageSize: Int
+    let hasPrevious: Bool
+    let hasNext: Bool
+    let first: Bool
+    let last: Bool
+}
+
 struct ChallengeFriendListItemDTO: Decodable {
     let friendId: Int
     let friendStatus: String?
@@ -18,7 +29,7 @@ struct ChallengeFriendListItemDTO: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case friendId = "friend_id"
-        case friendStatus = "friend_status"
+        case friendStatus = "friendStatus"
         case friendImageURL = "friend_image_url"
         case friendNickname = "friend_nickname"
         case friendBio = "friend_bio"
