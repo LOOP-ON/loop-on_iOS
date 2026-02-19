@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import SwiftUI
 import Moya
+import UIKit
 
 struct RoutineCoach: Identifiable, Hashable, Codable {
     var id = UUID()
@@ -47,6 +48,8 @@ class RoutineCoachViewModel: ObservableObject {
     // 루틴 이름 수정 관련 변수
     @Published var isShowingNameEditor = false
     @Published var newRoutineName = ""
+    @Published var isShowingNotificationPermissionAlert = false
+    @Published var notificationPermissionMessage = ""
     private var editingIndex: Int?
     
     private let networkManager = DefaultNetworkManager<OnboardingAPI>()
@@ -250,8 +253,7 @@ class RoutineCoachViewModel: ObservableObject {
                 case .success(let response):
                     if (200...299).contains(response.statusCode) {
                         print("루틴 서버 저장 성공")
-                        self.isLoading = false
-                        self.isJourneyStarted = true // HomeView로 이동
+                        self.scheduleRoutineNotificationsAndFinishJourney()
                     } else {
                         let rawBody = String(data: response.data, encoding: .utf8) ?? "<response body decode failed>"
                         print("루틴 저장 실패(status: \(response.statusCode))")
@@ -264,6 +266,30 @@ class RoutineCoachViewModel: ObservableObject {
                     self.errorMessage = moyaError.localizedDescription
                     self.isLoading = false
                 }
+            }
+        }
+    }
+
+    private func scheduleRoutineNotificationsAndFinishJourney() {
+        let snapshot = routines
+        RoutineNotificationScheduler.shared.scheduleDailyRoutineNotifications(routines: snapshot) { [weak self] result in
+            guard let self else { return }
+            _Concurrency.Task { @MainActor in
+                switch result {
+                case .scheduled:
+                    print("루틴 알림 예약 완료")
+                case .denied:
+                    self.notificationPermissionMessage = "루틴 알림을 받으려면 알림 권한을 허용해 주세요."
+                    self.isShowingNotificationPermissionAlert = true
+                    print("루틴 알림 권한 거부 상태")
+                case .failed(let error):
+                    self.notificationPermissionMessage = "알림 예약에 실패했어요. 설정에서 알림 권한을 확인해 주세요."
+                    self.isShowingNotificationPermissionAlert = true
+                    print("루틴 알림 예약 실패: \(error.localizedDescription)")
+                }
+
+                self.isLoading = false
+                self.isJourneyStarted = true
             }
         }
     }
@@ -285,7 +311,7 @@ class RoutineCoachViewModel: ObservableObject {
         switch trimmed.uppercased() {
         case "ROUTINE", "생활 루틴", "생활루틴":
             return "ROUTINE"
-        case "SKILL", "역량 강화", "역량강화":
+        case "SKILL", "GROWTH", "역량 강화", "역량강화":
             return "GROWTH"
         case "MENTAL", "내면 관리", "내면관리":
             return "MENTAL"
@@ -314,6 +340,11 @@ class RoutineCoachViewModel: ObservableObject {
             routines[index].alarmTime = tempSelectionDate
         }
         isShowingTimePicker = false
+    }
+
+    func openNotificationSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
     
     // 수정 팝업 열기

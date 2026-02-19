@@ -44,14 +44,18 @@ struct EmailLoginSection: View {
                 
                 passwordField
                 
-                // 에러 메시지가 있을 때만 Helper Text 렌더링
-                Text(helperText ?? "")
-                    .font(.footnote)
-                    .foregroundStyle(Color("red"))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: 5) // 고정 높이를 설정하여 영역 유지
-                    .padding(.vertical, 2) // 위아래 적절한 간격 유지
-                    .opacity(helperText == nil ? 0 : 1) // 에러가 없으면 숨김 처리
+                Group {
+                    if let helperText, !helperText.isEmpty {
+                        Text(helperText)
+                            .font(.footnote)
+                            .foregroundStyle(Color.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 2)
+                    } else {
+                        Color.clear
+                            .frame(height: 8)
+                    }
+                }
                 
                 Button(action: onLoginTapped) {
                     Text("로그인")
@@ -168,4 +172,3 @@ private struct EmailLoginSectionPreviewWrapper: View {
         )
     }
 }
-

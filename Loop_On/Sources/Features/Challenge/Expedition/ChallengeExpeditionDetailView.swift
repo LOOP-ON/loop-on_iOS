@@ -337,9 +337,9 @@ private extension ChallengeExpeditionDetailView {
             Button {
                 // TODO: API 연결 시 탐험대 수정/삭제 메뉴 처리
             } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Color("5-Text"))
+//                Image(systemName: "ellipsis")
+//                    .font(.system(size: 18, weight: .medium))
+//                    .foregroundStyle(Color("5-Text"))
             }
             .buttonStyle(.plain)
         }
@@ -352,11 +352,11 @@ private extension ChallengeExpeditionDetailView {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "person.fill")
-                        .font(.system(size: 20, weight: .medium))
+                        .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(Color(.primaryColorVarient65))
 
                     Text("탐험대 명단")
-                        .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                        .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 16))
                         .foregroundStyle(Color("5-Text"))
                 }
             }
@@ -368,7 +368,7 @@ private extension ChallengeExpeditionDetailView {
                 handleTopActionTap()
             } label: {
                 Text(topActionTitle)
-                    .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 12))
+                    .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
                     .foregroundStyle(Color.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
