@@ -181,6 +181,11 @@ struct PersonalProfileView: View {
                 viewModel.loadProfile()
             }
         }
+        .alert(friendRequestAlertTitle, isPresented: $isFriendRequestAlertPresented) {
+            Button("확인") {}
+        } message: {
+            Text(friendRequestAlertMessage)
+        }
 
     }
     
@@ -314,13 +319,17 @@ struct PersonalProfileView: View {
                         if let user = viewModel.user, let userId = Int(user.id) {
                             viewModel.requestFriend(receiverId: userId) { success, msg in
                                 if success {
-                                    print("✅ 친구 신청 성공")
+                                    if let alertMsg = msg {
+                                        friendRequestAlertMessage = alertMsg
+                                        friendRequestAlertTitle = "안내"
+                                        isFriendRequestAlertPresented = true
+                                    }
                                 } else {
-                                    print("❌ 친구 신청 실패: \(msg ?? "알 수 없음")")
+                                    friendRequestAlertMessage = msg ?? "친구 신청을 보내지 못했어요."
+                                    friendRequestAlertTitle = "친구 신청 실패"
+                                    isFriendRequestAlertPresented = true
                                 }
                             }
-                        } else {
-                            print("❌ 사용자 정보 오류")
                         }
                     }
                     .padding(.top, 24)
