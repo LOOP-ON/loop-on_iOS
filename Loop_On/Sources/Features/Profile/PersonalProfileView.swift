@@ -24,11 +24,16 @@ struct PersonalProfileView: View {
     @State private var feedDetailSelectedIndex: Int? = nil
     /// PhotosPicker 선택 항목
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    
+    // 친구 신청 Alert 상태
+    @State private var isFriendRequestAlertPresented = false
+    @State private var friendRequestAlertTitle = ""
+    @State private var friendRequestAlertMessage = ""
 
-    init(isOwnProfile: Bool = true, nickname: String? = nil, onClose: (() -> Void)? = nil) {
+    init(isOwnProfile: Bool = true, nickname: String? = nil, isRequestSent: Bool = false, onClose: (() -> Void)? = nil) {
         self.isOwnProfile = isOwnProfile
         self.onClose = onClose
-        _viewModel = StateObject(wrappedValue: PersonalProfileViewModel(nickname: nickname))
+        _viewModel = StateObject(wrappedValue: PersonalProfileViewModel(nickname: nickname, isRequestSent: isRequestSent))
     }
     
     var body: some View {
@@ -176,6 +181,7 @@ struct PersonalProfileView: View {
                 viewModel.loadProfile()
             }
         }
+
     }
     
     // MARK: - Profile Section
@@ -292,10 +298,33 @@ struct PersonalProfileView: View {
                 .padding(.top, 24)
             } else {
                 // 타인 프로필: 한 줄짜리 \"친구 신청\" 버튼
-                ProfileActionButton(title: "친구 신청") {
-                    // TODO: 친구 신청 API 연결
+                if viewModel.isFriend {
+                    ProfileActionButton(title: "친구") {
+                        print("이미 친구입니다.")
+                    }
+                    .padding(.top, 24)
+                } else if viewModel.isFriendRequestSent {
+                    ProfileActionButton(title: "신청됨", backgroundColor: .gray) {
+                        print("이미 친구 신청을 보냈습니다.")
+                    }
+                    .disabled(true)
+                    .padding(.top, 24)
+                } else {
+                    ProfileActionButton(title: "친구 신청") {
+                        if let user = viewModel.user, let userId = Int(user.id) {
+                            viewModel.requestFriend(receiverId: userId) { success, msg in
+                                if success {
+                                    print("✅ 친구 신청 성공")
+                                } else {
+                                    print("❌ 친구 신청 실패: \(msg ?? "알 수 없음")")
+                                }
+                            }
+                        } else {
+                            print("❌ 사용자 정보 오류")
+                        }
+                    }
+                    .padding(.top, 24)
                 }
-                .padding(.top, 24)
             }
         }
     }
@@ -329,30 +358,36 @@ struct PersonalProfileView: View {
     
     private var emptyStateView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "camera.circle") // 사용자 요청으로 다시 카메라 아이콘 사용
-                .resizable()
-                .scaledToFit()
-                .frame(width: 60, height: 60)
-                .font(.system(size: 60, weight: .light))
-                .foregroundStyle(Color.black)
-                .padding(.bottom, 8)
-            
-            Text("챌린지 공유")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color.black)
-            
-            Text("챌린지를 공유하면 회원님의 프로필에 표시됩니다.")
-                .font(.system(size: 15))
-                .foregroundStyle(Color("45-Text"))
-                .multilineTextAlignment(.center)
-                .padding(.bottom, 8)
-            
-            Button {
-                isShowingShareJourney = true
-            } label: {
-                Text("첫 챌린지 공유하기")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color(red: 0.95, green: 0.45, blue: 0.35)) // Loop-On Orange
+            if isOwnProfile {
+                Image(systemName: "camera.circle") // 사용자 요청으로 다시 카메라 아이콘 사용
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 60, height: 60)
+                    .font(.system(size: 60, weight: .light))
+                    .foregroundStyle(Color.black)
+                    .padding(.bottom, 8)
+                
+                Text("챌린지 공유")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Color.black)
+                
+                Text("챌린지를 공유하면 회원님의 프로필에 표시됩니다.")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Color("45-Text"))
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, 8)
+                
+                Button {
+                    isShowingShareJourney = true
+                } label: {
+                    Text("첫 챌린지 공유하기")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Color(red: 0.95, green: 0.45, blue: 0.35)) // Loop-On Orange
+                }
+            } else {
+                Text("공유한 챌린지가 없습니다")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Color("45-Text"))
             }
         }
         .frame(maxWidth: .infinity)
@@ -396,6 +431,7 @@ struct PersonalProfileView: View {
 // MARK: - ProfileActionButton
 private struct ProfileActionButton: View {
     let title: String
+    var backgroundColor: Color = Color(red: 0.95, green: 0.45, blue: 0.35)
     let action: () -> Void
     
     @State private var isPressed = false
@@ -407,7 +443,7 @@ private struct ProfileActionButton: View {
                 .foregroundStyle(Color("100"))
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity)
-                .background(Color(red: 0.95, green: 0.45, blue: 0.35))
+                .background(backgroundColor)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)

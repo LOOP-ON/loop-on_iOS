@@ -67,9 +67,6 @@ struct ShareJourneyView: View {
                     ProgressView()
                 }
                 
-                if isShowingExpeditionPopup {
-                    expeditionPopup
-                }
                 if viewModel.isShowingDuplicateChallengeAlert {
                     CommonPopupView(
                         isPresented: $viewModel.isShowingDuplicateChallengeAlert,
@@ -90,6 +87,18 @@ struct ShareJourneyView: View {
                         leftButtonText: "확인",
                         leftAction: {
                             viewModel.isShowingInputValidationAlert = false
+                        }
+                    )
+                }
+                
+                if viewModel.isShowingHashtagLimitAlert {
+                    CommonPopupView(
+                        isPresented: $viewModel.isShowingHashtagLimitAlert,
+                        title: "해시태그 제한",
+                        message: "해시태그는 최대 5개까지만 등록할 수 있습니다.",
+                        leftButtonText: "확인",
+                        leftAction: {
+                            viewModel.isShowingHashtagLimitAlert = false
                         }
                     )
                 }
@@ -156,16 +165,9 @@ struct ShareJourneyView: View {
         } message: {
             Text("루틴을 잘 나타내는 태그를 입력해주세요.")
         }
-        if viewModel.isShowingHashtagLimitAlert {
-            CommonPopupView(
-                isPresented: $viewModel.isShowingHashtagLimitAlert,
-                title: "해시태그 제한",
-                message: "해시태그는 최대 5개까지만 등록할 수 있습니다.",
-                leftButtonText: "확인",
-                leftAction: {
-                    viewModel.isShowingHashtagLimitAlert = false
-                }
-            )
+        .fullScreenCover(isPresented: $isShowingExpeditionPopup) {
+            expeditionPopup
+                .presentationBackground(.clear)
         }
     }
 
@@ -346,9 +348,9 @@ struct ShareJourneyView: View {
                 GeometryReader { geo in
                     Color.clear
                         .onAppear {
-                            self.buttonFrame = geo.frame(in: .named("ShareJourneyZStack"))
+                            self.buttonFrame = geo.frame(in: .global)
                         }
-                        .onChange(of: geo.frame(in: .named("ShareJourneyZStack"))) { _, newFrame in
+                        .onChange(of: geo.frame(in: .global)) { _, newFrame in
                             self.buttonFrame = newFrame
                         }
                 }
@@ -449,7 +451,7 @@ struct ShareJourneyView: View {
             // buttonFrame이 .zero가 아닐 때만 위치 지정 (아니면 중앙)
             .position(
                 x: buttonFrame == .zero ? UIScreen.main.bounds.width / 2 : buttonFrame.maxX - (popupSize.width / 2),
-                y: buttonFrame == .zero ? UIScreen.main.bounds.height / 2 : buttonFrame.minY - (popupSize.height / 2) - 10
+                y: buttonFrame == .zero ? UIScreen.main.bounds.height / 2 : buttonFrame.minY - ((popupSize.height > 0 ? popupSize.height : 200) / 2) - 10
             )
         }
     }

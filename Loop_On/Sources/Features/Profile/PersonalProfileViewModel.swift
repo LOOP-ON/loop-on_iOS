@@ -17,6 +17,8 @@ final class PersonalProfileViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var isUploadingImage: Bool = false
     @Published var errorMessage: String?
+    @Published var isFriendRequestSent: Bool = false
+    @Published var isFriend: Bool = false
 
     /// 개인이 올린 챌린지 이미지 URL 목록 (GET /api/challenges/users/me 연동)
     @Published var challengeImages: [String] = []
@@ -25,6 +27,9 @@ final class PersonalProfileViewModel: ObservableObject {
 
     private let challengeNetworkManager = DefaultNetworkManager<ChallengeAPI>()
     private let profileNetworkManager = DefaultNetworkManager<ProfileAPI>(
+        plugins: [NetworkLoggerPlugin(configuration: .init(logOptions: .verbose))]
+    )
+    private let friendsNetworkManager = DefaultNetworkManager<FriendsAPI>(
         plugins: [NetworkLoggerPlugin(configuration: .init(logOptions: .verbose))]
     )
     
@@ -41,9 +46,19 @@ final class PersonalProfileViewModel: ObservableObject {
     private var currentBio: String = ""
     private var currentStatusMessage: String = ""
 
-    init(nickname: String? = nil) {
+    init(nickname: String? = nil, isRequestSent: Bool = false) {
         self.targetNickname = nickname
+        self.isFriendRequestSent = isRequestSent
+        // 내비게이션 바 등을 위해 초반엔 빈 모델 혹은 로딩 상태
+        // 여기선 빈 유저 모델로 시작하고, loadProfile()에서 채워넣음.
+        self.user = nil
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(handleFriendRequestSent(_:)), name: .challengeFriendRequestSent, object: nil)
         loadProfile()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func loadProfile() {
@@ -78,6 +93,8 @@ final class PersonalProfileViewModel: ObservableObject {
                     self.currentStatusMessage = statusMessage
                     
                     print("✅ [Profile] 연동 성공: 닉네임(\(nickname))")
+                    
+                    self.isFriend = profile.isFriend ?? false
                     
                     let composedBio = [bio, statusMessage]
                         .filter { !$0.isEmpty }
@@ -338,6 +355,51 @@ final class PersonalProfileViewModel: ObservableObject {
 
     func refreshProfile() {
         loadProfile()
+    }
+
+    /// 친구 신청 전송 (POST /api/friend-request/send)
+    func requestFriend(receiverId: Int, completion: @escaping (Bool, String?) -> Void) {
+        let request = FriendRequestSendRequest(receiverId: receiverId)
+        
+        print("📨 [FriendRequest] ID=\(receiverId)에게 친구 신청 전송 시도...")
+        
+        friendsNetworkManager.request(
+            target: .sendFriendRequest(request: request),
+            decodingType: ChallengeFriendRequestSingleActionResponse.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                switch result {
+                case .success(let response):
+                    print("✅ [FriendRequest] 성공! requester=\(response.requesterId ?? -1), receiver=\(response.receiverId ?? -1)")
+                    self.isFriendRequestSent = true
+                    
+                    NotificationCenter.default.post(
+                        name: .challengeFriendRequestSent,
+                        object: nil,
+                        userInfo: ["userId": receiverId]
+                    )
+                    
+                    completion(true, nil)
+                    
+                case .failure(let error):
+                    print("❌ [FriendRequest] 실패: \(error)")
+                    // 에러 메시지 추출 (서버 메시지가 있으면 사용)
+                    completion(false, error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    @objc private func handleFriendRequestSent(_ notification: Notification) {
+        guard let userId = notification.userInfo?["userId"] as? Int else { return }
+        // user.id가 String이므로 변환 필요
+        if let currentUserIdStr = user?.id, let currentUserId = Int(currentUserIdStr), currentUserId == userId {
+            DispatchQueue.main.async {
+                self.isFriendRequestSent = true
+            }
+        }
     }
 }
 

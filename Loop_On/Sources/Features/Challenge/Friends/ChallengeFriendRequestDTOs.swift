@@ -90,3 +90,5 @@ struct ChallengeFriendRequestSingleActionResponse: Decodable {
         friendStatus = nil
     }
 }
+
+

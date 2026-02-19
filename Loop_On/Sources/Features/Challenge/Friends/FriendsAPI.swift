@@ -8,6 +8,10 @@
 import Foundation
 import Moya
 
+extension Notification.Name {
+    static let challengeFriendRequestSent = Notification.Name("challengeFriendRequestSent")
+}
+
 enum FriendsAPI {
     // 친구 목록 조회 (GET /api/friend)
     case getFriends

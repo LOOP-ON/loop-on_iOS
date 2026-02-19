@@ -11,7 +11,7 @@ struct ChallengeFriendsView: View {
     @ObservedObject var viewModel: ChallengeFriendsViewModel
     @State private var pendingDeleteFriend: ChallengeFriend?
     @State private var isShowingDeleteAlert = false
-    @State private var selectedFriendNickname: String?
+    @State private var selectedFriend: ChallengeFriendSearchResult?
     private let shouldLoadOnAppear: Bool
 
     init(
@@ -46,7 +46,7 @@ struct ChallengeFriendsView: View {
                                     )
                                     .contentShape(Rectangle())
                                     .onTapGesture {
-                                        selectedFriendNickname = result.nickname
+                                        selectedFriend = result
                                     }
                                 }
                             }
@@ -65,7 +65,7 @@ struct ChallengeFriendsView: View {
                                     )
                                     .contentShape(Rectangle())
                                     .onTapGesture {
-                                        selectedFriendNickname = friend.name
+                                        selectedFriend = convertToSearchResult(friend)
                                     }
                                 }
                             }
@@ -84,17 +84,13 @@ struct ChallengeFriendsView: View {
                 .padding(.trailing, 20)
                 .padding(.bottom, bottomPaddingAboveTabBar)
         }
-        .fullScreenCover(isPresented: Binding(
-            get: { selectedFriendNickname != nil },
-            set: { if !$0 { selectedFriendNickname = nil } }
-        )) {
-            if let nickname = selectedFriendNickname {
-                PersonalProfileView(
-                    isOwnProfile: false,
-                    nickname: nickname,
-                    onClose: { selectedFriendNickname = nil }
-                )
-            }
+        .fullScreenCover(item: $selectedFriend) { friend in
+            PersonalProfileView(
+                isOwnProfile: false,
+                nickname: friend.nickname,
+                isRequestSent: friend.isRequestSent,
+                onClose: { selectedFriend = nil }
+            )
         }
         .alert(
             deleteAlertTitle,
@@ -248,6 +244,17 @@ private extension ChallengeFriendsView {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
     }
+    
+    private func convertToSearchResult(_ friend: ChallengeFriend) -> ChallengeFriendSearchResult {
+        return ChallengeFriendSearchResult(
+            id: friend.id,
+            nickname: friend.name,
+            bio: friend.subtitle,
+            profileImageURL: friend.imageURL,
+            isRequestSent: false,
+            isFriend: true
+        )
+    }
 }
 
 private struct ChallengeFriendRow: View {
@@ -324,16 +331,18 @@ private struct ChallengeFriendSearchRow: View {
             Spacer()
 
             Button {
-                onRequest(result.id)
+                if !result.isFriend && !result.isRequestSent {
+                    onRequest(result.id)
+                }
             } label: {
-                Text(result.isRequestSent ? "신청됨" : "신청")
+                Text(result.isFriend ? "친구" : (result.isRequestSent ? "신청됨" : "신청"))
                     .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 12))
                     .foregroundStyle(Color.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(.primaryColorVarient65))
+                            .fill(result.isRequestSent ? Color.gray : Color(.primaryColorVarient65))
                     )
             }
             .buttonStyle(.plain)

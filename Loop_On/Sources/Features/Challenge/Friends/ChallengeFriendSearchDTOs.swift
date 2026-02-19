@@ -47,6 +47,7 @@ struct ChallengeFriendSearchResult: Identifiable {
     let bio: String
     let profileImageURL: String?
     var isRequestSent: Bool
+    var isFriend: Bool
 }
 
 extension ChallengeFriendSearchResult {
@@ -56,6 +57,7 @@ extension ChallengeFriendSearchResult {
         self.bio = dto.bio
         self.profileImageURL = dto.profileImageURL
         self.isRequestSent = false
+        self.isFriend = false
     }
 }
 
