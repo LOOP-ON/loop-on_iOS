@@ -29,6 +29,7 @@ struct PersonalProfileView: View {
     @State private var isFriendRequestAlertPresented = false
     @State private var friendRequestAlertTitle = ""
     @State private var friendRequestAlertMessage = ""
+    @State private var isShowingDeleteAlert = false
 
     init(isOwnProfile: Bool = true, nickname: String? = nil, isRequestSent: Bool = false, onClose: (() -> Void)? = nil) {
         self.isOwnProfile = isOwnProfile
@@ -140,6 +141,20 @@ struct PersonalProfileView: View {
             if isOwnProfile && feedDetailSelectedIndex == nil {
                 viewModel.refreshProfile()
             }
+        }
+        .alert("친구 삭제", isPresented: $isShowingDeleteAlert) {
+            Button("취소", role: .cancel) {}
+            Button("삭제", role: .destructive) {
+                viewModel.deleteFriend { success, msg in
+                    if success {
+                        print("✅ 친구 삭제 완료")
+                    } else {
+                        print("❌ 친구 삭제 실패: \(msg ?? "알 수 없음")")
+                    }
+                }
+            }
+        } message: {
+            Text("정말 삭제하시겠습니까?")
         }
         .fullScreenCover(isPresented: Binding(
             get: { feedDetailSelectedIndex != nil },
@@ -299,8 +314,8 @@ struct PersonalProfileView: View {
             } else {
                 // 타인 프로필: 한 줄짜리 \"친구 신청\" 버튼
                 if viewModel.isFriend {
-                    ProfileActionButton(title: "친구") {
-                        print("이미 친구입니다.")
+                    ProfileActionButton(title: "친구 삭제", backgroundColor: Color(.systemRed)) {
+                        isShowingDeleteAlert = true
                     }
                     .padding(.top, 24)
                 } else if viewModel.isFriendRequestSent {
