@@ -72,7 +72,7 @@ struct ChallengeFriendsView: View {
 
             requestButton
                 .padding(.trailing, 20)
-                .padding(.bottom, 30 + safeAreaBottomHeight)
+                .padding(.bottom, bottomPaddingAboveTabBar)
         }
         .alert(
             deleteAlertTitle,
@@ -182,6 +182,12 @@ private extension ChallengeFriendsView {
         let windowScene = scenes.first as? UIWindowScene
         let window = windowScene?.windows.first
         return window?.safeAreaInsets.bottom ?? 0
+    }
+
+    /// 여정광장 FAB과 동일한 위치 (탭바 높이 + safe area)
+    private var bottomPaddingAboveTabBar: CGFloat {
+        let tabBarContentHeight: CGFloat = 56
+        return tabBarContentHeight + safeAreaBottomHeight
     }
 
     var deleteAlertTitle: String {
