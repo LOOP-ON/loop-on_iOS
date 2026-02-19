@@ -640,10 +640,24 @@ private extension ChallengeExpeditionDetailView {
         withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let withoutFraction = ISO8601DateFormatter()
         withoutFraction.formatOptions = [.withInternetDateTime]
-        let parsedDate = withFraction.date(from: raw) ?? withoutFraction.date(from: raw)
-        guard let date = parsedDate else { return raw }
+        var date = withFraction.date(from: raw) ?? withoutFraction.date(from: raw)
+        if date == nil {
+            let fallback = DateFormatter()
+            fallback.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            fallback.locale = Locale(identifier: "en_US_POSIX")
+            date = fallback.date(from: raw)
+        }
+        if date == nil {
+            let fallback = DateFormatter()
+            fallback.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+            fallback.locale = Locale(identifier: "en_US_POSIX")
+            date = fallback.date(from: raw)
+        }
+        guard let date = date else {
+            return raw.replacingOccurrences(of: "T", with: " ")
+        }
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy.MM.dd"
+        formatter.dateFormat = "yyyy.MM.dd HH:mm"
         formatter.locale = Locale(identifier: "ko_KR")
         return formatter.string(from: date)
     }

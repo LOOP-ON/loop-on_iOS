@@ -94,10 +94,24 @@ final class ChallengePlazaViewModel: ObservableObject {
         withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let withoutFraction = ISO8601DateFormatter()
         withoutFraction.formatOptions = [.withInternetDateTime]
-        let date = withFraction.date(from: iso) ?? withoutFraction.date(from: iso)
-        guard let date = date else { return iso }
+        var date = withFraction.date(from: iso) ?? withoutFraction.date(from: iso)
+        if date == nil {
+            let fallback = DateFormatter()
+            fallback.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            fallback.locale = Locale(identifier: "en_US_POSIX")
+            date = fallback.date(from: iso)
+        }
+        if date == nil {
+            let fallback = DateFormatter()
+            fallback.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+            fallback.locale = Locale(identifier: "en_US_POSIX")
+            date = fallback.date(from: iso)
+        }
+        guard let date = date else {
+            return iso.replacingOccurrences(of: "T", with: " ")
+        }
         let out = DateFormatter()
-        out.dateFormat = "yyyy.MM.dd"
+        out.dateFormat = "yyyy.MM.dd HH:mm"
         out.locale = Locale(identifier: "ko_KR")
         return out.string(from: date)
     }
