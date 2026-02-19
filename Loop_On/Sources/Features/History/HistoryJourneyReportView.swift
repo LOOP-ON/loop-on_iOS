@@ -257,8 +257,15 @@ struct HistoryJourneyReportView: View {
     // MARK: - 성장 추이 그래프
     /// API에서 day1Rate, day2Rate, day3Rate가 있으면 사용하고, 없으면 임시 로직(연중 일자 기반)으로 6포인트 생성
     private var growthData: [GrowthDataPoint] {
-        let rates = [report.day1Rate, report.day2Rate, report.day3Rate].compactMap { $0 }
-        if rates.count >= 2 {
+        var rates = [report.day1Rate, report.day2Rate, report.day3Rate].compactMap { $0 }
+        
+        // journeyDay가 존재하면 해당 일차까지만 데이터 사용
+        if let currentDay = report.journeyDay, currentDay > 0 {
+            let limit = min(currentDay, rates.count)
+            rates = Array(rates.prefix(limit))
+        }
+
+        if rates.count >= 1 {
             // API 데이터: Day1~DayN 실행률을 그대로 사용 (마지막이 현재 보고 있는 날짜)
             return rates.enumerated().map { offset, rate in
                 GrowthDataPoint(

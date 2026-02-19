@@ -178,13 +178,7 @@ struct HistoryView: View {
                             )
                             .frame(minHeight: 0, maxHeight: .infinity)
                             .background(Color(.systemGroupedBackground))
-                        } else if hasRoutineRecordsInCurrentMonth {
-                            // 현재 달에 기록이 있지만 선택된 날짜에는 없으면 안내 메시지
-                            MessageMidpointContainer {
-                                Text("날짜를 선택하면 리포트 확인이 가능합니다 :)")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(Color("25-Text"))
-                            }
+
                         } else {
                             // 현재 달에 기록이 없으면 안내 메시지
                             MessageMidpointContainer {

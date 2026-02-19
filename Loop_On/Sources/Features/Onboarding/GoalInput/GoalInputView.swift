@@ -49,6 +49,8 @@ struct GoalInputView: View {
             }
         }
         .animation(.default, value: viewModel.isSaving)
+        .toolbar(viewModel.isSaving ? .hidden : .visible, for: .navigationBar)
+        .navigationBarBackButtonHidden(viewModel.isSaving)
         .onAppear {
             // 화면이 나타날 때 세션의 닉네임을 ViewModel에 동기화
             viewModel.updateNickname(session.currentUserNickname)
@@ -184,5 +186,4 @@ struct GoalInputView: View {
         .environment(NavigationRouter())
         .environment(SessionStore())
 }
-
 

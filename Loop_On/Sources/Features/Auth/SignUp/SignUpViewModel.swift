@@ -159,8 +159,12 @@ final class SignUpViewModel: ObservableObject {
             return
         }
 
-        // 이미 확인한 이메일과 같으면 스킵
-        guard trimmed != lastCheckedEmail else { return }
+        // 이미 사용 가능으로 확인한 이메일과 같으면 성공 상태를 재사용
+        if trimmed == lastCheckedEmail {
+            emailCheckState = .available
+            errorMessage = nil
+            return
+        }
 
         emailCheckState = .checking
         errorMessage = nil

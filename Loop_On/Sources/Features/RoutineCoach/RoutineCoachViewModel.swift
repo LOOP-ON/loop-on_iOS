@@ -35,6 +35,7 @@ class RoutineCoachViewModel: ObservableObject {
     @Published var tempSelectionDate = Date() // 피커에서 임시로 선택 중인 시간
     @Published var isEditing: Bool = false // 편집 모드 상태
     @Published var isRegenerating: Bool = false // 재생성 모드 상태
+    @Published var regeneratingRoutineIDs: Set<UUID> = []
     
     
     // 이 값들은 이전 단계에서 받아왔거나 설정된 값이라고 가정
@@ -134,9 +135,44 @@ class RoutineCoachViewModel: ObservableObject {
     }
     
     func regenerateSingleRoutine(at index: Int) {
-        // 해당 루틴의 데이터를 랜덤하게 변경하거나 서버에서 새로 받아옴
-        print("DEBUG: \(index + 1)번 루틴 재생성 요청")
-        // routines[index].name = "새로 생성된 루틴"
+        guard routines.indices.contains(index) else { return }
+        let routine = routines[index]
+        guard !regeneratingRoutineIDs.contains(routine.id) else { return }
+
+        let request = RoutineRegenerateRequest(
+            originalGoal: sanitizeText(routine.name),
+            mainGoal: sanitizeText(goal_text)
+        )
+
+        regeneratingRoutineIDs.insert(routine.id)
+        errorMessage = nil
+        print("DEBUG: \(index + 1)번 루틴 재생성 API 요청")
+
+        networkManager.request(
+            target: .regenerateRoutine(request: request),
+            decodingType: RoutineRegenerateData.self
+        ) { [weak self] result in
+            guard let self else { return }
+            _Concurrency.Task { @MainActor in
+                defer { self.regeneratingRoutineIDs.remove(routine.id) }
+
+                switch result {
+                case .success(let data):
+                    guard let targetIndex = self.routines.firstIndex(where: { $0.id == routine.id }) else { return }
+                    let regeneratedText = self.sanitizeText(data.newGoal)
+                    guard !regeneratedText.isEmpty else {
+                        self.errorMessage = "재생성 결과가 비어 있습니다."
+                        return
+                    }
+                    self.routines[targetIndex].name = regeneratedText
+                    print("DEBUG: \(targetIndex + 1)번 루틴 재생성 성공 -> \(regeneratedText)")
+
+                case .failure(let error):
+                    self.errorMessage = "루틴 재생성에 실패했습니다. 잠시 후 다시 시도해주세요."
+                    print("DEBUG: 루틴 재생성 실패 - \(error)")
+                }
+            }
+        }
     }
     
     // MARK: - 루틴 삭제 및 자동 재정렬 (API 연동시 사용)

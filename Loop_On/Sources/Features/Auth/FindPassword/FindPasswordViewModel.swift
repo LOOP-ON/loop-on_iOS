@@ -9,6 +9,8 @@ import Foundation
 
 @MainActor
 final class FindPasswordViewModel: ObservableObject {
+    private let passwordResetPurpose = "PASSWORD_RESET"
+
     // Email Verification Section
     @Published var email: String = "" {
         didSet {
@@ -52,6 +54,7 @@ final class FindPasswordViewModel: ObservableObject {
         }
     }
     @Published var isPasswordResetComplete: Bool = false
+    @Published var resetToken: String?
     
     // Error Messages
     @Published var emailErrorMessage: String?
@@ -98,6 +101,7 @@ final class FindPasswordViewModel: ObservableObject {
     // 최종 제출 버튼 활성화
     var canSubmitPasswordReset: Bool {
         isVerificationCodeVerified && 
+        !(resetToken?.isEmpty ?? true) &&
         isPasswordValid && 
         isPasswordMatch && 
         !isLoading
@@ -114,6 +118,7 @@ final class FindPasswordViewModel: ObservableObject {
         verificationCode = ""
         isVerificationRequested = false
         isVerificationCodeVerified = false
+        resetToken = nil
         emailErrorMessage = nil
         verificationErrorMessage = nil
         verificationCodeSentMessage = nil
@@ -196,7 +201,8 @@ final class FindPasswordViewModel: ObservableObject {
     
     // 인증 요청
     func requestVerification() {
-        guard isEmailValid else {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isValidEmail(trimmedEmail) else {
             emailErrorMessage = "올바른 이메일 형식을 입력해주세요."
             verificationCodeSentMessage = nil
             return
@@ -206,67 +212,87 @@ final class FindPasswordViewModel: ObservableObject {
         emailErrorMessage = nil
         verificationCodeSentMessage = nil
         verificationErrorMessage = nil
-        
-        // TODO: 실제 API 호출로 변경
-        Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5초 대기
-            
-            // 더미 로직: 이메일이 "loopon@soongsil.ac.kr"이 아니면 에러 표시
-            let trimmedEmail = self.email.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmedEmail != "loopon@soongsil.ac.kr" {
+
+        networkManager.requestStatusCode(
+            target: .sendVerification(request: .init(email: trimmedEmail, purpose: passwordResetPurpose))
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
                 self.isRequestingVerification = false
-                self.emailErrorMessage = "가입되지 않은 이메일입니다."
-                self.verificationCodeSentMessage = nil
-                return
+                switch result {
+                case .success:
+                    self.isVerificationRequested = true
+                    self.verificationCodeSentMessage = "인증번호가 이메일로 발송되었습니다."
+                    self.verificationCode = ""
+                    self.verificationSuccessMessage = nil
+                    self.isVerificationCodeVerified = false
+                    self.resetToken = nil
+                    self.startTimer()
+                case .failure(let error):
+                    self.emailErrorMessage = error.localizedDescription
+                    self.verificationCodeSentMessage = nil
+                }
             }
-            
-            // 성공: 인증번호 발송
-            self.isRequestingVerification = false
-            self.isVerificationRequested = true
-            self.verificationCodeSentMessage = "인증번호가 이메일로 발송되었습니다."
-            self.verificationCode = "" // 인증번호 필드 초기화
-            self.verificationSuccessMessage = nil
-            self.isVerificationCodeVerified = false
-            self.startTimer() // 타이머 시작
         }
     }
     
     // 인증번호 확인
     func verifyCode() {
-        guard !verificationCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedCode = verificationCode.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedCode.isEmpty else {
             verificationErrorMessage = "인증번호를 입력해주세요."
+            return
+        }
+        guard isVerificationRequested else {
+            verificationErrorMessage = "먼저 인증 요청을 진행해주세요."
             return
         }
         
         isVerifyingCode = true
         verificationErrorMessage = nil
-        
-        // TODO: 실제 API 호출로 변경
-        Task {
-            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1초 대기
-            
-            // 더미 로직: 인증번호가 "0000"이면 성공, 아니면 실패
-            let trimmedCode = self.verificationCode.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmedCode == "0000" {
-                // 성공
+
+        networkManager.request(
+            target: .verifyVerification(
+                request: .init(
+                    email: trimmedEmail,
+                    code: trimmedCode,
+                    purpose: passwordResetPurpose
+                )
+            ),
+            decodingType: String.self
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
                 self.isVerifyingCode = false
-                self.isVerificationCodeVerified = true
-                self.verificationSuccessMessage = "인증되었습니다."
-                self.verificationErrorMessage = nil
-                self.verificationCodeSentMessage = nil
-                self.stopTimer() // 타이머 중지
-            } else {
-                // 실패
-                self.isVerifyingCode = false
-                self.isVerificationCodeVerified = false
-                self.verificationErrorMessage = "잘못된 인증번호입니다."
-                self.verificationSuccessMessage = nil
+                switch result {
+                case .success(let token):
+                    self.isVerificationCodeVerified = true
+                    self.verificationSuccessMessage = "인증되었습니다."
+                    self.verificationErrorMessage = nil
+                    self.verificationCodeSentMessage = nil
+                    self.resetToken = token
+                    self.stopTimer()
+                case .failure(let error):
+                    self.isVerificationCodeVerified = false
+                    self.verificationErrorMessage = error.localizedDescription
+                    self.verificationSuccessMessage = nil
+                    self.resetToken = nil
+                }
             }
         }
     }
     
     // 비밀번호 재설정
     func resetPassword() {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPassword = newPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let resetToken, !resetToken.isEmpty else {
+            passwordErrorMessage = "인증이 만료되었습니다. 인증을 다시 진행해주세요."
+            return
+        }
+
         guard isVerificationCodeVerified else {
             passwordErrorMessage = "이메일 인증을 완료해주세요."
             return
@@ -284,14 +310,26 @@ final class FindPasswordViewModel: ObservableObject {
         
         isLoading = true
         passwordErrorMessage = nil
-        
-        // TODO: 실제 API 호출로 변경
-        Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5초 대기
-            
-            // 더미 로직: 항상 성공
-            self.isLoading = false
-            self.isPasswordResetComplete = true
+
+        networkManager.requestStatusCode(
+            target: .resetPassword(
+                request: .init(
+                    email: trimmedEmail,
+                    resetToken: resetToken,
+                    newPassword: trimmedPassword
+                )
+            )
+        ) { [weak self] result in
+            guard let self else { return }
+            Task { @MainActor in
+                self.isLoading = false
+                switch result {
+                case .success:
+                    self.isPasswordResetComplete = true
+                case .failure(let error):
+                    self.passwordErrorMessage = error.localizedDescription
+                }
+            }
         }
     }
     

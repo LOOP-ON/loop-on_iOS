@@ -10,6 +10,8 @@ import SwiftUI
 struct ChallengeCommentSheetView: View {
     let challengeId: Int
     let onClose: () -> Void
+    /// (challengeId, completion(댓글 목록)) — 최초 로드용. 제공 시 시트 열리자마자 API 호출, 로딩 애니메이션 표시
+    var onLoadComments: ((Int, @escaping ([ChallengeComment]) -> Void) -> Void)?
     /// (challengeId, nextPage, completion(추가 댓글, hasMore))
     var onLoadMore: ((Int, Int, @escaping ([ChallengeComment], Bool) -> Void) -> Void)?
     /// (commentId, isLiked, completion(success))
@@ -24,13 +26,15 @@ struct ChallengeCommentSheetView: View {
     @State private var replyParentId: Int?
     @State private var isPosting = false
     @State private var commentItems: [ChallengeComment]
+    @State private var isInitialLoading = false
     @State private var currentPage = 1
     @State private var hasMore = true
     @State private var isLoadingMore = false
 
     init(
         challengeId: Int,
-        comments: [ChallengeComment],
+        comments: [ChallengeComment] = [],
+        onLoadComments: ((Int, @escaping ([ChallengeComment]) -> Void) -> Void)? = nil,
         onClose: @escaping () -> Void,
         onLoadMore: ((Int, Int, @escaping ([ChallengeComment], Bool) -> Void) -> Void)? = nil,
         onCommentLike: ((Int, Bool, @escaping (Bool) -> Void) -> Void)? = nil,
@@ -39,11 +43,13 @@ struct ChallengeCommentSheetView: View {
     ) {
         self.challengeId = challengeId
         self.onClose = onClose
+        self.onLoadComments = onLoadComments
         self.onLoadMore = onLoadMore
         self.onCommentLike = onCommentLike
         self.onPostComment = onPostComment
         self.onDeleteComment = onDeleteComment
         _commentItems = State(initialValue: comments)
+        _isInitialLoading = State(initialValue: onLoadComments != nil)
     }
 
     var body: some View {
@@ -53,38 +59,62 @@ struct ChallengeCommentSheetView: View {
                 .padding(.top, 16)
 
             ScrollView {
-                LazyVStack(spacing: 16) {
-                    ForEach(commentItems) { comment in
-                        CommentRowView(
-                            comment: comment,
-                            onReply: { targetName, parentId in
-                                replyTargetName = targetName
-                                replyParentId = parentId
-                            },
-                            onDelete: {
-                                removeComment(comment)
-                            },
-                            onLike: { commentId, isLiked, completion in
-                                onCommentLike?(commentId, isLiked) { success in
-                                    if success, let idx = commentItems.firstIndex(where: { $0.commentId == commentId }) {
-                                        commentItems[idx].isLiked = isLiked
-                                        if isLiked {
-                                            commentItems[idx].likeCount += 1
-                                        } else {
-                                            commentItems[idx].likeCount = max(0, commentItems[idx].likeCount - 1)
+                Group {
+                    if isInitialLoading {
+                        VStack(spacing: 12) {
+                            Spacer()
+                                .frame(height: 80)
+                            ProgressView()
+                                .scaleEffect(1.2)
+                            Text("댓글을 불러오는 중...")
+                                .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
+                                .foregroundStyle(Color.gray)
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        LazyVStack(spacing: 16) {
+                            ForEach(commentItems) { comment in
+                                CommentRowView(
+                                    comment: comment,
+                                    onReply: { targetName, parentId in
+                                        replyTargetName = targetName
+                                        replyParentId = parentId
+                                    },
+                                    onDelete: {
+                                        removeComment(comment)
+                                    },
+                                    onLike: { commentId, isLiked, completion in
+                                        onCommentLike?(commentId, isLiked) { success in
+                                            if success, let idx = commentItems.firstIndex(where: { $0.commentId == commentId }) {
+                                                commentItems[idx].isLiked = isLiked
+                                                if isLiked {
+                                                    commentItems[idx].likeCount += 1
+                                                } else {
+                                                    commentItems[idx].likeCount = max(0, commentItems[idx].likeCount - 1)
+                                                }
+                                            }
+                                            completion(success)
                                         }
                                     }
-                                    completion(success)
-                                }
+                                )
                             }
-                        )
-                    }
-                    if let onLoadMore = onLoadMore, hasMore {
-                        loadMoreTrigger
+                            if let onLoadMore = onLoadMore, hasMore {
+                                loadMoreTrigger
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
+            }
+            .onAppear {
+                if isInitialLoading, let onLoadComments = onLoadComments {
+                    onLoadComments(challengeId) { loaded in
+                        commentItems = loaded
+                        isInitialLoading = false
+                    }
+                }
             }
 
             Divider()
