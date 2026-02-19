@@ -238,24 +238,33 @@ extension ChallengeAPI: TargetType {
                 encoding: URLEncoding.queryString
             )
         case let .createChallenge(request, imageDatas):
-            let encoder = JSONEncoder()
-            encoder.keyEncodingStrategy = .useDefaultKeys
             var parts: [MultipartFormData] = []
-            if let requestData = try? encoder.encode(request) {
-                parts.append(MultipartFormData(
-                    provider: .data(requestData),
+            
+            // 1) requestDto (JSON data)
+            if let jsonData = try? JSONEncoder().encode(request) {
+                // Moya/Alamofire가 boundary를 자동으로 처리하므로,
+                // 여기서는 part의 name, fileName 등을 정확히 지정
+                // 서버가 요구하는 part name이 `requestDto`이고 Content-Type이 application/json이라고 가정
+                let part = MultipartFormData(
+                    provider: .data(jsonData),
                     name: "requestDto",
+                    fileName: nil, 
                     mimeType: "application/json"
-                ))
+                )
+                parts.append(part)
             }
+            
+            // 2) imageFiles (Multiple images)
             for (index, data) in imageDatas.enumerated() {
-                parts.append(MultipartFormData(
+                let part = MultipartFormData(
                     provider: .data(data),
                     name: "imageFiles",
                     fileName: "image_\(index).jpg",
                     mimeType: "image/jpeg"
-                ))
+                )
+                parts.append(part)
             }
+            
             return .uploadMultipart(parts)
         case let .updateChallenge(_, request, imageDatas):
             let encoder = JSONEncoder()

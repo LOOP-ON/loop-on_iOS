@@ -14,6 +14,7 @@ struct PersonalProfileView: View {
     var onClose: (() -> Void)? = nil
 
     @Environment(NavigationRouter.self) private var router
+    @Environment(SessionStore.self) var session // SessionStore 주입
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = PersonalProfileViewModel()
     @State private var isShowingProfileEdit = false
@@ -109,7 +110,16 @@ struct PersonalProfileView: View {
             .safeAreaPadding(.top, 1)
         }
         .fullScreenCover(isPresented: $isShowingShareJourney) {
-            ShareJourneyView()
+            ShareJourneyView(journeyId: session.currentJourneyId)
+        }
+        .onChange(of: isShowingShareJourney) { _, isPresented in
+            // 챌린지 추가 팝업이 닫힐 때(isPresented == false) 프로필 및 피드 재로드
+            if !isPresented {
+                viewModel.refreshProfile()
+            }
+        }
+        .onAppear {
+            session.syncCurrentJourneyId()
         }
         .fullScreenCover(isPresented: Binding(
             get: { feedDetailSelectedIndex != nil },
@@ -138,6 +148,12 @@ struct PersonalProfileView: View {
                 .transaction { transaction in
                     transaction.disablesAnimations = true
                 }
+            }
+        }
+        .onChange(of: isShowingProfileEdit) { _, isPresented in
+            // 편집 팝업이 닫힐 때(isPresented == false) 프로필 재로드
+            if !isPresented {
+                viewModel.loadProfile()
             }
         }
     }

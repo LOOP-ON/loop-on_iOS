@@ -29,21 +29,10 @@ final class PersonalFeedDetailViewModel: ObservableObject {
     }
 
     func loadInitial() {
-        #if DEBUG
-        // 디버그 빌드에서는 네트워크 대신 더미 피드 사용 (UI 확인용)
-        if cards.isEmpty {
-            cards = ChallengeCard.samplePlaza
-        }
-        return
-        #endif
         load(reset: true)
     }
 
     func loadMoreIfNeeded(currentCardId: Int) {
-        #if DEBUG
-        // 디버그 빌드에서는 더미 데이터만 사용하므로 추가 로딩 없음
-        return
-        #endif
         guard let index = cards.firstIndex(where: { $0.challengeId == currentCardId }) else { return }
         let thresholdIndex = max(cards.count - 4, 0)
         if index >= thresholdIndex {

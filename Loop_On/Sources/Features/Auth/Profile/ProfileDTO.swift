@@ -49,3 +49,11 @@ extension ProfileModel {
         )
     }
 }
+
+struct ProfileUpdateRequestDTO: Encodable {
+    let nickname: String
+    let bio: String
+    let statusMessage: String
+    let profileImageUrl: String
+    let visibility: String
+}

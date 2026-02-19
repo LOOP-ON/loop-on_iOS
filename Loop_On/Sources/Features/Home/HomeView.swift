@@ -83,6 +83,11 @@ struct HomeView: View {
                 viewModel.fetchHomeData()
             }
         }
+        .onChange(of: viewModel.journeyInfo?.journeyId) { _, newValue in
+            if let id = newValue {
+                session.currentJourneyId = id
+            }
+        }
     }
 }
 
@@ -311,7 +316,10 @@ private extension HomeView {
             )
             .presentationBackground(.clear)
         case .shareJourney:
-            ShareJourneyView()
+            // ViewModel의 journeyId가 없으면 SessionStore 값 사용
+            let id = viewModel.journeyInfo?.journeyId ?? 0
+            let finalId = (id > 0) ? id : session.currentJourneyId
+            ShareJourneyView(journeyId: finalId)
             
         case .viewDelay:
             DelayPopupView(

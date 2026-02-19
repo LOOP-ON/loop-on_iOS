@@ -14,6 +14,11 @@ protocol NetworkManager {
 final class DefaultNetworkManager<API: TargetType>: NetworkManager {
     typealias Endpoint = API
     let provider: MoyaProvider<API>
+    
+    private struct SimpleApiResponse: Decodable {
+        let result: String?
+        let message: String?
+    }
 
     init(stub: Bool = false, plugins: [PluginType] = []) {
         if stub {
@@ -50,7 +55,7 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
                         completion(.failure(.unauthorized))
                         return
                     }
-                    let base = try? JSONDecoder().decode(BaseResponse<EmptyData>.self, from: response.data)
+                    let base = try? JSONDecoder().decode(ApiResponse<EmptyData>.self, from: response.data)
                     let message = base?.message ?? "서버 오류"
                     if self.isAuthenticationRequired(message: message) {
                         self.notifyAuthenticationRequired()
@@ -72,8 +77,8 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
         }
 
         do {
-            // AuthViewModel에 정의된 BaseResponse 구조로 먼저 읽음
-            let baseResponse = try JSONDecoder().decode(BaseResponse<T>.self, from: response.data)
+            // AuthViewModel에 정의된 BaseResponse 구조로 먼저 읽음 -> CommonResponseDTOs의 ApiResponse 사용
+            let baseResponse = try JSONDecoder().decode(ApiResponse<T>.self, from: response.data)
             
             if baseResponse.result == "SUCCESS" {
                 if let resultData = baseResponse.data {
@@ -89,6 +94,25 @@ final class DefaultNetworkManager<API: TargetType>: NetworkManager {
                 return .failure(.serverError(statusCode: response.statusCode, message: message))
             }
         } catch let error as DecodingError {
+            // [에러 응답 처리] data 필드 타입 불일치로 인한 디코딩 에러 발생 시
+            // result와 message만 파싱하여 서버 에러로 변환
+            if let simpleResponse = try? JSONDecoder().decode(SimpleApiResponse.self, from: response.data),
+               simpleResponse.result == "FAIL",
+               let message = simpleResponse.message {
+                
+                if response.statusCode == 401 || isAuthenticationRequired(message: message) {
+                    notifyAuthenticationRequired()
+                    return .failure(.unauthorized)
+                }
+                return .failure(.serverError(statusCode: response.statusCode, message: message))
+            }
+
+            #if DEBUG
+            if let jsonString = String(data: response.data, encoding: .utf8) {
+                print("❌ Decoding Error: \(error)")
+                print("🔍 Response Body: \(jsonString)")
+            }
+            #endif
             return .failure(.decodingError(underlyingError: error))
         } catch {
             return .failure(.unknown)

@@ -41,7 +41,7 @@ extension HistoryAPI: TargetType {
     var headers: [String: String]? {
         [
             "Content-Type": "application/json",
-            "Authorization": "Bearer \(UserDefaults.standard.string(forKey: "accessToken") ?? "")"
+            "Authorization": "Bearer \(KeychainService.shared.loadToken() ?? "")"
         ]
     }
 }
@@ -171,8 +171,8 @@ class HistoryViewModel: ObservableObject {
         // #endregion
         
         // 테스트용 더미 데이터 (달력 점 + 리포트). 실제 연동 시 loadMonth() API가 해당 월을 덮어씀
-        setupExampleData()
-        setupExampleReports()
+        // setupExampleData()
+        // setupExampleReports()
         
         // #region agent log
         agentLog(
@@ -284,8 +284,8 @@ class HistoryViewModel: ObservableObject {
                 switch result {
                 case .success(let list):
                     self.applyMonthlyData(list, year: year, month: month)
-                case .failure:
-                    break
+                case .failure(let error):
+                    print("❌ loadMonth failed: \(error)")
                 }
             }
         }
@@ -325,9 +325,8 @@ class HistoryViewModel: ObservableObject {
                 case .success(let dto):
                     let report = self.mapDailyReportDTO(dto, date: dateKey)
                     self.journeyReports[dateKey] = report
-                case .failure:
-                    // 테스트용: 실패 시 기존 더미 리포트 유지 (삭제하지 않음)
-                    break
+                case .failure(let error):
+                    print("❌ loadDailyReport failed: \(error)")
                 }
             }
         }
@@ -341,9 +340,10 @@ class HistoryViewModel: ObservableObject {
     }
 
     private func mapDailyReportDTO(_ dto: DailyReportDataDTO, date: Date) -> HistoryJourneyReport {
-        let routines: [HistoryRoutineReport] = (dto.routines ?? []).map { item in
+        let routines: [HistoryRoutineReport] = (dto.routines ?? []).enumerated().map { index, item in
             let status: HistoryRoutineStatus = item.status.uppercased().contains("COMPLETED") || item.status.contains("완료") ? .completed : .postponed
-            return HistoryRoutineReport(id: item.routineId, name: item.content, status: status)
+            // 루틴 ID를 서버 ID(25, 26, 27...) 대신 순서대로 1, 2, 3...으로 변환
+            return HistoryRoutineReport(id: index + 1, name: item.content, status: status)
         }
         return HistoryJourneyReport(
             date: date,

@@ -14,10 +14,14 @@ struct ShareJourneyView: View {
     private let editChallengeId: Int?
     @StateObject private var viewModel: ShareJourneyViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(SessionStore.self) private var session
+    @State private var isShowingExpeditionPopup = false
+    @State private var buttonFrame: CGRect = .zero
+    @State private var popupSize: CGSize = .zero
 
-    init(editChallengeId: Int? = nil) {
+    init(journeyId: Int = 0, editChallengeId: Int? = nil) {
         self.editChallengeId = editChallengeId
-        _viewModel = StateObject(wrappedValue: ShareJourneyViewModel(editChallengeId: editChallengeId))
+        _viewModel = StateObject(wrappedValue: ShareJourneyViewModel(journeyId: journeyId, editChallengeId: editChallengeId))
     }
 
     private var isEditMode: Bool { editChallengeId != nil }
@@ -46,12 +50,67 @@ struct ShareJourneyView: View {
                         .ignoresSafeArea()
                     ProgressView()
                 }
+                
+                if isShowingExpeditionPopup {
+                    expeditionPopup
+                }
+                
+                // [DEBUG] Journey ID 확인용 오버레이
+                VStack {
+                    Spacer()
+                    Text("JourneyID: \(viewModel.journeyId) / Session: \(session.currentJourneyId)")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding()
+                        .background(Color.white.opacity(0.8))
+                }
+                .allowsHitTesting(false) // 터치 이벤트 통과
+                if viewModel.isShowingDuplicateChallengeAlert {
+                    CommonPopupView(
+                        isPresented: $viewModel.isShowingDuplicateChallengeAlert,
+                        title: "챌린지 업로드 실패",
+                        message: "해당 여정은 이미 챌린지가 존재합니다.",
+                        leftButtonText: "확인",
+                        leftAction: {
+                            viewModel.isShowingDuplicateChallengeAlert = false
+                        }
+                    )
+                }
+                
+                if viewModel.isShowingInputValidationAlert {
+                    CommonPopupView(
+                        isPresented: $viewModel.isShowingInputValidationAlert,
+                        title: "입력 확인",
+                        message: "사진과 캡션을 입력해주세요.",
+                        leftButtonText: "확인",
+                        leftAction: {
+                            viewModel.isShowingInputValidationAlert = false
+                        }
+                    )
+                }
             }
+            .coordinateSpace(name: "ShareJourneyZStack")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
             .onAppear {
+                // journeyId가 0이라면 세션 확인 및 서버 동기화 시도
+                if viewModel.journeyId == 0 {
+                    if session.currentJourneyId != 0 {
+                        viewModel.journeyId = session.currentJourneyId
+                        print("DEBUG: ShareJourneyView - Default journeyId applied from session: \(session.currentJourneyId)")
+                    } else {
+                        // 세션에도 없으면 서버에서 동기화 시도
+                        session.syncCurrentJourneyId { id in
+                            if let id = id {
+                                viewModel.journeyId = id
+                                print("DEBUG: ShareJourneyView - Synced journeyId from server: \(id)")
+                            }
+                        }
+                    }
+                }
                 viewModel.dismiss = { dismiss() }
                 viewModel.loadChallengeDetailIfNeeded()
+                viewModel.fetchMyExpeditions()
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -217,23 +276,138 @@ struct ShareJourneyView: View {
             Text("공개 범위")
                 .font(.system(size: 18))
             
-            HStack {
-                Text("탐험대 설정")
-                    .foregroundStyle(Color(red: 0.91, green: 0.54, blue: 0.43))
-                Spacer()
-                Text(viewModel.expeditionSetting)
-                    .foregroundStyle(Color.gray)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color.gray)
+            Button {
+                isShowingExpeditionPopup = true
+            } label: {
+                HStack {
+                    Text("탐험대 설정")
+                        .foregroundStyle(Color(red: 0.91, green: 0.54, blue: 0.43))
+                    Spacer()
+                    Text(viewModel.expeditionSetting)
+                        .foregroundStyle(Color.gray)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.gray)
+                }
+                .padding()
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
+                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
             }
-            .padding()
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
-            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+            .buttonStyle(.plain)
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear {
+                            self.buttonFrame = geo.frame(in: .named("ShareJourneyZStack"))
+                        }
+                        .onChange(of: geo.frame(in: .named("ShareJourneyZStack"))) { _, newFrame in
+                            self.buttonFrame = newFrame
+                        }
+                }
+            )
         }
         .padding(.horizontal, 20)
     }
+
+    private var expeditionPopup: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    isShowingExpeditionPopup = false
+                }
+            
+            VStack(spacing: 0) {
+                // 없음
+                Button {
+                    viewModel.expeditionSetting = "없음"
+                    viewModel.expeditionId = 0
+                    isShowingExpeditionPopup = false
+                } label: {
+                    HStack {
+                        Text("없음")
+                            .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
+                            .foregroundStyle(viewModel.expeditionSetting == "없음" ? Color(red: 0.91, green: 0.54, blue: 0.43) : Color.black)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                
+                Divider()
+                    .background(Color.gray.opacity(0.2))
+                    .padding(.horizontal, 12)
+                
+                // 내 탐험대 리스트
+                ForEach(viewModel.myExpeditions.indices, id: \.self) { index in
+                    let expedition = viewModel.myExpeditions[index]
+                    let isSelected = (viewModel.expeditionId == expedition.expeditionId)
+                    
+                    Button {
+                        viewModel.expeditionSetting = expedition.title
+                        viewModel.expeditionId = expedition.expeditionId
+                        isShowingExpeditionPopup = false
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(expedition.title)
+                                .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 14))
+                                .foregroundStyle(isSelected ? Color(red: 0.91, green: 0.54, blue: 0.43) : Color.black)
+                            
+                            if expedition.visibility == "PRIVATE" {
+                                Image(systemName: "lock")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color.gray)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    // 마지막 아이템이 아니면 구분선 추가
+                    if index < viewModel.myExpeditions.count - 1 {
+                        Divider()
+                            .background(Color.gray.opacity(0.2))
+                            .padding(.horizontal, 12)
+                    }
+                }
+            }
+            .frame(width: 180)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.white)
+            )
+            .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+            .background(
+                GeometryReader { geo in
+                    Color.clear.onAppear {
+                        self.popupSize = geo.size
+                    }
+                    .onChange(of: geo.size) { _, newSize in
+                        self.popupSize = newSize
+                    }
+                }
+            )
+            // 팝업 위치: 버튼의 우측 상단 기준 (X: 버튼 우측 끝 - 팝업 너비/2, Y: 버튼 상단 - 팝업 높이/2 - 간격)
+            // position은 뷰의 중심을 배치하므로, 팝업의 중심(width/2, height/2)을 고려해야 함.
+            // 원하는 팝업 위치(TopTrailing): (buttonFrame.maxX, buttonFrame.minY - 10)
+            // 팝업의 중심 X = 원하는 우측 좌표 - (popupSize.width / 2) = buttonFrame.maxX - (popupSize.width / 2)
+            // 팝업의 중심 Y = 원하는 하단 좌표 - (popupSize.height / 2) = (buttonFrame.minY - 10) - (popupSize.height / 2)
+            // buttonFrame이 .zero가 아닐 때만 위치 지정 (아니면 중앙)
+            .position(
+                x: buttonFrame == .zero ? UIScreen.main.bounds.width / 2 : buttonFrame.maxX - (popupSize.width / 2),
+                y: buttonFrame == .zero ? UIScreen.main.bounds.height / 2 : buttonFrame.minY - (popupSize.height / 2) - 10
+            )
+        }
+    }
 }
+
+
 
 // Preview
 #Preview {

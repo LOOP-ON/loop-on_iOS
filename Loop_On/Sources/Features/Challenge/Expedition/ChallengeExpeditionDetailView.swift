@@ -306,6 +306,7 @@ private extension ChallengeExpeditionDetailView {
                 .buttonStyle(.plain)
                 .padding(.trailing, 20)
                 .padding(.bottom, 30)
+            }
         }
     }
 

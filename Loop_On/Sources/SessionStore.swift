@@ -13,10 +13,16 @@ final class SessionStore {
     private let key = "hasLoggedInBefore"
     private let keyOnboarding = "isOnboardingCompleted"
     private let networkManager = DefaultNetworkManager<ProfileAPI>() // 프로필 API 매니저
+    private let homeNetworkManager = DefaultNetworkManager<HomeAPI>() // 홈 API 매니저
     private var hasValidatedSessionAtLaunch = false
     
     var isLoggedIn: Bool = false
     var currentUserNickname: String = "" // 닉네임을 담을 변수
+    var currentJourneyId: Int = 0 { // 현재 진행 중인 여정 ID (HomeViewModel 등에서 업데이트)
+        didSet {
+            print("DEBUG: [SessionStore] currentJourneyId updated: \(oldValue) -> \(currentJourneyId)")
+        }
+    }
 
     var isOnboardingCompleted: Bool {
         get { UserDefaults.standard.bool(forKey: keyOnboarding) }
@@ -81,6 +87,33 @@ final class SessionStore {
         isLoggedIn = false
         isOnboardingCompleted = false
         hasValidatedSessionAtLaunch = false
+        currentJourneyId = 0
+    }
+    
+    // 현재 여정 ID 동기화 함수
+    func syncCurrentJourneyId(completion: ((Int?) -> Void)? = nil) {
+        guard let token = KeychainService.shared.loadToken(), !token.isEmpty else {
+            completion?(nil)
+            return
+        }
+        
+        homeNetworkManager.request(
+            target: .fetchCurrentJourney, 
+            decodingType: HomeDataDetail.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let data):
+                    let journeyId = data.journey.journeyId
+                    self?.currentJourneyId = journeyId
+                    print("DEBUG: [SessionStore] 여정 ID 동기화 성공 - \(journeyId)")
+                    completion?(journeyId)
+                case .failure(let error):
+                    print("DEBUG: [SessionStore] 여정 ID 동기화 실패 - \(error.localizedDescription)")
+                    completion?(nil)
+                }
+            }
+        }
     }
     
     // 서버에서 프로필 정보를 가져오는 함수
@@ -92,7 +125,7 @@ final class SessionStore {
             return
         }
         
-        networkManager.request(target: .getMe, decodingType: UserMeData.self) { [weak self] result in
+        networkManager.request(target: .getMe(page: 0, size: 10, sort: ["createdAt,desc"]), decodingType: UserMeData.self) { [weak self] result in
             switch result {
             case .success(let userData):
                 DispatchQueue.main.async {

@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import Combine
 import PhotosUI
+import UniformTypeIdentifiers
 
 class ShareJourneyViewModel: ObservableObject {
     // UI와 바인딩될 데이터들
@@ -31,45 +32,50 @@ class ShareJourneyViewModel: ObservableObject {
     @Published var caption: String = ""
     @Published var expeditionSetting: String = "없음"
     /// API 연동 시 사용. 화면 진입 시 주입 가능 (기본 0)
-    var journeyId: Int = 0
-    var expeditionId: Int = 0
+    @Published var journeyId: Int = 0
+    @Published var expeditionId: Int = 0
 
     /// 수정 모드: 값이 있으면 기존 챌린지 로드 후 수정 API 호출
     var editChallengeId: Int?
     @Published var isLoadingDetail: Bool = false
     @Published var loadDetailError: String?
+    @Published var isShowingDuplicateChallengeAlert = false
+    @Published var isShowingInputValidationAlert = false
+    
+    @Published var myExpeditions: [ChallengeExpeditionListItemDTO] = [] // 내 탐험대 리스트
 
     private let challengeNetworkManager = DefaultNetworkManager<ChallengeAPI>()
+    private let expeditionNetworkManager = DefaultNetworkManager<ExpeditionAPI>()
 
-    init(editChallengeId: Int? = nil) {
+    init(journeyId: Int = 0, editChallengeId: Int? = nil) {
+        self.journeyId = journeyId
         self.editChallengeId = editChallengeId
     }
 
     private func handleSelectedItems() {
-        let group = DispatchGroup()
-            
-        for item in selectedItems {
-            guard photos.count < 10 else { break }
+        guard !selectedItems.isEmpty else { return }
+        let items = selectedItems
+        
+        Task {
+            for item in items {
+                if await MainActor.run(body: { self.photos.count >= 10 }) { break }
                 
-            group.enter()
-            item.loadTransferable(type: Data.self) { result in
-                defer { group.leave() }
-                    
-                switch result {
-                case .success(let data):
-                    if let data = data, let image = UIImage(data: data) {
-                        DispatchQueue.main.async {
+                // Data로 로드 시도
+                do {
+                    if let data = try await item.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        await MainActor.run {
                             self.photos.append(image)
-                            self.photoOriginURLs.append("") // 새로 추가한 사진
+                            self.photoOriginURLs.append("")
                         }
+                    } else {
+                         print("DEBUG: 사진 로드 실패 (Data 로드 불가 혹은 UIImage 변환 실패)")
                     }
-                case .failure(let error):
-                    print("사진 로드 실패: \(error.localizedDescription)")
+                } catch {
+                    print("DEBUG: 사진 로드 에러: \(error.localizedDescription)")
                 }
             }
-        }
-        group.notify(queue: .main) {
-            self.selectedItems = []
+            await MainActor.run { self.selectedItems = [] }
         }
     }
     
@@ -126,6 +132,18 @@ class ShareJourneyViewModel: ObservableObject {
     
     // POST /api/challenges 또는 PUT /api/challenges/{id} 연동
     func uploadChallenge() {
+        // [Safety Check] journeyId가 0이면 업로드 불가
+        guard journeyId > 0 else {
+            print("❌ API Error: journeyId가 0입니다. 세션이나 홈 데이터가 로드되지 않았을 수 있습니다.")
+            return
+        }
+        
+        // [Validation Check] 사진과 캡션 필수 입력
+        if photos.isEmpty || caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            isShowingInputValidationAlert = true
+            return
+        }
+        
         let hashtagList = Array(selectedHashtags)
         let dto = CreateChallengeRequestDTO(
             hashtagList: hashtagList,
@@ -143,13 +161,7 @@ class ShareJourneyViewModel: ObservableObject {
                 decodingType: CreateChallengeDataDTO.self
             ) { [weak self] result in
                 DispatchQueue.main.async {
-                    switch result {
-                    case .success:
-                        print("[챌린지 수정] 성공")
-                        self?.dismiss?()
-                    case .failure(let error):
-                        print("[챌린지 수정] 실패: \(error)")
-                    }
+                    self?.handleUpdateResult(result)
                 }
             }
         } else {
@@ -159,13 +171,7 @@ class ShareJourneyViewModel: ObservableObject {
                 decodingType: CreateChallengeDataDTO.self
             ) { [weak self] result in
                 DispatchQueue.main.async {
-                    switch result {
-                    case .success(let data):
-                        print("[챌린지 업로드] 성공 — challengeId: \(data.challengeId)")
-                        self?.dismiss?()
-                    case .failure(let error):
-                        print("[챌린지 업로드] 실패: \(error)")
-                    }
+                    self?.handleUploadResult(result)
                 }
             }
         }
@@ -261,6 +267,52 @@ class ShareJourneyViewModel: ObservableObject {
         )
         return (dto, newImageDatas)
     }
+    
+    // 내 탐험대 목록 가져오기
+    func fetchMyExpeditions() {
+        expeditionNetworkManager.request(
+            target: .getMyExpeditions,
+            decodingType: ChallengeMyExpeditionListDTO.self
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let response):
+                    self?.myExpeditions = response.expeditionGetResponses
+                    print("내 탐험대 목록 로드 성공: \(response.expeditionGetResponses.count)개")
+                case .failure(let error):
+                    print("내 탐험대 목록 로드 실패: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func handleUpdateResult(_ result: Result<CreateChallengeDataDTO, NetworkError>) {
+        switch result {
+        case .success:
+            print("[챌린지 수정] 성공")
+            self.dismiss?()
+        case .failure(let error):
+            print("[챌린지 수정] 실패: \(error)")
+        }
+    }
+
+    private func handleUploadResult(_ result: Result<CreateChallengeDataDTO, NetworkError>) {
+        switch result {
+        case .success(let data):
+            print("[챌린지 업로드] 성공 — challengeId: \(data.challengeId)")
+            self.dismiss?()
+        case .failure(let error):
+            print("[챌린지 업로드] 실패: \(error)")
+            
+            // 400 Bad Request & 특정 메시지 확인
+            if case .serverError(let statusCode, let message) = error,
+               statusCode == 400,
+               message == "해당 여정은 이미 챌린지가 존재합니다." {
+                self.isShowingDuplicateChallengeAlert = true
+            }
+        }
+    }
+
 }
 
 private extension Array {
@@ -268,3 +320,5 @@ private extension Array {
         indices.contains(index) ? self[index] : nil
     }
 }
+
+

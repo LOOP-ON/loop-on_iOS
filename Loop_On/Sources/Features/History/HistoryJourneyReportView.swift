@@ -53,9 +53,9 @@ struct HistoryJourneyReportView: View {
         return formatter
     }()
     
-    // 온보딩에서 설정한 목표가 비어 있으면 placeholder 사용
+    // 온보딩에서 설정한 목표가 비어 있으면 placeholder 사용 -> API에서 빈 문자열이면 빈 문자열 그대로 표시
     private var goalText: String {
-        report.goal.isEmpty ? "건강한 생활 만들기" : report.goal
+        report.goal // .isEmpty 체크 제거 (요청사항: 텍스트 없을 때 placeholder 제거)
     }
     
     /// API에서 journeyDay가 있으면 "2월 12일 · 3일차 여정 리포트", 없으면 "2월 12일 여정 리포트"
@@ -142,55 +142,34 @@ struct HistoryJourneyReportView: View {
                     }
                     
                     // 여정 기록 (작성된 내용) — 루틴 요약과 동일하게 흰색 카드 안에 기록 + 사진
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("여정 기록")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Color("25-Text"))
-                            .padding(.leading, 4)
-                        
+                    // 기록 내용이 없으면 섹션 자체를 숨김
+                    if let content = report.recordContent, !content.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            // 기록 텍스트 (있으면 위에 표시)
-                            if let content = report.recordContent, !content.isEmpty {
+                            Text("여정 기록")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color("25-Text"))
+                                .padding(.leading, 4)
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                // 기록 텍스트
                                 Text(content)
                                     .font(.system(size: 14))
                                     .foregroundStyle(Color("5-Text"))
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .multilineTextAlignment(.leading)
                                     .padding(.bottom, 8)
-                            } else {
-                                Text("오늘은 아침 스트레칭과 물 8잔 마시기를 지켜서 뿌듯했다. 저녁 산책은 다음에 꼭 하자.")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(Color("5-Text").opacity(0.7))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .multilineTextAlignment(.leading)
-                                    .padding(.bottom, 8)
+                                    
+                                // TODO: API에 사진 URL 목록이 추가되면 여기에 표시. 현재는 텍스트만 표시하거나 사진이 없으면 숨김.
+                                // 사진이 없는데 placeholder가 들어가 있어서 제거함.
                             }
-                            
-                            // 기록 아래 사진 영역 (항상 3장, 가운데 정렬)
-                            HStack {
-                                Spacer(minLength: 0)
-                                HStack(spacing: 12) {
-                                    ForEach(0..<3, id: \.self) { _ in
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color(.systemGray6))
-                                            .frame(width: 88, height: 88)
-                                            .overlay(
-                                                Image(systemName: "photo")
-                                                    .font(.system(size: 28))
-                                                    .foregroundStyle(Color("45-Text").opacity(0.5))
-                                            )
-                                    }
-                                }
-                                Spacer(minLength: 0)
-                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.white)
+                            )
+                            .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.white)
-                        )
-                        .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
                     }
                 }
                 .padding(.horizontal, 24) // 여정 리포트 영역 전체 양옆 패딩 4씩 증가

@@ -40,7 +40,7 @@ final class PersonalProfileViewModel: ObservableObject {
         errorMessage = nil
 
         profileNetworkManager.request(
-            target: .getMe,
+            target: .getMe(page: 0, size: 20, sort: ["createdAt,desc"]),
             decodingType: UserMeResponseDTO.self
         ) { [weak self] result in
             DispatchQueue.main.async {
@@ -51,9 +51,14 @@ final class PersonalProfileViewModel: ObservableObject {
                     let nickname = profile.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
                     let bio = profile.bio?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     let statusMessage = profile.statusMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    
+                    print("✅ [Profile] /api/users/me 연동 성공: 닉네임(\(nickname)), 한줄소개(\(bio)), 상태메시지(\(statusMessage))")
+                    
+                    // 한줄소개(bio)가 먼저 오고, 그 다음 줄에 상태메시지가 오도록 구성 (요청사항 반영)
                     let composedBio = [bio, statusMessage]
                         .filter { !$0.isEmpty }
                         .joined(separator: "\n")
+                        
                     self.user = UserModel(
                         id: String(profile.userId),
                         name: nickname.isEmpty ? "사용자" : nickname,
