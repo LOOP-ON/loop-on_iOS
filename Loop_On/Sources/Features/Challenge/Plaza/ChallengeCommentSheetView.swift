@@ -350,14 +350,16 @@ private struct CommentRowView: View {
                     .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 14))
                     .foregroundStyle(Color("5-Text"))
 
-                Button {
-                    onReply(comment.authorName, comment.commentId)
-                } label: {
-                    Text("대댓글 달기")
-                        .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 12))
-                        .foregroundStyle(Color.gray)
+                if !comment.isReply {
+                    Button {
+                        onReply(comment.authorName, comment.commentId)
+                    } label: {
+                        Text("대댓글 달기")
+                            .font(LoopOnFontFamily.Pretendard.regular.swiftUIFont(size: 12))
+                            .foregroundStyle(Color.gray)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(.leading, comment.isReply ? 24 : 0)
