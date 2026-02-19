@@ -337,15 +337,18 @@ private struct ChallengeFriendSearchRow: View {
             } label: {
                 Text(result.isFriend ? "친구" : (result.isRequestSent ? "신청됨" : "신청"))
                     .font(LoopOnFontFamily.Pretendard.semiBold.swiftUIFont(size: 12))
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(
+                        result.isRequestSent ? Color(white: 0.4) : Color.white
+                    )
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(result.isRequestSent ? Color.gray : Color(.primaryColorVarient65))
+                            .fill(result.isRequestSent ? Color(white: 0.9) : Color(.primaryColorVarient65))
                     )
             }
             .buttonStyle(.plain)
+            .disabled(result.isFriend || result.isRequestSent)
         }
         .padding(.vertical, 6)
     }
