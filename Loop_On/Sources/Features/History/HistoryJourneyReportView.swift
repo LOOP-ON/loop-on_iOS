@@ -278,9 +278,15 @@ struct HistoryJourneyReportView: View {
         return allRates.enumerated().map { offset, rate in
             var finalRate: Double? = rate
             
-            // 값이 없는데 오늘 해당 차례라면 0.0으로 처리
-            if finalRate == nil && isToday && offset == currentDayIndex {
-                finalRate = 0.0
+            // 오늘 해당 차례인데 값이 없거나 0.0이라면 클라이언트에서 계산 시도
+            if (finalRate == nil || finalRate == 0.0) && isToday && offset == currentDayIndex {
+                let completedCount = report.routines.filter { $0.status == .completed }.count
+                let totalCount = report.routines.count
+                if totalCount > 0 {
+                    finalRate = Double(completedCount) / Double(totalCount)
+                } else {
+                    finalRate = 0.0
+                }
             }
             
             // 0.0~1.0 클램핑
