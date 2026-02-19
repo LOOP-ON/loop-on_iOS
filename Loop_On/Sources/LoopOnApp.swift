@@ -1,6 +1,7 @@
 import SwiftUI
 import KakaoSDKCommon
 import KakaoSDKAuth
+import UserNotifications
 
 @main
 struct LOOPONApp: App {
@@ -23,6 +24,8 @@ struct LOOPONApp: App {
             // TODO: KAKAO_NATIVE_APP_KEY 설정 후 로그 제거
             print("KAKAO_NATIVE_APP_KEY가 없습니다.")
         }
+
+        UNUserNotificationCenter.current().delegate = NotificationCenterDelegate.shared
     }
 
     var body: some Scene {
@@ -42,5 +45,17 @@ struct LOOPONApp: App {
                 }
             }
         }
+    }
+}
+
+final class NotificationCenterDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationCenterDelegate()
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound, .badge])
     }
 }

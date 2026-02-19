@@ -324,14 +324,22 @@ final class ProfileViewModel: ObservableObject {
         errorMessage = nil
         let currentRequestNickname = trimmed
 
-        let result = await requestStatusCodeAsync(target: .checkNickname(nickname: trimmed))
+        let result = await requestAsync(
+            target: .checkNickname(nickname: trimmed),
+            decodingType: NicknameCheckResponseDTO.self
+        )
         guard nickname.trimmingCharacters(in: .whitespacesAndNewlines) == currentRequestNickname else { return }
 
         switch result {
-        case .success:
-            nicknameCheckState = .available
-            lastCheckedNickname = currentRequestNickname
-            errorMessage = nil
+        case .success(let response):
+            if response.isAvailable {
+                nicknameCheckState = .available
+                lastCheckedNickname = currentRequestNickname
+                errorMessage = nil
+            } else {
+                nicknameCheckState = .duplicated
+                errorMessage = response.message.isEmpty ? "이미 사용 중인 닉네임입니다." : response.message
+            }
 
         case .failure(let error):
             if case let .serverError(statusCode, message) = error, statusCode == 409 {
@@ -350,10 +358,12 @@ final class ProfileViewModel: ObservableObject {
         self.flowStore = store
     }
     
-    /// completion 기반 네트워크를 async로 감싸서 사용
-    private func requestStatusCodeAsync(target: AuthAPI) async -> Result<Void, NetworkError> {
+    private func requestAsync<T: Decodable>(
+        target: AuthAPI,
+        decodingType: T.Type
+    ) async -> Result<T, NetworkError> {
         await withCheckedContinuation { continuation in
-            networkManager.requestStatusCode(target: target) { result in
+            networkManager.request(target: target, decodingType: decodingType) { result in
                 continuation.resume(returning: result)
             }
         }

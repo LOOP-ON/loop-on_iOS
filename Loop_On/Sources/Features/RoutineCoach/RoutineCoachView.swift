@@ -234,6 +234,14 @@ struct RoutineCoachView: View {
         } message: {
             Text("변경할 루틴의 이름을 입력해 주세요.")
         }
+        .alert("알림 권한이 필요해요", isPresented: $viewModel.isShowingNotificationPermissionAlert) {
+            Button("설정으로 이동") {
+                viewModel.openNotificationSettings()
+            }
+            Button("닫기", role: .cancel) { }
+        } message: {
+            Text(viewModel.notificationPermissionMessage)
+        }
         // 시간 선택 팝업
         .sheet(isPresented: $viewModel.isShowingTimePicker) {
             TimePickerSheet(
